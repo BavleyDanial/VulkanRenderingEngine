@@ -1,0 +1,10 @@
+﻿cl : command line  warning D9002: ignoring unknown option '-std=c11'
+cl : command line  warning D9002: ignoring unknown option '-lgdi32'
+  null_init.c
+  null_joystick.c
+  null_monitor.c
+  null_window.c
+  platform.c
+  win32_module.c
+  Generating Code...
+  GLFW.vcxproj -> C:\dev\MyEngine\MyEngine\vendor\GLFW\bin\Debug-windows-x86_64\GLFW\GLFW.lib
