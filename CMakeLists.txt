@@ -15,7 +15,11 @@ if (CMAKE_SIZEOF_VOID_P EQUAL 8)
 endif()
 
 # OutputDir to be used for all projects
-set(OutputDir "${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}")
+if (NOT CMAKE_CONFIGURATION_TYPES)
+    set(OutputDir "${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}")
+else()
+    set(OutputDir "${CMAKE_SOURCE_DIR}/bin/")
+endif()
 
 file(GLOB_RECURSE SOURCE "${CMAKE_SOURCE_DIR}/src/**.cpp")
 file(GLOB_RECURSE HEADER_SOURCE "${CMAKE_SOURCE_DIR}/header/**.h")

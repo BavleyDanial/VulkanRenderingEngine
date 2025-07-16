@@ -1,4 +1,5 @@
-#include <VulkanContext.h>
+#include <Vulkan/VulkanContext.h>
+#include <Vulkan/VulkanPhysicalDevice.h>
 
 #include <Engine.h>
 #include <vulkan/vulkan_core.h>
@@ -47,6 +48,20 @@ namespace VKRE {
 
         for (const char* extension : extensions) {
             std::println("{0}", extension);
+        }
+
+        VulkanPhysicalDeviceSelector deviceSelector(mInstance);
+        std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
+                                                            .SetRequiredQueueFamilies({VK_QUEUE_GRAPHICS_BIT, VK_QUEUE_TRANSFER_BIT})
+                                                            .Build();
+
+        // TODO: Print info in debug mode
+        if (physicalDevice.has_value()) {
+            std::println("Name Used: {}", physicalDevice.value().name);
+            std::println("Actual Name: {}", physicalDevice.value().properties.deviceName);
+            for (const auto& queue : physicalDevice.value().queueFamilies) {
+                std::println("Queue Flags: {}", queue.queueFlags);
+            }
         }
     }
 
