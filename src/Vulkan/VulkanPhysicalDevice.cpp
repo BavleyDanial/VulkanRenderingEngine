@@ -1,12 +1,14 @@
 #include <Vulkan/VulkanPhysicalDevice.h>
 
+#include <Vulkan/VulkanContext.h>
+
 namespace VKRE {
 
-    VulkanPhysicalDeviceSelector::VulkanPhysicalDeviceSelector(VkInstance instance)
-        :VulkanPhysicalDeviceSelector(instance, VK_NULL_HANDLE) {}
+    VulkanPhysicalDeviceSelector::VulkanPhysicalDeviceSelector(const VulkanContext* const context)
+        :VulkanPhysicalDeviceSelector(context, VK_NULL_HANDLE) {}
 
-    VulkanPhysicalDeviceSelector::VulkanPhysicalDeviceSelector(VkInstance instance, VkSurfaceKHR surface) {
-        mInstanceInfo.instance = instance;
+    VulkanPhysicalDeviceSelector::VulkanPhysicalDeviceSelector(const VulkanContext* const context, VkSurfaceKHR surface) {
+        mInstanceInfo.instance = context->GetInstance();
         mInstanceInfo.surface = surface;
     }
 
@@ -30,6 +32,7 @@ namespace VKRE {
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
         selectedDevice.queueFamilies.resize(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, selectedDevice.queueFamilies.data());
+        selectedDevice.queueFamilyIndicies = FindQueueFamilies(physicalDevice);
 
         return selectedDevice;
     }
@@ -81,8 +84,7 @@ namespace VKRE {
         int index = 0;
         for (const auto& queue : queueFamilies) {
             if (queue.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                indices.graphicsQueue = index;
-                indices.presentQueue = index;
+                indices.graphicsFamily = index;
             }
 
             if (indices.IsComplete())
@@ -104,7 +106,7 @@ namespace VKRE {
              mSelectionCriteria.properties.deviceType = VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
              break;
          case PhysicalDeviceType::DEDICATED:
-             mSelectionCriteria.properties.deviceType = VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
+             mSelectionCriteria.properties.deviceType = VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
              break;
         }
 

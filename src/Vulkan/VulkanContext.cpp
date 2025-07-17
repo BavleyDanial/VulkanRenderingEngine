@@ -1,4 +1,6 @@
 #include <Vulkan/VulkanContext.h>
+
+#include <Vulkan/VulkanLogicalDevice.h>
 #include <Vulkan/VulkanPhysicalDevice.h>
 
 #include <Engine.h>
@@ -50,22 +52,19 @@ namespace VKRE {
             std::println("{0}", extension);
         }
 
-        VulkanPhysicalDeviceSelector deviceSelector(mInstance);
+        VulkanPhysicalDeviceSelector deviceSelector(this);
         std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
                                                             .SetRequiredQueueFamilies({VK_QUEUE_GRAPHICS_BIT, VK_QUEUE_TRANSFER_BIT})
                                                             .Build();
+        mPhysicalDevice = physicalDevice.value();
 
-        // TODO: Print info in debug mode
-        if (physicalDevice.has_value()) {
-            std::println("Name Used: {}", physicalDevice.value().name);
-            std::println("Actual Name: {}", physicalDevice.value().properties.deviceName);
-            for (const auto& queue : physicalDevice.value().queueFamilies) {
-                std::println("Queue Flags: {}", queue.queueFlags);
-            }
-        }
+        VulkanLogicalDeviceBuilder deviceBuilder(mPhysicalDevice);
+        std::optional<VulkanLogicalDevice> logicalDevice = deviceBuilder.Build();
+        mLogicalDevice = logicalDevice.value();
     }
 
     VulkanContext::~VulkanContext() {
+        mLogicalDevice.Destroy();
         vkDestroyInstance(mInstance, nullptr);
     }
 

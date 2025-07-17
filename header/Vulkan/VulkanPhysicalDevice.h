@@ -18,11 +18,10 @@ namespace VKRE {
 
     // TODO: Change this so that not all queues are required
     struct QueueFamilyIndinces {
-        std::optional<uint32_t> graphicsQueue;
-        std::optional<uint32_t> presentQueue;
+        std::optional<uint32_t> graphicsFamily;
 
         bool IsComplete() {
-            return graphicsQueue.has_value() && presentQueue.has_value();
+            return graphicsFamily.has_value();
         }
     };
 
@@ -34,28 +33,13 @@ namespace VKRE {
         VkPhysicalDeviceProperties properties{};
         VkPhysicalDeviceFeatures features{};
         std::vector<VkQueueFamilyProperties> queueFamilies;
-
-        QueueFamilyIndinces FindQueueFamilies() const {
-            QueueFamilyIndinces indices;
-            int index = 0;
-            for (const auto& queue : queueFamilies) {
-                if (queue.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                    indices.graphicsQueue = index;
-                    indices.presentQueue = index;
-                }
-
-                if (indices.IsComplete())
-                    break;
-            }
-
-            return indices;
-        }
+        QueueFamilyIndinces queueFamilyIndicies{};
     };
 
     class VulkanPhysicalDeviceSelector {
     public:
-        VulkanPhysicalDeviceSelector(VkInstance instance);
-        VulkanPhysicalDeviceSelector(VkInstance, VkSurfaceKHR surface);
+        explicit VulkanPhysicalDeviceSelector(const class VulkanContext* const context);
+        explicit VulkanPhysicalDeviceSelector(const class VulkanContext* const context, VkSurfaceKHR surface);
 
         std::optional<VulkanPhysicalDevice> Build() const;
 

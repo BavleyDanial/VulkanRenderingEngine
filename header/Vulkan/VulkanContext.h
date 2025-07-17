@@ -1,5 +1,8 @@
 #pragma once
 
+#include "VulkanPhysicalDevice.h"
+#include "VulkanLogicalDevice.h"
+
 #include <vulkan/vulkan_core.h>
 #include <vector>
 
@@ -10,14 +13,19 @@ namespace VKRE {
         VulkanContext();
         ~VulkanContext();
 
+        VkInstance GetInstance() const { return mInstance; }
 
-        VkInstance GetContext() const { return mInstance; }
+        bool IsValidationLayersEnabled() const { return mEnableValidationLayers; }
+        uint32_t GetValidationLayersCount() const { return mValidationLayers.size(); }
+        std::vector<const char*> GetValidationLayers() { return mValidationLayers; }
 
     private:
         bool CheckValidationLayerSupport();
 
     private:
         VkInstance mInstance;
+        VulkanPhysicalDevice mPhysicalDevice{};
+        VulkanLogicalDevice mLogicalDevice{};
 
         // TODO: Make validation layers only available in debug mode
         const std::vector<const char*> mValidationLayers = {
