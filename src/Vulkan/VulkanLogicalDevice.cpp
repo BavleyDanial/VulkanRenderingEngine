@@ -14,17 +14,16 @@ namespace VKRE {
         QueueFamilyIndinces queueIndices = mPhysicalDevice.queueFamilyIndicies;
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::array<uint32_t, 1> uniqueQueueFamilies = { queueIndices.graphicsFamily.value() };
+        std::array<std::optional<uint32_t>, 1> uniqueQueueFamilies = { queueIndices.graphicsFamily };
 
         float queuePriority = 1.0f;
-        for (uint32_t queueFamily : uniqueQueueFamilies)
-        {
-            if (queueFamily < 0)
+        for (std::optional<uint32_t> queueFamily : uniqueQueueFamilies) {
+            if (!queueFamily.has_value())
                 break;
 
             VkDeviceQueueCreateInfo queueCreateInfo{};
             queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
+            queueCreateInfo.queueFamilyIndex = queueFamily.value();
             queueCreateInfo.queueCount = 1;
             queueCreateInfo.pQueuePriorities = &queuePriority;
             queueCreateInfos.push_back(queueCreateInfo);
