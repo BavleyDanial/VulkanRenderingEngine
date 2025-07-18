@@ -7,12 +7,12 @@
 namespace VKRE {
 
     struct VulkanLogicalDevice {
-        VkDevice device = VK_NULL_HANDLE;
+        VkDevice handle = VK_NULL_HANDLE;
         VkQueue graphicsQueue = VK_NULL_HANDLE; // TODO: Make this support more queues
         VkQueue presentQueue = VK_NULL_HANDLE; // TODO: Make this support more queues
 
         void Destroy() {
-            vkDestroyDevice(device, nullptr);
+            vkDestroyDevice(handle, nullptr);
         }
     };
 

@@ -27,6 +27,8 @@ namespace VKRE {
         bool ShouldClose() const { return glfwWindowShouldClose(mGLFWwindow); }
         void Close() const;
 
+        std::pair<int32_t, int32_t> GetFrameBufferExtents() const;
+
         uint32_t GetWidth() const { return mSpecs.width; }
         uint32_t GetHeight() const { return mSpecs.height; }
         bool IsVSync() const { return mSpecs.vsync; }

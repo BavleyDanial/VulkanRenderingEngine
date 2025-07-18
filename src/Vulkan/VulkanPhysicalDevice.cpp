@@ -25,12 +25,12 @@ namespace VKRE {
 
         VulkanPhysicalDevice selectedDevice{};
         selectedDevice.name = mName;
-        selectedDevice.physicalDevice = physicalDevice;
+        selectedDevice.handle = physicalDevice;
         selectedDevice.surface = mSurface;
 
         vkGetPhysicalDeviceProperties(physicalDevice, &selectedDevice.properties);
         vkGetPhysicalDeviceFeatures(physicalDevice, &selectedDevice.features);
-        selectedDevice.extensions = mRequiredExtensions;
+        selectedDevice.extensions.append_range(mRequiredExtensions);
 
         uint32_t queueFamilyCount = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);

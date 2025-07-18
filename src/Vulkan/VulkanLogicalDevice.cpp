@@ -2,7 +2,6 @@
 
 #include <unordered_set>
 #include <cassert>
-#include <print>
 
 namespace VKRE {
 
@@ -39,15 +38,15 @@ namespace VKRE {
         deviceCreateInfo.ppEnabledExtensionNames = mPhysicalDevice.extensions.data();
 
         VulkanLogicalDevice logicalDevice{};
-        if (vkCreateDevice(mPhysicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice.device) != VK_SUCCESS) {
+        if (vkCreateDevice(mPhysicalDevice.handle, &deviceCreateInfo, nullptr, &logicalDevice.handle) != VK_SUCCESS) {
             assert("Couldn't create logical device!");
             return std::nullopt;
         }
 
         if (queueIndices.graphicsFamily.has_value())
-            vkGetDeviceQueue(logicalDevice.device, queueIndices.graphicsFamily.value(), 0, &logicalDevice.graphicsQueue);
+            vkGetDeviceQueue(logicalDevice.handle, queueIndices.graphicsFamily.value(), 0, &logicalDevice.graphicsQueue);
         if (queueIndices.presentFamily.has_value())
-            vkGetDeviceQueue(logicalDevice.device, queueIndices.presentFamily.value(), 0, &logicalDevice.presentQueue);
+            vkGetDeviceQueue(logicalDevice.handle, queueIndices.presentFamily.value(), 0, &logicalDevice.presentQueue);
 
         return logicalDevice;
     }

@@ -2,6 +2,7 @@
 
 #include "VulkanPhysicalDevice.h"
 #include "VulkanLogicalDevice.h"
+#include "VulkanSwapChain.h"
 
 #include <vulkan/vulkan_core.h>
 #include <vector>
@@ -26,8 +27,13 @@ namespace VKRE {
     private:
         VkInstance mInstance;
         VkSurfaceKHR mSurface;
+
         VulkanPhysicalDevice mPhysicalDevice{};
         VulkanLogicalDevice mLogicalDevice{};
+
+        VulkanSwapChain mSwapChain{};
+        std::vector<VkImage> mSwapChainImages;
+        std::vector<VkImageView> mSwapChainImageViews;
 
         // TODO: Make validation layers only available in debug mode
         const std::vector<const char*> mValidationLayers = {

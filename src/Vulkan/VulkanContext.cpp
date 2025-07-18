@@ -1,8 +1,5 @@
 #include <Vulkan/VulkanContext.h>
 
-#include <Vulkan/VulkanLogicalDevice.h>
-#include <Vulkan/VulkanPhysicalDevice.h>
-
 #include <Engine.h>
 #include <vulkan/vulkan_core.h>
 
@@ -79,10 +76,30 @@ namespace VKRE {
             assert("Failed to choose Vulkan Physical Device!");
         }
 
+        auto [width, height] = Engine::GetInstance()->GetWindow()->GetFrameBufferExtents();
+
+        VulkanSwapChainBuilder swapChainBuilder(mInstance, mSurface, mPhysicalDevice, mLogicalDevice);
+        std::optional<VulkanSwapChain> swapChain = swapChainBuilder.SetDesiredExtent(width, height)
+                                                    .SetDesiredImageCount(0)
+                                                    .SetDesiredImageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+                                                    .SetDesiredFormat(VkSurfaceFormatKHR{ VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
+                                                    .SetDesiredPresentMode(VK_PRESENT_MODE_MAILBOX_KHR)
+                                                    .Build();
+        if (swapChain.has_value()) {
+            mSwapChain = swapChain.value();
+        } else {
+            assert("Failed to Create Vulkan Swapchain!");
+        }
+
+        mSwapChainImages = mSwapChain.GetImages();
+        mSwapChainImageViews = mSwapChain.GetImageViews(mSwapChain.GetImages());
     }
 
     VulkanContext::~VulkanContext() {
+        mSwapChain.DestroyImageViews(mSwapChainImageViews);
+        mSwapChain.Destroy(mLogicalDevice);
         mLogicalDevice.Destroy();
+
         vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         vkDestroyInstance(mInstance, nullptr);
     }

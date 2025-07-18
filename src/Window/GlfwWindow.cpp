@@ -1,3 +1,4 @@
+#include "GLFW/glfw3.h"
 #include <Window/GlfwWindow.h>
 
 #include <cassert>
@@ -62,6 +63,14 @@ namespace VKRE {
         mSpecs.width = width;
         mSpecs.height = height;
         glfwSetWindowSize(mGLFWwindow, static_cast<int>(mSpecs.width), static_cast<int>(mSpecs.height));
+    }
+
+    std::pair<int32_t, int32_t> Window::GetFrameBufferExtents() const {
+        int32_t width = 0;
+        int32_t height = 0;
+
+        glfwGetFramebufferSize(mGLFWwindow, &width, &height);
+        return std::make_pair(width, height);
     }
 
     void Window::OnUpdate() const {

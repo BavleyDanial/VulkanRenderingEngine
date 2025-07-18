@@ -28,7 +28,7 @@ namespace VKRE {
 
     struct VulkanPhysicalDevice {
         std::string name;
-        VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+        VkPhysicalDevice handle = VK_NULL_HANDLE;
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 
         VkPhysicalDeviceProperties properties{};
