@@ -15,7 +15,6 @@ namespace VKRE {
         SetPreferredType();
     }
 
-
     std::optional<VulkanPhysicalDevice> VulkanPhysicalDeviceSelector::Build() const {
         std::vector<VkPhysicalDevice> avaialbleDevices = GetSuitableDevices();
 

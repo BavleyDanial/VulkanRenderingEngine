@@ -65,11 +65,20 @@ namespace VKRE {
                                                             .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT })
                                                             .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
                                                             .Build();
-        mPhysicalDevice = physicalDevice.value();
+        if (physicalDevice.has_value()) {
+            mPhysicalDevice = physicalDevice.value();
+        } else {
+            assert("Failed to choose Vulkan Physical Device!");
+        }
 
         VulkanLogicalDeviceBuilder deviceBuilder(mPhysicalDevice);
         std::optional<VulkanLogicalDevice> logicalDevice = deviceBuilder.Build();
-        mLogicalDevice = logicalDevice.value();
+        if (logicalDevice.has_value()) {
+            mLogicalDevice = logicalDevice.value();
+        } else {
+            assert("Failed to choose Vulkan Physical Device!");
+        }
+
     }
 
     VulkanContext::~VulkanContext() {
