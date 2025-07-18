@@ -1,4 +1,3 @@
-#include "GlfwWindow.h"
 #include <Engine.h>
 
 #include <cassert>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <GlfwWindow.h>
+#include <Window/GlfwWindow.h>
 #include <Vulkan/VulkanContext.h>
 
 #include <memory>
