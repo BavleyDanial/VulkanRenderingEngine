@@ -1,6 +1,6 @@
-#include "Vulkan/VulkanPhysicalDevice.h"
 #include <Vulkan/VulkanLogicalDevice.h>
-#include <array>
+
+#include <unordered_set>
 #include <cassert>
 #include <print>
 
@@ -14,7 +14,7 @@ namespace VKRE {
         QueueFamilyIndinces queueIndices = mPhysicalDevice.queueFamilyIndicies;
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::array<std::optional<uint32_t>, 1> uniqueQueueFamilies = { queueIndices.graphicsFamily };
+        std::unordered_set<std::optional<uint32_t>> uniqueQueueFamilies = { queueIndices.graphicsFamily, queueIndices.presentFamily };
 
         float queuePriority = 1.0f;
         for (std::optional<uint32_t> queueFamily : uniqueQueueFamilies) {
@@ -35,14 +35,19 @@ namespace VKRE {
         deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
         deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
         deviceCreateInfo.pEnabledFeatures = &mPhysicalDevice.features;
-        deviceCreateInfo.enabledExtensionCount = 0;
+        deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(mPhysicalDevice.extensions.size());
+        deviceCreateInfo.ppEnabledExtensionNames = mPhysicalDevice.extensions.data();
 
         VulkanLogicalDevice logicalDevice{};
         if (vkCreateDevice(mPhysicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &logicalDevice.device) != VK_SUCCESS) {
             assert("Couldn't create logical device!");
             return std::nullopt;
         }
-        vkGetDeviceQueue(logicalDevice.device, queueIndices.graphicsFamily.value(), 0, &logicalDevice.graphicsQueue);
+
+        if (queueIndices.graphicsFamily.has_value())
+            vkGetDeviceQueue(logicalDevice.device, queueIndices.graphicsFamily.value(), 0, &logicalDevice.graphicsQueue);
+        if (queueIndices.presentFamily.has_value())
+            vkGetDeviceQueue(logicalDevice.device, queueIndices.presentFamily.value(), 0, &logicalDevice.presentQueue);
 
         return logicalDevice;
     }

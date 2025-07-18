@@ -38,6 +38,8 @@ namespace VKRE {
         void Focus() const { Input::SetCurrentWindow(mGLFWwindow); }
         std::vector<const char*> GetWindowExtensions() const;
 
+        GLFWwindow* GetGLFWwindow() const { return mGLFWwindow; };
+
     protected:
         GLFWwindow* mGLFWwindow;
         WindowSpecs mSpecs;

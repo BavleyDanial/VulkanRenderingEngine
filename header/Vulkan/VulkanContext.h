@@ -14,16 +14,18 @@ namespace VKRE {
         ~VulkanContext();
 
         VkInstance GetInstance() const { return mInstance; }
+        VkSurfaceKHR GetSurface() const { return mSurface; }
 
         bool IsValidationLayersEnabled() const { return mEnableValidationLayers; }
-        uint32_t GetValidationLayersCount() const { return mValidationLayers.size(); }
-        std::vector<const char*> GetValidationLayers() { return mValidationLayers; }
+        uint32_t GetValidationLayersCount() const { return static_cast<uint32_t>(mValidationLayers.size()); }
+        std::vector<const char*> GetValidationLayers() const { return mValidationLayers; }
 
     private:
         bool CheckValidationLayerSupport();
 
     private:
         VkInstance mInstance;
+        VkSurfaceKHR mSurface;
         VulkanPhysicalDevice mPhysicalDevice{};
         VulkanLogicalDevice mLogicalDevice{};
 

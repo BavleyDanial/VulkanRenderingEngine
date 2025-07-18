@@ -10,6 +10,8 @@
 #include <cassert>
 #include <cstring>
 
+#include <GLFW/glfw3.h>
+
 namespace VKRE {
 
     VulkanContext::VulkanContext() {
@@ -52,9 +54,16 @@ namespace VKRE {
             std::println("{0}", extension);
         }
 
-        VulkanPhysicalDeviceSelector deviceSelector(this);
+        // TODO: Change this to be API agnostic
+        GLFWwindow* glfwWindow = Engine::GetInstance()->GetWindow()->GetGLFWwindow();
+        if (glfwCreateWindowSurface(mInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
+            assert("Failed to create Vulkan Surface!");
+        }
+
+        VulkanPhysicalDeviceSelector deviceSelector(mInstance, mSurface);
         std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
-                                                            .SetRequiredQueueFamilies({VK_QUEUE_GRAPHICS_BIT, VK_QUEUE_TRANSFER_BIT})
+                                                            .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT })
+                                                            .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
                                                             .Build();
         mPhysicalDevice = physicalDevice.value();
 
@@ -65,6 +74,7 @@ namespace VKRE {
 
     VulkanContext::~VulkanContext() {
         mLogicalDevice.Destroy();
+        vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         vkDestroyInstance(mInstance, nullptr);
     }
 

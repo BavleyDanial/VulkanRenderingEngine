@@ -19,9 +19,10 @@ namespace VKRE {
     // TODO: Change this so that not all queues are required
     struct QueueFamilyIndinces {
         std::optional<uint32_t> graphicsFamily;
+        std::optional<uint32_t> presentFamily;
 
         bool IsComplete() {
-            return graphicsFamily.has_value();
+            return graphicsFamily.has_value() && presentFamily.has_value();
         }
     };
 
@@ -32,14 +33,16 @@ namespace VKRE {
 
         VkPhysicalDeviceProperties properties{};
         VkPhysicalDeviceFeatures features{};
+        std::vector<const char*> extensions;
+
         std::vector<VkQueueFamilyProperties> queueFamilies;
         QueueFamilyIndinces queueFamilyIndicies{};
     };
 
     class VulkanPhysicalDeviceSelector {
     public:
-        explicit VulkanPhysicalDeviceSelector(const class VulkanContext* const context);
-        explicit VulkanPhysicalDeviceSelector(const class VulkanContext* const context, VkSurfaceKHR surface);
+        explicit VulkanPhysicalDeviceSelector(VkInstance instance);
+        explicit VulkanPhysicalDeviceSelector(VkInstance instance, VkSurfaceKHR surface);
 
         std::optional<VulkanPhysicalDevice> Build() const;
 
@@ -47,6 +50,7 @@ namespace VKRE {
         VulkanPhysicalDeviceSelector& SetPreferredType(PhysicalDeviceType type = PhysicalDeviceType::DEDICATED);
         VulkanPhysicalDeviceSelector& SetSurface(VkSurfaceKHR surface);
         VulkanPhysicalDeviceSelector& SetRequiredQueueFamilies(const std::vector<uint32_t>& queueFlags);
+        VulkanPhysicalDeviceSelector& SetRequiredExtensions(const std::vector<const char*>& extensions);
 
     private:
         std::vector<VkPhysicalDevice> GetSuitableDevices() const;
@@ -54,18 +58,14 @@ namespace VKRE {
         QueueFamilyIndinces FindQueueFamilies(VkPhysicalDevice device) const;
 
     private:
-        struct InstanceInfo {
-            std::string name = "";
-            VkInstance instance = VK_NULL_HANDLE;
-            VkSurfaceKHR surface = VK_NULL_HANDLE;
-        } mInstanceInfo;
+        std::string mName = "";
+        VkInstance mInstance = VK_NULL_HANDLE;
+        VkSurfaceKHR mSurface = VK_NULL_HANDLE;
 
-        struct SelectionCriteria {
-            VkPhysicalDeviceProperties properties{};
-            VkPhysicalDeviceFeatures features{};
-            uint32_t queueFamilies = 0;
-        } mSelectionCriteria;
-
+        VkPhysicalDeviceProperties mRequiredProperties{};
+        VkPhysicalDeviceFeatures mRequiredFeatures{};
+        std::vector<const char*> mRequiredExtensions;
+        uint32_t mRequiredQueueFamilies = 0;
     };
 
 }
