@@ -63,7 +63,7 @@ namespace VKRE {
     VulkanSwapChainBuilder::VulkanSwapChainBuilder(VkInstance instance, VkSurfaceKHR surface, const VulkanPhysicalDevice& physicalDevice, const VulkanLogicalDevice& logicalDevice)
         :mInstance(instance), mSurface(surface), mPhysicalDevice(physicalDevice), mLogicalDevice(logicalDevice) {
 
-        if (std::find(mPhysicalDevice.extensions.begin(), mPhysicalDevice.extensions.end(), VK_KHR_SWAPCHAIN_EXTENSION_NAME) != mPhysicalDevice.extensions.end()) {
+        if (std::find(mPhysicalDevice.extensionsEnabled.begin(), mPhysicalDevice.extensionsEnabled.end(), VK_KHR_SWAPCHAIN_EXTENSION_NAME) != mPhysicalDevice.extensionsEnabled.end()) {
             assert("Physical device doesn't support swapchains");
         }
     }

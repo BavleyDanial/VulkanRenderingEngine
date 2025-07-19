@@ -10,7 +10,7 @@ public:
     Engine();
     void Run();
 
-    static const Engine* GetInstance() { return mInstance; }
+    static const Engine& GetInstance() { return *mInstance; }
     const VKRE::Window* GetWindow() const { return mWindow.get(); }
     const VKRE::VulkanContext* GetRenderingContext() const { return mVulkanContext.get(); }
 

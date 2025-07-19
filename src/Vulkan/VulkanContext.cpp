@@ -1,13 +1,12 @@
 #include <Vulkan/VulkanContext.h>
 
 #include <Engine.h>
-#include <vulkan/vulkan_core.h>
+#include <GLFW/glfw3.h>
 
 #include <print>
 #include <cassert>
 #include <cstring>
-
-#include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -22,10 +21,10 @@ namespace VKRE {
         appInfo.applicationVersion = VK_MAKE_VERSION(1, 0 , 0);
         appInfo.pEngineName = "No Engine";
         appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_4;
+        appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
 
         // TODO: Check if all required extensions are available
-        std::vector<const char*> extensions = Engine::GetInstance()->GetWindow()->GetWindowExtensions();
+        std::vector<const char*> extensions = Engine::GetInstance().GetWindow()->GetWindowExtensions();
         extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
         VkInstanceCreateInfo createInfo{};
@@ -52,7 +51,7 @@ namespace VKRE {
         }
 
         // TODO: Change this to be API agnostic
-        GLFWwindow* glfwWindow = Engine::GetInstance()->GetWindow()->GetGLFWwindow();
+        GLFWwindow* glfwWindow = Engine::GetInstance().GetWindow()->GetGLFWwindow();
         if (glfwCreateWindowSurface(mInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
             assert("Failed to create Vulkan Surface!");
         }
@@ -61,7 +60,7 @@ namespace VKRE {
         std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
                                                             .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT })
                                                             .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
-                                                            .Build();
+                                                            .Select();
         if (physicalDevice.has_value()) {
             mPhysicalDevice = physicalDevice.value();
         } else {
@@ -76,7 +75,7 @@ namespace VKRE {
             assert("Failed to choose Vulkan Physical Device!");
         }
 
-        auto [width, height] = Engine::GetInstance()->GetWindow()->GetFrameBufferExtents();
+        auto [width, height] = Engine::GetInstance().GetWindow()->GetFrameBufferExtents();
 
         VulkanSwapChainBuilder swapChainBuilder(mInstance, mSurface, mPhysicalDevice, mLogicalDevice);
         std::optional<VulkanSwapChain> swapChain = swapChainBuilder.SetDesiredExtent(width, height)
