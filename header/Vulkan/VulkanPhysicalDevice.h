@@ -35,14 +35,12 @@ namespace VKRE {
             std::vector<GenericFeaturesPNextNode> nodes;
 
             template <typename T> void Add(const T& features) noexcept {
-                // If this struct is already in the list, combine it
                 for (auto& node : nodes) {
                     if (static_cast<VkStructureType>(features.sType) == node.sType) {
                         node.Combine(features);
                         return;
                     }
                 }
-                // Otherwise append to the end
                 nodes.push_back(features);
             }
 

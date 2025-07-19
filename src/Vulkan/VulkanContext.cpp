@@ -60,6 +60,8 @@ namespace VKRE {
         std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
                                                             .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT })
                                                             .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
+                                                            .SetRequiredFeatures13({ .synchronization2 = true, .dynamicRendering = true })
+                                                            .SetRequiredFeatures12({ .descriptorIndexing = true, .bufferDeviceAddress = true })
                                                             .Select();
         if (physicalDevice.has_value()) {
             mPhysicalDevice = physicalDevice.value();

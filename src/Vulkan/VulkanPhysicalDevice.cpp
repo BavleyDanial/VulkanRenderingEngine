@@ -156,8 +156,6 @@ namespace VKRE {
         }
 
         bool GenericFeatureChain::MatchAll(const GenericFeatureChain& extensionRequested) const noexcept {
-            // Should only be false if extension_supported was unable to be filled out, due to the
-            // physical device not supporting vkGetPhysicalDeviceFeatures2 in any capacity.
             if (extensionRequested.nodes.size() != nodes.size()) {
                 return false;
             }
