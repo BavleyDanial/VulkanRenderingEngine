@@ -1,0 +1,157 @@
+#include <Vulkan/VulkanRenderer.h>
+
+#include <Engine.h>
+#include <glm/glm.hpp>
+
+#include <cassert>
+#include <memory>
+#include <vulkan/vulkan_core.h>
+
+namespace VKRE {
+
+    VulkanRenderer::VulkanRenderer(std::shared_ptr<VulkanContext> context, const Window* window)
+    :mContext(context) {
+        mFrameManager = std::make_unique<VulkanFrameManager>(context);
+        mPresenter = std::make_unique<VulkanPresenter>(context.get(), window);
+    }
+
+    void VulkanRenderer::Render() {
+        VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
+
+        if (vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX) != VK_SUCCESS) {
+            assert("Error: Render Fence Timeout!");
+        }
+
+        if (vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence) != VK_SUCCESS) {
+            assert("Error: Couldn't reset render fence!");
+        }
+
+        uint32_t swapchainImageIndex = 0;
+        if (vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex) != VK_SUCCESS) {
+            assert("Error: Couldn't aquire swapchain image index!");
+        }
+
+        // NOTE: The following is temporary!
+        VkCommandBuffer cmd = frame.commandBuffer;
+        if (vkResetCommandBuffer(cmd, 0) != VK_SUCCESS) {
+            assert("Error: Couldn't reset command buffer!");
+        }
+
+        VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+        cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        cmdBufferBeginInfo.pNext = nullptr;
+        cmdBufferBeginInfo.pInheritanceInfo = nullptr;
+        cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        if (vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo) != VK_SUCCESS) {
+            assert("Error: Couldn't begin command buffer!");
+        }
+
+        TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
+        //make a clear-color from frame number. This will flash with a 120 frame period.
+        VkClearColorValue clearValue;
+        float flash = glm::abs(glm::sin(mFrameManager->GetTotalFramesCount() / 120.f));
+        clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
+
+        VkImageSubresourceRange clearRange = ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
+
+        //clear image
+        vkCmdClearColorImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+
+        TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex],VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+        if (vkEndCommandBuffer(cmd) != VK_SUCCESS) {
+            assert("Error: Couldn't end command buffer!");
+        }
+
+        VkSemaphoreSubmitInfo swapChainSemaphoreSubmitInfo{};
+        swapChainSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        swapChainSemaphoreSubmitInfo.semaphore = frame.presentCompleteSemaphore;
+        swapChainSemaphoreSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
+
+        VkSemaphoreSubmitInfo renderSemaphoreSubmitInfo{};
+        renderSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        renderSemaphoreSubmitInfo.pNext = nullptr;
+        renderSemaphoreSubmitInfo.semaphore = mPresenter->GetRenderCompleteSemaphore(swapchainImageIndex);
+        renderSemaphoreSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+
+        VkCommandBufferSubmitInfo cmdSubmitInfo;
+        cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+        cmdSubmitInfo.pNext = nullptr;
+        cmdSubmitInfo.commandBuffer = cmd;
+        cmdSubmitInfo.deviceMask = 0;
+
+        VkSubmitInfo2 info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+        info.pNext = nullptr;
+
+        info.waitSemaphoreInfoCount = 1;
+        info.pWaitSemaphoreInfos = &swapChainSemaphoreSubmitInfo;
+
+        info.signalSemaphoreInfoCount = 1;
+        info.pSignalSemaphoreInfos = &renderSemaphoreSubmitInfo;
+
+        info.commandBufferInfoCount = 1;
+        info.pCommandBufferInfos = &cmdSubmitInfo;
+
+        if (vkQueueSubmit2(mContext->GetGraphicsQueue(), 1, &info, frame.waitFence) != VK_SUCCESS) {
+            assert("Error: Coudln't submit queue");
+        }
+
+        VkPresentInfoKHR presentInfo = {};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.pNext = nullptr;
+        presentInfo.pSwapchains = &mPresenter->GetSwapChain().handle;
+        presentInfo.swapchainCount = 1;
+
+        presentInfo.pWaitSemaphores = &mPresenter->GetRenderCompleteSemaphore(swapchainImageIndex);
+        presentInfo.waitSemaphoreCount = 1;
+
+        presentInfo.pImageIndices = &swapchainImageIndex;
+
+        if (vkQueuePresentKHR(mContext->GetGraphicsQueue(), &presentInfo)) {
+            assert("Error: Coudln't present queue");
+        }
+
+        mFrameManager->AdvanceFrame();
+    }
+
+    void VulkanRenderer::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout) {
+        VkImageMemoryBarrier2 imageBarrier {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+        imageBarrier.pNext = nullptr;
+
+        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+        imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
+
+        imageBarrier.oldLayout = currentLayout;
+        imageBarrier.newLayout = newLayout;
+
+        VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        imageBarrier.subresourceRange = ImageSubSourceRange(aspectMask);
+        imageBarrier.image = image;
+
+        VkDependencyInfo depInfo {};
+        depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        depInfo.pNext = nullptr;
+
+        depInfo.imageMemoryBarrierCount = 1;
+        depInfo.pImageMemoryBarriers = &imageBarrier;
+
+        vkCmdPipelineBarrier2(cmd, &depInfo);
+    }
+
+    VkImageSubresourceRange VulkanRenderer::ImageSubSourceRange(VkImageAspectFlags aspectMask) {
+        VkImageSubresourceRange subImage {};
+        subImage.aspectMask = aspectMask;
+        subImage.baseMipLevel = 0;
+        subImage.levelCount = VK_REMAINING_MIP_LEVELS;
+        subImage.baseArrayLayer = 0;
+        subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+        return subImage;
+    }
+
+}

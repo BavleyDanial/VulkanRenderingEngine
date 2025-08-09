@@ -120,7 +120,9 @@ namespace VKRE {
             return std::nullopt;
         }
 
+        swapChain.surface = mSurface;
         swapChain.deviceHandle = mLogicalDevice.handle;
+
         return swapChain;
     }
 

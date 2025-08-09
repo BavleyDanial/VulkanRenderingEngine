@@ -5,18 +5,18 @@
 
 #include <optional>
 #include <vector>
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
     class VulkanContext;
-    class VulkanPhysicalDevice;
-    class VulkanLogicalDevice;
+    struct VulkanPhysicalDevice;
+    struct VulkanLogicalDevice;
 
     struct VulkanSwapChain {
         VkSwapchainKHR handle = VK_NULL_HANDLE;
         VkDevice deviceHandle = VK_NULL_HANDLE;
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+
         VkSurfaceFormatKHR imageFormat{};
         VkPresentModeKHR presentMode{};
         VkExtent2D extent{};
@@ -27,8 +27,8 @@ namespace VKRE {
         std::vector<VkImageView> GetImageViews(const std::vector<VkImage>& images) const; // TODO: Error handling
 
         void DestroyImageViews(std::vector<VkImageView>& imageViews);
-        void Destroy(const VulkanLogicalDevice& logicalDevice) {
-            vkDestroySwapchainKHR(logicalDevice.handle, handle, nullptr);
+        void Destroy() {
+            vkDestroySwapchainKHR(deviceHandle, handle, nullptr);
         }
     };
 
@@ -49,6 +49,7 @@ namespace VKRE {
             std::vector<VkSurfaceFormatKHR> formats;
             std::vector<VkPresentModeKHR> presentModes;
         };
+
     private:
          SwapChainSupportDetails QuerySupport();
          VkSurfaceFormatKHR ChooseSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) const;

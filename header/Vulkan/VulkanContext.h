@@ -4,7 +4,6 @@
 #include "VulkanLogicalDevice.h"
 #include "VulkanSwapChain.h"
 
-#include <vulkan/vulkan_core.h>
 #include <vector>
 
 namespace VKRE {
@@ -14,8 +13,14 @@ namespace VKRE {
         VulkanContext();
         ~VulkanContext();
 
-        VkInstance GetInstance() const { return mInstance; }
+        static const VkInstance GetInstance() { return sInstance; }
         VkSurfaceKHR GetSurface() const { return mSurface; }
+
+        const VulkanPhysicalDevice& GetPhysicalDevice() const { return mPhysicalDevice; }
+        const VulkanLogicalDevice& GetLogicalDevice() const { return mLogicalDevice; }
+        const QueueFamilyIndinces& GetQueueFamilies() const { return mPhysicalDevice.queueFamilyIndicies; }
+        const VkQueue GetGraphicsQueue() const { return mLogicalDevice.graphicsQueue; }
+        const VkQueue GetPresentQueue() const { return mLogicalDevice.presentQueue; }
 
         bool IsValidationLayersEnabled() const { return mEnableValidationLayers; }
         uint32_t GetValidationLayersCount() const { return static_cast<uint32_t>(mValidationLayers.size()); }
@@ -25,15 +30,11 @@ namespace VKRE {
         bool CheckValidationLayerSupport();
 
     private:
-        VkInstance mInstance;
+        static inline VkInstance sInstance = VK_NULL_HANDLE;
         VkSurfaceKHR mSurface;
 
         VulkanPhysicalDevice mPhysicalDevice{};
         VulkanLogicalDevice mLogicalDevice{};
-
-        VulkanSwapChain mSwapChain{};
-        std::vector<VkImage> mSwapChainImages;
-        std::vector<VkImageView> mSwapChainImageViews;
 
         // TODO: Make validation layers only available in debug mode
         const std::vector<const char*> mValidationLayers = {

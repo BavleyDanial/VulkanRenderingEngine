@@ -9,12 +9,20 @@ Engine::Engine() {
     }
 
     mInstance = this;
-    mWindow = std::make_unique<VKRE::Window>(VKRE::WindowSpecs{});
-    mVulkanContext = std::make_unique<VKRE::VulkanContext>();
+    mWindow = std::make_shared<VKRE::Window>(VKRE::WindowSpecs{});
+    mVulkanContext = std::make_shared<VKRE::VulkanContext>();
+    mVulkanRenderer = std::make_shared<VKRE::VulkanRenderer>(mVulkanContext, mWindow.get());
+}
+
+Engine::~Engine() {
+    mVulkanRenderer.reset();
+    mVulkanContext.reset();
+    mWindow.reset();
 }
 
 void Engine::Run() {
     while (!mWindow->ShouldClose()) {
         mWindow->OnUpdate();
+        mVulkanRenderer->Render();
     }
 }

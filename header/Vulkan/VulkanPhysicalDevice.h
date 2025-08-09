@@ -5,6 +5,7 @@
 #include <string>
 #include <optional>
 #include <vector>
+#include <glm/detail/compute_common.hpp>
 
 namespace VKRE {
 
@@ -53,10 +54,6 @@ namespace VKRE {
 
     enum class PhysicalDeviceType {
         INTEGRATED, DEDICATED
-    };
-
-    enum class PhysicalDeviceFeatureSet {
-        ONE_ZERO, ONE_ONE, ONE_TWO, ONE_THREE
     };
 
     // TODO: Change this so that not all queues are required
@@ -122,6 +119,7 @@ namespace VKRE {
 
         VkPhysicalDeviceProperties mRequiredProperties{};
         VkPhysicalDeviceFeatures mRequiredFeatures{};
+        VkPhysicalDeviceFeatures mRequiredFeatures2{};
         details::GenericFeatureChain mRequiredExtendedFeaturesChain;
 
         std::vector<const char*> mRequiredExtensions;

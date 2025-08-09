@@ -3,16 +3,19 @@
 #include <Engine.h>
 #include <GLFW/glfw3.h>
 
-#include <print>
 #include <cassert>
 #include <cstring>
-#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
     VulkanContext::VulkanContext() {
         if (mEnableValidationLayers && !CheckValidationLayerSupport()) {
             assert("Failed to create Vulkan Instance: Validation Layers are not supported!");
+        }
+
+        if (sInstance) {
+            assert("Vulkan context already exists!");
+            return;
         }
 
         VkApplicationInfo appInfo{};
@@ -41,22 +44,17 @@ namespace VKRE {
             createInfo.ppEnabledLayerNames = nullptr;
         }
 
-
-        if (vkCreateInstance(&createInfo, nullptr, &mInstance) != VK_SUCCESS) {
+        if (vkCreateInstance(&createInfo, nullptr, &sInstance) != VK_SUCCESS) {
             assert("Failed to create Vulkan Instance!");
-        }
-
-        for (const char* extension : extensions) {
-            std::println("{0}", extension);
         }
 
         // TODO: Change this to be API agnostic
         GLFWwindow* glfwWindow = Engine::GetInstance().GetWindow()->GetGLFWwindow();
-        if (glfwCreateWindowSurface(mInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
+        if (glfwCreateWindowSurface(sInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
             assert("Failed to create Vulkan Surface!");
         }
 
-        VulkanPhysicalDeviceSelector deviceSelector(mInstance, mSurface);
+        VulkanPhysicalDeviceSelector deviceSelector(sInstance, mSurface);
         std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
                                                             .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT })
                                                             .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
@@ -77,32 +75,13 @@ namespace VKRE {
             assert("Failed to choose Vulkan Physical Device!");
         }
 
-        auto [width, height] = Engine::GetInstance().GetWindow()->GetFrameBufferExtents();
-
-        VulkanSwapChainBuilder swapChainBuilder(mInstance, mSurface, mPhysicalDevice, mLogicalDevice);
-        std::optional<VulkanSwapChain> swapChain = swapChainBuilder.SetDesiredExtent(width, height)
-                                                    .SetDesiredImageCount(0)
-                                                    .SetDesiredImageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-                                                    .SetDesiredFormat(VkSurfaceFormatKHR{ VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
-                                                    .SetDesiredPresentMode(VK_PRESENT_MODE_MAILBOX_KHR)
-                                                    .Build();
-        if (swapChain.has_value()) {
-            mSwapChain = swapChain.value();
-        } else {
-            assert("Failed to Create Vulkan Swapchain!");
-        }
-
-        mSwapChainImages = mSwapChain.GetImages();
-        mSwapChainImageViews = mSwapChain.GetImageViews(mSwapChain.GetImages());
     }
 
     VulkanContext::~VulkanContext() {
-        mSwapChain.DestroyImageViews(mSwapChainImageViews);
-        mSwapChain.Destroy(mLogicalDevice);
         mLogicalDevice.Destroy();
 
-        vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
-        vkDestroyInstance(mInstance, nullptr);
+        vkDestroySurfaceKHR(sInstance, mSurface, nullptr);
+        vkDestroyInstance(sInstance, nullptr);
     }
 
     bool VulkanContext::CheckValidationLayerSupport() {
