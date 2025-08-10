@@ -154,7 +154,7 @@ namespace VKRE {
             }
         }
 
-        std::println("Warning: Couldn't find desired surface format");
+        std::println("Vulkan Warning: Couldn't find desired surface format");
         return avaialbleFormats[0];
     }
 
@@ -165,7 +165,7 @@ namespace VKRE {
             }
         }
 
-        std::println("Warning: Couldn't find desired swap present mode");
+        std::println("Vulkan Warning: Couldn't find desired swap present mode");
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
@@ -189,12 +189,12 @@ namespace VKRE {
         }
 
         if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount) {
-            std::println("Warning: swapchain is only capable of {0} max image count", capabilities.maxImageCount);
+            std::println("Vulkan Warning: swapchain is only capable of {0} max image count", capabilities.maxImageCount);
             imageCount = capabilities.maxImageCount;
         }
 
         if (capabilities.minImageCount > 0 && imageCount < capabilities.minImageCount) {
-            std::println("Warning: swapchain is only capable of {0} min image count", capabilities.minImageCount);
+            std::println("Vulkan Warning: swapchain is only capable of {0} min image count", capabilities.minImageCount);
             imageCount = capabilities.minImageCount;
         }
 
