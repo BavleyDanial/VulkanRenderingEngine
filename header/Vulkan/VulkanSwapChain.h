@@ -72,7 +72,7 @@ namespace VKRE {
             VkExtent2D extent{};
             VkImageUsageFlags imageUsage;
             uint32_t imageCount = 0;
-        } mSwapChainConfig;
+        } mSwapChainConfig{};
 
     };
 

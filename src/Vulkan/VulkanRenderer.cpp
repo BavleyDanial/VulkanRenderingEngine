@@ -37,8 +37,7 @@ namespace VKRE {
         VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo));
         TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
         VkClearColorValue clearValue;
-        float flash = glm::abs(glm::sin(mFrameManager->GetTotalFramesCount() / 120.f));
-        clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
+        clearValue = { { 0.0f, 0.0f, 1.0f, 1.0f } };
 
         VkImageSubresourceRange clearRange = ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
         vkCmdClearColorImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
