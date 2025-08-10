@@ -75,6 +75,7 @@ namespace VKRE {
 
     void Window::OnUpdate() const {
         glfwSwapBuffers(mGLFWwindow);
+        Input::SetCurrentWindow(mGLFWwindow);
         Input::OnUpdate();
     }
 

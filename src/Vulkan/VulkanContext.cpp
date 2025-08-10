@@ -8,48 +8,47 @@
 
 namespace VKRE {
 
-    VulkanContext::VulkanContext() {
+    VulkanContext::VulkanContext(std::shared_ptr<Window> window) {
         if (mEnableValidationLayers && !CheckValidationLayerSupport()) {
             assert("Failed to create Vulkan Instance: Validation Layers are not supported!");
         }
 
-        if (sInstance) {
-            assert("Vulkan context already exists!");
-            return;
-        }
+        mWindow = window;
 
-        VkApplicationInfo appInfo{};
-        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName = "VK Rendering Engine";
-        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0 , 0);
-        appInfo.pEngineName = "No Engine";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
+        if (!sInstance) {
+            VkApplicationInfo appInfo{};
+            appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+            appInfo.pApplicationName = "VK Rendering Engine";
+            appInfo.applicationVersion = VK_MAKE_VERSION(1, 0 , 0);
+            appInfo.pEngineName = "No Engine";
+            appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+            appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
 
-        // TODO: Check if all required extensions are available
-        std::vector<const char*> extensions = Engine::GetInstance().GetWindow()->GetWindowExtensions();
-        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+            // TODO: Check if all required extensions are available
+            std::vector<const char*> extensions = window->GetWindowExtensions();
+            extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
-        VkInstanceCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        createInfo.pApplicationInfo = &appInfo;
-        createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-        createInfo.ppEnabledExtensionNames = extensions.data();
-        if (mEnableValidationLayers) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(mValidationLayers.size());
-            createInfo.ppEnabledLayerNames = mValidationLayers.data();
-        } else {
-            createInfo.enabledLayerCount = 0;
-            createInfo.ppEnabledLayerNames = nullptr;
-        }
+            VkInstanceCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+            createInfo.pApplicationInfo = &appInfo;
+            createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+            createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+            createInfo.ppEnabledExtensionNames = extensions.data();
+            if (mEnableValidationLayers) {
+                createInfo.enabledLayerCount = static_cast<uint32_t>(mValidationLayers.size());
+                createInfo.ppEnabledLayerNames = mValidationLayers.data();
+            } else {
+                createInfo.enabledLayerCount = 0;
+                createInfo.ppEnabledLayerNames = nullptr;
+            }
 
-        if (vkCreateInstance(&createInfo, nullptr, &sInstance) != VK_SUCCESS) {
-            assert("Failed to create Vulkan Instance!");
+            if (vkCreateInstance(&createInfo, nullptr, &sInstance) != VK_SUCCESS) {
+                assert("Failed to create Vulkan Instance!");
+            }
         }
 
         // TODO: Change this to be API agnostic
-        GLFWwindow* glfwWindow = Engine::GetInstance().GetWindow()->GetGLFWwindow();
+        GLFWwindow* glfwWindow = window->GetGLFWwindow();
         if (glfwCreateWindowSurface(sInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
             assert("Failed to create Vulkan Surface!");
         }

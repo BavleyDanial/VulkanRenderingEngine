@@ -2,19 +2,23 @@
 
 #include "VulkanPhysicalDevice.h"
 #include "VulkanLogicalDevice.h"
-#include "VulkanSwapChain.h"
+
+#include "Window/GlfwWindow.h"
 
 #include <vector>
+#include <memory>
 
 namespace VKRE {
 
     class VulkanContext {
     public:
-        VulkanContext();
+        VulkanContext(std::shared_ptr<Window> window);
         ~VulkanContext();
 
         static const VkInstance GetInstance() { return sInstance; }
         VkSurfaceKHR GetSurface() const { return mSurface; }
+
+        std::shared_ptr<Window> GetWindowContext() { return mWindow; }
 
         const VulkanPhysicalDevice& GetPhysicalDevice() const { return mPhysicalDevice; }
         const VulkanLogicalDevice& GetLogicalDevice() const { return mLogicalDevice; }
@@ -31,6 +35,7 @@ namespace VKRE {
 
     private:
         static inline VkInstance sInstance = VK_NULL_HANDLE;
+        std::shared_ptr<Window> mWindow;
         VkSurfaceKHR mSurface;
 
         VulkanPhysicalDevice mPhysicalDevice{};

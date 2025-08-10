@@ -10,7 +10,7 @@ namespace VKRE {
 
     class VulkanRenderer {
     public:
-        VulkanRenderer(std::shared_ptr<VulkanContext> context, const Window* window);
+        VulkanRenderer(std::shared_ptr<VulkanContext> context);
 
         void Render();
 

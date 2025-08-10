@@ -9,7 +9,7 @@ namespace VKRE {
 
     class VulkanPresenter {
     public:
-        VulkanPresenter(const VulkanContext* context, const Window* window);
+        VulkanPresenter(std::shared_ptr<VulkanContext> context);
         ~VulkanPresenter();
 
         VulkanSwapChain& GetSwapChain() { return mSwapChain; }
@@ -20,6 +20,7 @@ namespace VKRE {
         VkSemaphore& GetRenderCompleteSemaphore(uint32_t index) { return mRenderCompleteSemaphores[index]; }
     
     private:
+        std::shared_ptr<VulkanContext> mContext;
         VulkanSwapChain mSwapChain{};
         std::vector<VkImage> mSwapChainImages;
         std::vector<VkImageView> mSwapChainImageViews;

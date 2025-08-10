@@ -9,10 +9,10 @@
 
 namespace VKRE {
 
-    VulkanRenderer::VulkanRenderer(std::shared_ptr<VulkanContext> context, const Window* window)
+    VulkanRenderer::VulkanRenderer(std::shared_ptr<VulkanContext> context)
     :mContext(context) {
         mFrameManager = std::make_unique<VulkanFrameManager>(context);
-        mPresenter = std::make_unique<VulkanPresenter>(context.get(), window);
+        mPresenter = std::make_unique<VulkanPresenter>(context);
     }
 
     void VulkanRenderer::Render() {
@@ -33,9 +33,7 @@ namespace VKRE {
 
         // NOTE: The following is temporary!
         VkCommandBuffer cmd = frame.commandBuffer;
-        if (vkResetCommandBuffer(cmd, 0) != VK_SUCCESS) {
-            assert("Error: Couldn't reset command buffer!");
-        }
+        vkResetCommandBuffer(cmd, 0);
 
         VkCommandBufferBeginInfo cmdBufferBeginInfo{};
         cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -49,14 +47,12 @@ namespace VKRE {
 
         TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-        //make a clear-color from frame number. This will flash with a 120 frame period.
         VkClearColorValue clearValue;
         float flash = glm::abs(glm::sin(mFrameManager->GetTotalFramesCount() / 120.f));
         clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
 
         VkImageSubresourceRange clearRange = ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
 
-        //clear image
         vkCmdClearColorImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
 
         TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex],VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -65,16 +61,15 @@ namespace VKRE {
             assert("Error: Couldn't end command buffer!");
         }
 
-        VkSemaphoreSubmitInfo swapChainSemaphoreSubmitInfo{};
-        swapChainSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        swapChainSemaphoreSubmitInfo.semaphore = frame.presentCompleteSemaphore;
-        swapChainSemaphoreSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
+        VkSemaphoreSubmitInfo presentCompleteSemaphoreSubmitInfo{};
+        presentCompleteSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        presentCompleteSemaphoreSubmitInfo.semaphore = frame.presentCompleteSemaphore;
+        presentCompleteSemaphoreSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
 
-        VkSemaphoreSubmitInfo renderSemaphoreSubmitInfo{};
-        renderSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        renderSemaphoreSubmitInfo.pNext = nullptr;
-        renderSemaphoreSubmitInfo.semaphore = mPresenter->GetRenderCompleteSemaphore(swapchainImageIndex);
-        renderSemaphoreSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+        VkSemaphoreSubmitInfo renderCompleteSemaphoreSubmitInfo{};
+        renderCompleteSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+        renderCompleteSemaphoreSubmitInfo.semaphore = mPresenter->GetRenderCompleteSemaphore(swapchainImageIndex);
+        renderCompleteSemaphoreSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
 
         VkCommandBufferSubmitInfo cmdSubmitInfo;
         cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
@@ -85,13 +80,10 @@ namespace VKRE {
         VkSubmitInfo2 info = {};
         info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
         info.pNext = nullptr;
-
         info.waitSemaphoreInfoCount = 1;
-        info.pWaitSemaphoreInfos = &swapChainSemaphoreSubmitInfo;
-
+        info.pWaitSemaphoreInfos = &presentCompleteSemaphoreSubmitInfo;
         info.signalSemaphoreInfoCount = 1;
-        info.pSignalSemaphoreInfos = &renderSemaphoreSubmitInfo;
-
+        info.pSignalSemaphoreInfos = &renderCompleteSemaphoreSubmitInfo;
         info.commandBufferInfoCount = 1;
         info.pCommandBufferInfos = &cmdSubmitInfo;
 
