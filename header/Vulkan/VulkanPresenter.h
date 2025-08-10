@@ -1,5 +1,7 @@
 #pragma once
 
+#include "VulkanUtils.h"
+
 #include "VulkanSwapChain.h"
 #include "VulkanContext.h"
 

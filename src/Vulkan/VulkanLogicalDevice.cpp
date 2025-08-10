@@ -39,8 +39,9 @@ namespace VKRE {
         deviceCreateInfo.pNext = mPhysicalDevice.extendedFeaturesChain.nodes.data();
 
         VulkanLogicalDevice logicalDevice{};
-        if (vkCreateDevice(mPhysicalDevice.handle, &deviceCreateInfo, nullptr, &logicalDevice.handle) != VK_SUCCESS) {
-            assert("Couldn't create logical device!");
+        VkResult result = vkCreateDevice(mPhysicalDevice.handle, &deviceCreateInfo, nullptr, &logicalDevice.handle);
+        if (result != VK_SUCCESS) {
+            std::println("Vulkan Warning: Couldn't create logical device! {}", string_VkResult(result));
             return std::nullopt;
         }
 

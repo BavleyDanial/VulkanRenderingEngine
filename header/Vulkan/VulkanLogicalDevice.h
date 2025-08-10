@@ -1,5 +1,6 @@
 #pragma once
 
+#include "VulkanUtils.h"
 #include "VulkanPhysicalDevice.h"
 
 #include <optional>

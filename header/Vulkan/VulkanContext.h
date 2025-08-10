@@ -1,5 +1,7 @@
 #pragma once
 
+#include "VulkanUtils.h"
+
 #include "VulkanPhysicalDevice.h"
 #include "VulkanLogicalDevice.h"
 
@@ -29,9 +31,6 @@ namespace VKRE {
         bool IsValidationLayersEnabled() const { return mEnableValidationLayers; }
         uint32_t GetValidationLayersCount() const { return static_cast<uint32_t>(mValidationLayers.size()); }
         std::vector<const char*> GetValidationLayers() const { return mValidationLayers; }
-
-    private:
-        bool CheckValidationLayerSupport();
 
     private:
         static inline VkInstance sInstance = VK_NULL_HANDLE;

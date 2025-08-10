@@ -1,11 +1,10 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include "VulkanUtils.h"
 
 #include <string>
 #include <optional>
 #include <vector>
-#include <glm/detail/compute_common.hpp>
 
 namespace VKRE {
 

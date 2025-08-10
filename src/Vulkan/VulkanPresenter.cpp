@@ -17,7 +17,8 @@ namespace  VKRE {
         if (swapChain.has_value()) {
             mSwapChain = swapChain.value();
         } else {
-            assert("Failed to Create Vulkan Swapchain!");
+            std::println("Failed to Create Vulkan Swapchain!");
+            abort();
         }
 
         mSwapChainImages = mSwapChain.GetImages();
@@ -28,9 +29,7 @@ namespace  VKRE {
         semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         
         for (auto& semaphore : mRenderCompleteSemaphores) {
-            if (vkCreateSemaphore(mSwapChain.deviceHandle, &semaphoreCreateInfo, nullptr, &semaphore) != VK_SUCCESS) {
-                assert("Couldn't create render complete semaphore!");
-            }
+            VK_CHECK(vkCreateSemaphore(mSwapChain.deviceHandle, &semaphoreCreateInfo, nullptr, &semaphore));
         }
     }
 

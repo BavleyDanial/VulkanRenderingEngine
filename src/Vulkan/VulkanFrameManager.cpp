@@ -17,13 +17,8 @@ namespace VKRE {
         auto device = mContext->GetLogicalDevice().handle;
         
         for (auto& frame : mFrames) {
-            if (vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, 1000000000) != VK_SUCCESS) {
-                assert("Error: Render Fence Timeout!");
-            }
-
-            if (vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence) != VK_SUCCESS) {
-                assert("Error: Couldn't reset render fence!");
-            }
+            VK_CHECK(vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, 1000000000));
+            VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
             
             vkDestroyCommandPool(device, frame.commandPool, nullptr);
             vkDestroySemaphore(device, frame.presentCompleteSemaphore, nullptr);
@@ -38,9 +33,7 @@ namespace VKRE {
         poolInfo.queueFamilyIndex = mContext->GetQueueFamilies().graphicsFamily.value();
 
         for (auto& frame : mFrames) {
-            if (vkCreateCommandPool(mContext->GetLogicalDevice().handle, &poolInfo, nullptr, &frame.commandPool) != VK_SUCCESS) {
-                assert("Error: Couldn't create command pool!");
-            }
+            VK_CHECK(vkCreateCommandPool(mContext->GetLogicalDevice().handle, &poolInfo, nullptr, &frame.commandPool));
 
             VkCommandBufferAllocateInfo allocInfo{};
             allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -48,9 +41,7 @@ namespace VKRE {
             allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
             allocInfo.commandBufferCount = 1;
 
-            if (vkAllocateCommandBuffers(mContext->GetLogicalDevice().handle, &allocInfo, &frame.commandBuffer) != VK_SUCCESS) {
-                assert("Error: Couldn't create command buffer!");
-            }
+            VK_CHECK(vkAllocateCommandBuffers(mContext->GetLogicalDevice().handle, &allocInfo, &frame.commandBuffer));
         }
     }
 
@@ -62,14 +53,9 @@ namespace VKRE {
         VkSemaphoreCreateInfo semaphoreCreateInfo{};
         semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        for (int i = 0; i < mFrames.size(); i++) {
-            if (vkCreateFence(mContext->GetLogicalDevice().handle, &fenceCreateInfo, nullptr, &mFrames[i].waitFence) != VK_SUCCESS) {
-                assert("Couldn't create render fence!");
-            }
-
-            if (vkCreateSemaphore(mContext->GetLogicalDevice().handle, &semaphoreCreateInfo, nullptr, &mFrames[i].presentCompleteSemaphore) != VK_SUCCESS) {
-                assert("Couldn't create render semaphore!");
-            }
+        for (auto& frame : mFrames) {
+            VK_CHECK(vkCreateFence(mContext->GetLogicalDevice().handle, &fenceCreateInfo, nullptr, &frame.waitFence));
+            VK_CHECK(vkCreateSemaphore(mContext->GetLogicalDevice().handle, &semaphoreCreateInfo, nullptr, &frame.presentCompleteSemaphore));
         }
     }
 

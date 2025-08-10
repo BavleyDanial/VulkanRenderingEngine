@@ -3,14 +3,14 @@
 #include <Engine.h>
 #include <GLFW/glfw3.h>
 
-#include <cassert>
 #include <cstring>
 
 namespace VKRE {
 
     VulkanContext::VulkanContext(std::shared_ptr<Window> window) {
-        if (mEnableValidationLayers && !CheckValidationLayerSupport()) {
-            assert("Failed to create Vulkan Instance: Validation Layers are not supported!");
+        if (mEnableValidationLayers && !VulkanUtils::CheckValidationLayerSupport(mValidationLayers)) {
+            std::println("Failed to create Vulkan Instance: Validation Layers are not supported!");
+            abort();
         }
 
         mWindow = window;
@@ -42,15 +42,14 @@ namespace VKRE {
                 createInfo.ppEnabledLayerNames = nullptr;
             }
 
-            if (vkCreateInstance(&createInfo, nullptr, &sInstance) != VK_SUCCESS) {
-                assert("Failed to create Vulkan Instance!");
-            }
+            VK_CHECK(vkCreateInstance(&createInfo, nullptr, &sInstance));
         }
 
         // TODO: Change this to be API agnostic
         GLFWwindow* glfwWindow = window->GetGLFWwindow();
         if (glfwCreateWindowSurface(sInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
-            assert("Failed to create Vulkan Surface!");
+            std::println("Failed to create Vulkan Surface!");
+            abort();
         }
 
         VulkanPhysicalDeviceSelector deviceSelector(sInstance, mSurface);
@@ -63,7 +62,8 @@ namespace VKRE {
         if (physicalDevice.has_value()) {
             mPhysicalDevice = physicalDevice.value();
         } else {
-            assert("Failed to choose Vulkan Physical Device!");
+            std::println("Failed to choose Vulkan Physical Device!");
+            abort();
         }
 
         VulkanLogicalDeviceBuilder deviceBuilder(mPhysicalDevice);
@@ -71,7 +71,8 @@ namespace VKRE {
         if (logicalDevice.has_value()) {
             mLogicalDevice = logicalDevice.value();
         } else {
-            assert("Failed to choose Vulkan Physical Device!");
+            std::println("Failed to choose Vulkan Physical Device!");
+            abort();
         }
 
     }
@@ -82,30 +83,4 @@ namespace VKRE {
         vkDestroySurfaceKHR(sInstance, mSurface, nullptr);
         vkDestroyInstance(sInstance, nullptr);
     }
-
-    bool VulkanContext::CheckValidationLayerSupport() {
-        uint32_t layerCount = 0;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-        for (const char* layerName : mValidationLayers) {
-            bool layerFound = false;
-
-            for (const auto& layerProperties : availableLayers) {
-                if (strcmp(layerName, layerProperties.layerName) == 0) {
-                    layerFound = true;
-                    break;
-                }
-            }
-
-            if (!layerFound) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
 }

@@ -22,6 +22,7 @@ Engine::~Engine() {
 }
 
 void Engine::Run() {
+    // TODO: Change this to close when the engine decides to close, not when ONE WINDOW decides it's done. This will help with multiple windows as well.
     while (!mWindow->ShouldClose()) {
         mWindow->OnUpdate();
         mVulkanRenderer->Render();

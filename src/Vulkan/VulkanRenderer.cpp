@@ -18,18 +18,11 @@ namespace VKRE {
     void VulkanRenderer::Render() {
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
 
-        if (vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX) != VK_SUCCESS) {
-            assert("Error: Render Fence Timeout!");
-        }
-
-        if (vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence) != VK_SUCCESS) {
-            assert("Error: Couldn't reset render fence!");
-        }
+        VK_CHECK(vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
+        VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
 
         uint32_t swapchainImageIndex = 0;
-        if (vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex) != VK_SUCCESS) {
-            assert("Error: Couldn't aquire swapchain image index!");
-        }
+        VK_CHECK(vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex));
 
         // NOTE: The following is temporary!
         VkCommandBuffer cmd = frame.commandBuffer;
@@ -41,25 +34,16 @@ namespace VKRE {
         cmdBufferBeginInfo.pInheritanceInfo = nullptr;
         cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-        if (vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo) != VK_SUCCESS) {
-            assert("Error: Couldn't begin command buffer!");
-        }
-
+        VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo));
         TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
         VkClearColorValue clearValue;
         float flash = glm::abs(glm::sin(mFrameManager->GetTotalFramesCount() / 120.f));
         clearValue = { { 0.0f, 0.0f, flash, 1.0f } };
 
         VkImageSubresourceRange clearRange = ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
-
         vkCmdClearColorImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-
         TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex],VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-        if (vkEndCommandBuffer(cmd) != VK_SUCCESS) {
-            assert("Error: Couldn't end command buffer!");
-        }
+        VK_CHECK(vkEndCommandBuffer(cmd));
 
         VkSemaphoreSubmitInfo presentCompleteSemaphoreSubmitInfo{};
         presentCompleteSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -87,25 +71,17 @@ namespace VKRE {
         info.commandBufferInfoCount = 1;
         info.pCommandBufferInfos = &cmdSubmitInfo;
 
-        if (vkQueueSubmit2(mContext->GetGraphicsQueue(), 1, &info, frame.waitFence) != VK_SUCCESS) {
-            assert("Error: Coudln't submit queue");
-        }
-
+        VK_CHECK(vkQueueSubmit2(mContext->GetGraphicsQueue(), 1, &info, frame.waitFence));
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.pNext = nullptr;
         presentInfo.pSwapchains = &mPresenter->GetSwapChain().handle;
         presentInfo.swapchainCount = 1;
-
         presentInfo.pWaitSemaphores = &mPresenter->GetRenderCompleteSemaphore(swapchainImageIndex);
         presentInfo.waitSemaphoreCount = 1;
-
         presentInfo.pImageIndices = &swapchainImageIndex;
-
-        if (vkQueuePresentKHR(mContext->GetGraphicsQueue(), &presentInfo)) {
-            assert("Error: Coudln't present queue");
-        }
-
+        VK_CHECK(vkQueuePresentKHR(mContext->GetGraphicsQueue(), &presentInfo));
+        
         mFrameManager->AdvanceFrame();
     }
 

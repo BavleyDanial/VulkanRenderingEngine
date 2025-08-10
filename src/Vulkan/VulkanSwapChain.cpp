@@ -46,9 +46,7 @@ namespace VKRE {
             imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
             imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-            if (vkCreateImageView(deviceHandle, &imageViewCreateInfo, nullptr, &imageViews[i]) != VK_SUCCESS) {
-                assert("ERROR: coudln't create Image View!");
-            }
+            VK_CHECK(vkCreateImageView(deviceHandle, &imageViewCreateInfo, nullptr, &imageViews[i]));
         }
 
         return imageViews;
@@ -64,7 +62,8 @@ namespace VKRE {
         :mInstance(instance), mSurface(surface), mPhysicalDevice(physicalDevice), mLogicalDevice(logicalDevice) {
 
         if (std::find(mPhysicalDevice.extensionsEnabled.begin(), mPhysicalDevice.extensionsEnabled.end(), VK_KHR_SWAPCHAIN_EXTENSION_NAME) != mPhysicalDevice.extensionsEnabled.end()) {
-            assert("Physical device doesn't support swapchains");
+            std::println("Vulkan Wanring: Physical device doesn't support swapchains");
+            abort();
         }
     }
 
@@ -84,7 +83,7 @@ namespace VKRE {
 
         QueueFamilyIndinces indices = mPhysicalDevice.queueFamilyIndicies;
         if (!indices.IsComplete()) {
-            assert("Error: Graphics and Present indices are not available on this physical device!");
+            std::println("Vulkan Warning: Graphics and Present indices are not available on this physical device!");
             return std::nullopt;
         }
 
@@ -114,9 +113,10 @@ namespace VKRE {
         swapChainCreateInfo.presentMode = swapChain.presentMode;
         swapChainCreateInfo.clipped = VK_TRUE;
         swapChainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
-
-        if (vkCreateSwapchainKHR(mLogicalDevice.handle, &swapChainCreateInfo, nullptr, &swapChain.handle) != VK_SUCCESS) {
-            assert("Error: Couldn't create swapchain!");
+        
+        VkResult result = vkCreateSwapchainKHR(mLogicalDevice.handle, &swapChainCreateInfo, nullptr, &swapChain.handle);
+        if (result != VK_SUCCESS) {
+            std::println("Vulkan Warning: Couldn't create swapchain! {}", string_VkResult(result));
             return std::nullopt;
         }
 
