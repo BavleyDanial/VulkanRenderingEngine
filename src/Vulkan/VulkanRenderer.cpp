@@ -15,10 +15,16 @@ namespace VKRE {
         mPresenter = std::make_unique<VulkanPresenter>(context);
     }
 
+    VulkanRenderer::~VulkanRenderer() {
+        mPresenter.reset();
+        mFrameManager.reset();
+    }
+
     void VulkanRenderer::Render() {
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
 
         VK_CHECK(vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
+        frame.deletionQueue.Flush();
 
         if (Engine::GetInstance().hasResized) {
             mPresenter->ResizeSwapChain();

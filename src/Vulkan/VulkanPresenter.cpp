@@ -15,7 +15,6 @@ namespace  VKRE {
 
     void VulkanPresenter::CreateSwapChain() {
         auto [width, height] = mContext->GetWindowContext()->GetFrameBufferExtents();
-        std::println("FrameBuffer: Width[{}], Height[{}]", width, height);
 
         VulkanSwapChainBuilder swapChainBuilder(mContext->GetInstance(), mContext->GetSurface(), mContext->GetPhysicalDevice(), mContext->GetLogicalDevice());
         std::optional<VulkanSwapChain> swapChain = swapChainBuilder.SetDesiredExtent(width, height)

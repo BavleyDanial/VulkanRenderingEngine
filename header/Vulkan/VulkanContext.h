@@ -40,6 +40,9 @@ namespace VKRE {
         VulkanPhysicalDevice mPhysicalDevice{};
         VulkanLogicalDevice mLogicalDevice{};
 
+        VmaAllocator mAllocator;
+        VulkanUtils::DeletionQueue mDeletionQueue;
+
         // TODO: Make validation layers only available in debug mode
         const std::vector<const char*> mValidationLayers = {
             "VK_LAYER_KHRONOS_validation"

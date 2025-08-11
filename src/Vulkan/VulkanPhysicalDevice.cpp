@@ -318,7 +318,7 @@ namespace VKRE {
             return false;
 
         if (device.properties.deviceType != mRequiredProperties.deviceType) {
-            std::println("Vulkan Warning: Physical device type is not the same as requested device type");
+            // TODO: return a semi-compatible value
         }
 
         bool supportsAllFeatures = details::supportsFeatures(device.features, mRequiredFeatures, device.extendedFeaturesChain, mRequiredExtendedFeaturesChain);

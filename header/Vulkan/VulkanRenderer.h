@@ -13,6 +13,7 @@ namespace VKRE {
     class VulkanRenderer {
     public:
         VulkanRenderer(std::shared_ptr<VulkanContext> context);
+        ~VulkanRenderer();
 
         void Render();
 
@@ -25,6 +26,7 @@ namespace VKRE {
         std::shared_ptr<VulkanContext> mContext;
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
+        VulkanUtils::DeletionQueue mDeletionQueue;
     };
 
 }

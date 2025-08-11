@@ -1,5 +1,8 @@
 #include <Vulkan/VulkanContext.h>
 
+#define VMA_IMPLEMENTATION
+#include <vma/vk_mem_alloc.h>
+
 #include <Engine.h>
 #include <GLFW/glfw3.h>
 
@@ -75,11 +78,18 @@ namespace VKRE {
             abort();
         }
 
+        VmaAllocatorCreateInfo allocatorInfo{};
+        allocatorInfo.instance = sInstance;
+        allocatorInfo.device = logicalDevice->handle;
+        allocatorInfo.physicalDevice = physicalDevice->handle;
+        allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        vmaCreateAllocator(&allocatorInfo, &mAllocator);
+        mDeletionQueue.PushDeleteFunc([&]() { vmaDestroyAllocator(mAllocator); });
     }
 
     VulkanContext::~VulkanContext() {
+        mDeletionQueue.Flush();
         mLogicalDevice.Destroy();
-
         vkDestroySurfaceKHR(sInstance, mSurface, nullptr);
         vkDestroyInstance(sInstance, nullptr);
     }
