@@ -53,7 +53,7 @@ namespace VKRE {
     }
 
     void VulkanSwapChain::DestroyImageViews(std::vector<VkImageView>& imageViews) {
-        for (auto& imageView : imageViews) {
+        for (auto imageView : imageViews) {
             vkDestroyImageView(deviceHandle, imageView, nullptr);
         }
     }

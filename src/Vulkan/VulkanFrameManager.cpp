@@ -3,8 +3,6 @@
 #include <cassert>
 #include <vulkan/vulkan_core.h>
 
-#include "Vulkan/VulkanPresenter.h"
-
 namespace VKRE {
 
     VulkanFrameManager::VulkanFrameManager(std::shared_ptr<VulkanContext> context, uint32_t framesInFlight) 
@@ -15,11 +13,11 @@ namespace VKRE {
 
     VulkanFrameManager::~VulkanFrameManager() {
         auto device = mContext->GetLogicalDevice().handle;
-        
+
         for (auto& frame : mFrames) {
             VK_CHECK(vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, 1000000000));
             VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
-            
+
             vkDestroyCommandPool(device, frame.commandPool, nullptr);
             vkDestroySemaphore(device, frame.presentCompleteSemaphore, nullptr);
             vkDestroyFence(device, frame.waitFence, nullptr);

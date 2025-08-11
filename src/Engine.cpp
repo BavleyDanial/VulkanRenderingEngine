@@ -9,8 +9,8 @@ Engine::Engine() {
     }
 
     mInstance = this;
-    
-    mWindow = std::make_shared<VKRE::Window>(VKRE::WindowSpecs{});
+
+    mWindow = std::make_shared<VKRE::Window>(VKRE::WindowSpecs{ .resizable = true });
     mVulkanContext = std::make_shared<VKRE::VulkanContext>(mWindow);
     mVulkanRenderer = std::make_shared<VKRE::VulkanRenderer>(mVulkanContext);
 }

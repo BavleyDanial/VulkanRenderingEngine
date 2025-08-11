@@ -16,6 +16,7 @@ namespace VKRE {
         uint32_t width = 1280, height = 720;
         bool vsync = true;
         bool fullscreen = false;
+        bool resizable = false;
     };
 
     class Window {

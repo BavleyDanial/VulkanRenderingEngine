@@ -1,5 +1,7 @@
 #include "GLFW/glfw3.h"
+
 #include <Window/GlfwWindow.h>
+#include <Engine.h>
 
 #include <cassert>
 
@@ -12,7 +14,11 @@ namespace VKRE {
             assert("Couldn't initialise glfw");
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
+        if (mSpecs.resizable)
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        else
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
         mGLFWwindow = glfwCreateWindow(static_cast<int>(mSpecs.width), static_cast<int>(mSpecs.height), mSpecs.title.c_str(), nullptr, nullptr);
         if (!mGLFWwindow) {
@@ -37,8 +43,9 @@ namespace VKRE {
 
         glfwSetWindowUserPointer(mGLFWwindow, this);
         glfwSetWindowSizeCallback(mGLFWwindow, [](GLFWwindow* window, int width, int height) {
-                Window* ogreWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
-                ogreWindow->Resize(width, height);
+                Window* VKREWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
+                VKREWindow->Resize(width, height);
+                Engine::GetInstance().hasResized = true;
         });
    }
 

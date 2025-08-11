@@ -14,13 +14,18 @@ namespace VKRE {
         VulkanPresenter(std::shared_ptr<VulkanContext> context);
         ~VulkanPresenter();
 
+        void ResizeSwapChain();
         VulkanSwapChain& GetSwapChain() { return mSwapChain; }
 
         const std::vector<VkImage>& GetImages() const { return mSwapChainImages; }
         const std::vector<VkImageView>& GetImageViews() const { return mSwapChainImageViews; }
 
         VkSemaphore& GetRenderCompleteSemaphore(uint32_t index) { return mRenderCompleteSemaphores[index]; }
-    
+
+    private:
+        void CreateSwapChain();
+        void DestroySwapChain();
+
     private:
         std::shared_ptr<VulkanContext> mContext;
         VulkanSwapChain mSwapChain{};

@@ -19,10 +19,17 @@ namespace VKRE {
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
 
         VK_CHECK(vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
-        VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
+
+        if (Engine::GetInstance().hasResized) {
+            mPresenter->ResizeSwapChain();
+            Engine::GetInstance().hasResized = false;
+            return;
+        }
 
         uint32_t swapchainImageIndex = 0;
         VK_CHECK(vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex));
+
+        VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
 
         // NOTE: The following is temporary!
         VkCommandBuffer cmd = frame.commandBuffer;
@@ -80,7 +87,7 @@ namespace VKRE {
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pImageIndices = &swapchainImageIndex;
         VK_CHECK(vkQueuePresentKHR(mContext->GetGraphicsQueue(), &presentInfo));
-        
+
         mFrameManager->AdvanceFrame();
     }
 

@@ -4,11 +4,20 @@
 
 namespace  VKRE {
 
-    VulkanPresenter::VulkanPresenter(std::shared_ptr<VulkanContext> context) {
-        mContext = context;
-        auto [width, height] = mContext->GetWindowContext()->GetFrameBufferExtents();
+    VulkanPresenter::VulkanPresenter(std::shared_ptr<VulkanContext> context)
+        :mContext(context) {
+        CreateSwapChain();
+    }
 
-        VulkanSwapChainBuilder swapChainBuilder(mContext->GetInstance(), context->GetSurface(), context->GetPhysicalDevice(), context->GetLogicalDevice());
+    VulkanPresenter::~VulkanPresenter() {
+        DestroySwapChain();
+    }
+
+    void VulkanPresenter::CreateSwapChain() {
+        auto [width, height] = mContext->GetWindowContext()->GetFrameBufferExtents();
+        std::println("FrameBuffer: Width[{}], Height[{}]", width, height);
+
+        VulkanSwapChainBuilder swapChainBuilder(mContext->GetInstance(), mContext->GetSurface(), mContext->GetPhysicalDevice(), mContext->GetLogicalDevice());
         std::optional<VulkanSwapChain> swapChain = swapChainBuilder.SetDesiredExtent(width, height)
                                                     .SetDesiredImageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
                                                     .SetDesiredFormat(VkSurfaceFormatKHR{ VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
@@ -27,13 +36,14 @@ namespace  VKRE {
         mRenderCompleteSemaphores.resize(mSwapChainImages.size());
         VkSemaphoreCreateInfo semaphoreCreateInfo{};
         semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        
+
         for (auto& semaphore : mRenderCompleteSemaphores) {
             VK_CHECK(vkCreateSemaphore(mSwapChain.deviceHandle, &semaphoreCreateInfo, nullptr, &semaphore));
         }
+
     }
 
-    VulkanPresenter::~VulkanPresenter() {
+    void VulkanPresenter::DestroySwapChain() {
         vkDeviceWaitIdle(mSwapChain.deviceHandle);
         for (auto& semaphore : mRenderCompleteSemaphores) {
             vkDestroySemaphore(mSwapChain.deviceHandle, semaphore, nullptr);
@@ -42,5 +52,9 @@ namespace  VKRE {
         mSwapChain.Destroy();
     }
 
+    void VulkanPresenter::ResizeSwapChain() {
+        DestroySwapChain();
+        CreateSwapChain();
+    }
 }
 
