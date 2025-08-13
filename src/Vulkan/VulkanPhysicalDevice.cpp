@@ -220,7 +220,7 @@ namespace VKRE {
         SetPreferredType();
     }
 
-    std::optional<VulkanPhysicalDevice> VulkanPhysicalDeviceSelector::Select() const {
+    std::optional<VulkanPhysicalDevice> VulkanPhysicalDeviceSelector::Select() {
         std::vector<VulkanPhysicalDevice> devices = GetSuitableDevices();
         if (devices.empty()) {
             return std::nullopt;
@@ -242,7 +242,7 @@ namespace VKRE {
         physicalDevice.queueFamilyIndicies = FindQueueFamilies(physicalDevice.handle);
 
         vkGetPhysicalDeviceProperties(physicalDevice.handle, &physicalDevice.properties);
-        vkGetPhysicalDeviceFeatures(physicalDevice.handle, &physicalDevice.features);
+        vkGetPhysicalDeviceFeatures(physicalDevice.handle, &physicalDevice.enabledFeatures.features);
         vkGetPhysicalDeviceMemoryProperties(physicalDevice.handle, &physicalDevice.memoryProperties);
 
         uint32_t availableExtensionsCount = 0;
@@ -266,7 +266,7 @@ namespace VKRE {
         return physicalDevice;
     }
 
-    std::vector<VulkanPhysicalDevice> VulkanPhysicalDeviceSelector::GetSuitableDevices() const {
+    std::vector<VulkanPhysicalDevice> VulkanPhysicalDeviceSelector::GetSuitableDevices() {
         uint32_t availableDevicesCount = 0;
         vkEnumeratePhysicalDevices(mInstance, &availableDevicesCount, nullptr);
         std::vector<VkPhysicalDevice> availablePhysicalDevices(availableDevicesCount);
@@ -277,7 +277,9 @@ namespace VKRE {
         }
 
         auto FillPhysicalDeviceWithCriteria = [&](VulkanPhysicalDevice& physicalDevice) {
-            physicalDevice.features = mRequiredFeatures;
+            physicalDevice.enabledFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            mRequiredExtendedFeaturesChain.ChainUp(physicalDevice.enabledFeatures);
+            physicalDevice.enabledFeatures.features = mRequiredFeatures;
             physicalDevice.extendedFeaturesChain = mRequiredExtendedFeaturesChain;
             physicalDevice.extensionsEnabled.append_range(mRequiredExtensions);
         };
@@ -321,7 +323,7 @@ namespace VKRE {
             // TODO: return a semi-compatible value
         }
 
-        bool supportsAllFeatures = details::supportsFeatures(device.features, mRequiredFeatures, device.extendedFeaturesChain, mRequiredExtendedFeaturesChain);
+        bool supportsAllFeatures = details::supportsFeatures(device.enabledFeatures.features, mRequiredFeatures, device.extendedFeaturesChain, mRequiredExtendedFeaturesChain);
         if (!supportsAllFeatures)
             return false;
 
@@ -403,15 +405,13 @@ namespace VKRE {
     VulkanPhysicalDeviceSelector& VulkanPhysicalDeviceSelector::SetRequiredFeatures12(const VkPhysicalDeviceVulkan12Features& features) {
         VkPhysicalDeviceVulkan12Features featuresCopy = features;
         featuresCopy.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-        AddRequiredExtensionFeatures(featuresCopy);
-        return *this;
+        return AddRequiredExtensionFeatures(featuresCopy);
     }
 
     VulkanPhysicalDeviceSelector& VulkanPhysicalDeviceSelector::SetRequiredFeatures13(const VkPhysicalDeviceVulkan13Features& features) {
         VkPhysicalDeviceVulkan13Features featuresCopy = features;
         featuresCopy.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-        AddRequiredExtensionFeatures(featuresCopy);
-        return *this;
+        return AddRequiredExtensionFeatures(featuresCopy);
     }
 
     VulkanPhysicalDeviceSelector& VulkanPhysicalDeviceSelector::SetSurface(VkSurfaceKHR surface) {

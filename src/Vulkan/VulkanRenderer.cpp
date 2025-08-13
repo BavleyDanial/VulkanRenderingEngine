@@ -13,6 +13,24 @@ namespace VKRE {
     :mContext(context) {
         mFrameManager = std::make_unique<VulkanFrameManager>(context);
         mPresenter = std::make_unique<VulkanPresenter>(context);
+
+        auto [width, height] = mContext->GetWindowContext()->GetFrameBufferExtents();
+        VkExtent3D drawImageExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
+        VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        VkImageUsageFlags drawImageUsages{};
+        drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
+        drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        VmaAllocationCreateInfo drawImageAllocInfo = {};
+        drawImageAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        drawImageAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        mDrawImage = std::make_unique<VulkanImage2D>(context);
+        mDrawImage->CreateImage(format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
+
+        mDeletionQueue.PushDeleteFunc([this]() { mDrawImage->Release(); });
     }
 
     VulkanRenderer::~VulkanRenderer() {
@@ -48,13 +66,16 @@ namespace VKRE {
         cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
         VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo));
-        TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-        VkClearColorValue clearValue;
-        clearValue = { { 0.0f, 0.0f, 1.0f, 1.0f } };
 
-        VkImageSubresourceRange clearRange = ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
-        vkCmdClearColorImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
-        TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex],VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        ClearImage(cmd, mDrawImage);
+        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL); VkImage swapChainImage = mPresenter->GetImages()[swapchainImageIndex];
+
+        VkExtent2D drawImageExtent = { mDrawImage->GetImageInfo().extent.width, mDrawImage->GetImageInfo().extent.height };
+        ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        ImageUtils::CopyImage(cmd, mDrawImage->GetImageInfo().image, swapChainImage, drawImageExtent, mPresenter->GetSwapChain().extent);
+        ImageUtils::TransitionImage(cmd, mPresenter->GetImages()[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
         VK_CHECK(vkEndCommandBuffer(cmd));
 
         VkSemaphoreSubmitInfo presentCompleteSemaphoreSubmitInfo{};
@@ -97,41 +118,11 @@ namespace VKRE {
         mFrameManager->AdvanceFrame();
     }
 
-    void VulkanRenderer::TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout) {
-        VkImageMemoryBarrier2 imageBarrier {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
-        imageBarrier.pNext = nullptr;
-
-        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-        imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-        imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
-
-        imageBarrier.oldLayout = currentLayout;
-        imageBarrier.newLayout = newLayout;
-
-        VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-        imageBarrier.subresourceRange = ImageSubSourceRange(aspectMask);
-        imageBarrier.image = image;
-
-        VkDependencyInfo depInfo {};
-        depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        depInfo.pNext = nullptr;
-
-        depInfo.imageMemoryBarrierCount = 1;
-        depInfo.pImageMemoryBarriers = &imageBarrier;
-
-        vkCmdPipelineBarrier2(cmd, &depInfo);
-    }
-
-    VkImageSubresourceRange VulkanRenderer::ImageSubSourceRange(VkImageAspectFlags aspectMask) {
-        VkImageSubresourceRange subImage {};
-        subImage.aspectMask = aspectMask;
-        subImage.baseMipLevel = 0;
-        subImage.levelCount = VK_REMAINING_MIP_LEVELS;
-        subImage.baseArrayLayer = 0;
-        subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-        return subImage;
+    void VulkanRenderer::ClearImage(VkCommandBuffer cmd, std::shared_ptr<VulkanImage2D> image) {
+        VkClearColorValue clearValue;
+        clearValue = { { 0.0f, 0.0f, 1.0f, 1.0f } };
+        VkImageSubresourceRange clearRange = ImageUtils::ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
+        vkCmdClearColorImage(cmd, image->GetImageInfo().image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
     }
 
 }

@@ -72,7 +72,7 @@ namespace VKRE {
         bool isSuitable = false;
 
         VkPhysicalDeviceProperties properties{};
-        VkPhysicalDeviceFeatures features{};
+        VkPhysicalDeviceFeatures2 enabledFeatures{};
         VkPhysicalDeviceMemoryProperties memoryProperties{};
         details::GenericFeatureChain extendedFeaturesChain{};
 
@@ -88,7 +88,7 @@ namespace VKRE {
         explicit VulkanPhysicalDeviceSelector(VkInstance instance);
         explicit VulkanPhysicalDeviceSelector(VkInstance instance, VkSurfaceKHR surface);
 
-        std::optional<VulkanPhysicalDevice> Select() const;
+        std::optional<VulkanPhysicalDevice> Select();
 
         VulkanPhysicalDeviceSelector& SetName(std::string_view name);
         VulkanPhysicalDeviceSelector& SetPreferredType(PhysicalDeviceType type = PhysicalDeviceType::DEDICATED);
@@ -101,7 +101,7 @@ namespace VKRE {
         VulkanPhysicalDeviceSelector& SetRequiredFeatures13(const VkPhysicalDeviceVulkan13Features& features);
 
     private:
-        std::vector<VulkanPhysicalDevice> GetSuitableDevices() const;
+        std::vector<VulkanPhysicalDevice> GetSuitableDevices();
         bool IsSuitable(const VulkanPhysicalDevice& device) const;
         QueueFamilyIndinces FindQueueFamilies(VkPhysicalDevice device) const;
 
@@ -118,7 +118,6 @@ namespace VKRE {
 
         VkPhysicalDeviceProperties mRequiredProperties{};
         VkPhysicalDeviceFeatures mRequiredFeatures{};
-        VkPhysicalDeviceFeatures mRequiredFeatures2{};
         details::GenericFeatureChain mRequiredExtendedFeaturesChain;
 
         std::vector<const char*> mRequiredExtensions;

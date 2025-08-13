@@ -33,10 +33,9 @@ namespace VKRE {
         deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
         deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-        deviceCreateInfo.pEnabledFeatures = &mPhysicalDevice.features;
         deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(mPhysicalDevice.extensionsEnabled.size());
         deviceCreateInfo.ppEnabledExtensionNames = mPhysicalDevice.extensionsEnabled.data();
-        deviceCreateInfo.pNext = mPhysicalDevice.extendedFeaturesChain.nodes.data();
+        deviceCreateInfo.pNext = &mPhysicalDevice.enabledFeatures;
 
         VulkanLogicalDevice logicalDevice{};
         VkResult result = vkCreateDevice(mPhysicalDevice.handle, &deviceCreateInfo, nullptr, &logicalDevice.handle);

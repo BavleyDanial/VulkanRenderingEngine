@@ -5,6 +5,7 @@
 #include "VulkanContext.h"
 #include "VulkanFrameManager.h"
 #include "VulkanPresenter.h"
+#include "VulkanImage.h"
 
 #include <memory>
 
@@ -16,16 +17,16 @@ namespace VKRE {
         ~VulkanRenderer();
 
         void Render();
+        std::shared_ptr<VulkanImage2D> GetDrawImage() { return mDrawImage; }
 
-    private:
-        // NOTE: This is temporary!
-        void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout);
-        VkImageSubresourceRange ImageSubSourceRange(VkImageAspectFlags aspectMask);
+        void ClearImage(VkCommandBuffer cmd, std::shared_ptr<VulkanImage2D> image);
 
     private:
         std::shared_ptr<VulkanContext> mContext;
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
+        std::shared_ptr<VulkanImage2D> mDrawImage; // TODO: Move to SceneRenderer?
+
         VulkanUtils::DeletionQueue mDeletionQueue;
     };
 

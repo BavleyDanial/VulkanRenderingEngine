@@ -20,6 +20,7 @@ namespace VKRE {
         static const VkInstance GetInstance() { return sInstance; }
         VkSurfaceKHR GetSurface() const { return mSurface; }
 
+        VmaAllocator GetAllocator() { return mAllocator; }
         std::shared_ptr<Window> GetWindowContext() { return mWindow; }
 
         const VulkanPhysicalDevice& GetPhysicalDevice() const { return mPhysicalDevice; }
