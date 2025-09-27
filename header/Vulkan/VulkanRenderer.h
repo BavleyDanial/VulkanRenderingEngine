@@ -6,6 +6,7 @@
 #include "VulkanFrameManager.h"
 #include "VulkanPresenter.h"
 #include "VulkanImage.h"
+#include "VulkanDescriptors.h"
 
 #include <memory>
 
@@ -17,15 +18,29 @@ namespace VKRE {
         ~VulkanRenderer();
 
         void Render();
-        std::shared_ptr<VulkanImage2D> GetDrawImage() { return mDrawImage; }
+        void DrawGradientBackground(VkCommandBuffer cmd);
+        void ClearImage(VkCommandBuffer cmd);
 
-        void ClearImage(VkCommandBuffer cmd, std::shared_ptr<VulkanImage2D> image);
+    private:
+        void CreateDrawImage();
+        void InitDescriptors();
 
+        // TODO: Abstract these to a pipeline file or leave them but utilise a pipeline file
+        void InitPipelines();
+        void InitBackgroundPipelines();
     private:
         std::shared_ptr<VulkanContext> mContext;
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
-        std::shared_ptr<VulkanImage2D> mDrawImage; // TODO: Move to SceneRenderer?
+        std::unique_ptr<VulkanImage2D> mDrawImage;
+
+        DescriptorAllocator mGlobalDescriptorAllocator;
+        VkDescriptorSet mDrawImageDescriptors;
+        VkDescriptorSetLayout mDrawImageDescriptorLayout;
+
+        // TODO: Abstract these to a pipeline file
+        VkPipeline mGradientPipeline;
+        VkPipelineLayout mGradientPipelineLayout;
 
         VulkanUtils::DeletionQueue mDeletionQueue;
     };

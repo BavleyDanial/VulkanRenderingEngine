@@ -24,6 +24,7 @@ namespace VKRE {
 
     private:
         void CreateSwapChain();
+        void CreateDrawImage();
         void DestroySwapChain();
 
     private:

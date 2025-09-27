@@ -48,10 +48,12 @@ namespace VKRE {
     void VulkanImage2D::Release() {
         if (mImageInfo.image) {
             vmaDestroyImage(mContext->GetAllocator(), mImageInfo.image, mImageInfo.allocation);
+            mImageInfo.image = nullptr;
         }
 
         if (mImageInfo.imageView) {
             vkDestroyImageView(mContext->GetLogicalDevice().handle, mImageInfo.imageView, nullptr);
+            mImageInfo.imageView = nullptr;
         }
     }
 
