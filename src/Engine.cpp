@@ -3,12 +3,19 @@
 #include <cassert>
 #include <memory>
 
+#include <imgui.h>
+
 Engine::Engine() {
     if (mInstance) {
         assert("Engine has already been initialised!");
     }
 
     mInstance = this;
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     mWindow = std::make_shared<VKRE::Window>(VKRE::WindowSpecs{ .resizable = true });
     mVulkanContext = std::make_shared<VKRE::VulkanContext>(mWindow);

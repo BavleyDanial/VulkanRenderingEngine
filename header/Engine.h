@@ -5,6 +5,8 @@
 #include <Vulkan/VulkanContext.h>
 #include <Vulkan/VulkanRenderer.h>
 
+#include <imgui.h>
+
 #include <memory>
 
 class Engine {
