@@ -9,10 +9,33 @@
 #include "VulkanDescriptors.h"
 
 #include <memory>
+#include <glm/glm.hpp>
 
 namespace VKRE {
 
     class VulkanRenderer {
+    public:
+        // NOTE: THIS IS JUST FOR ILLUSTRATION OF PUSH CONSTANTS, WILL BE REMOVED
+        struct ComputePushConstants {
+            glm::vec4 data1;
+            glm::vec4 data2;
+            glm::vec4 data3;
+            glm::vec4 data4;
+        };
+
+        // NOTE: THIS IS JUST FOR ILLUSTRATION OF ImGui, WILL BE REMOVED
+        struct ComputeEffect {
+            const char* name;
+
+            VkPipeline pipeline;
+            VkPipelineLayout layout;
+
+            ComputePushConstants data;
+        };
+
+        std::vector<ComputeEffect> backgroundEffects;
+        int currentBackgroundEffect = 0;
+
     public:
         VulkanRenderer(std::shared_ptr<VulkanContext> context);
         ~VulkanRenderer();

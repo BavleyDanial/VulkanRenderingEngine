@@ -27,7 +27,8 @@ namespace VKRE {
         // NOTE: THE FOLLOWING IS TEMPORARY, WILL BE MOVED TO OTHER FILES
 
         // TODO: Move this to a ImGuiRenderer or something
-        VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        VkDescriptorPoolSize pool_sizes[] = {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
             { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
             { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
@@ -37,7 +38,8 @@ namespace VKRE {
             { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
             { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
             { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
 
         VkDescriptorPoolCreateInfo pool_info = {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -155,11 +157,19 @@ namespace VKRE {
         computeLayout.pSetLayouts = &mDrawImageDescriptorLayout;
         computeLayout.setLayoutCount = 1;
 
+        VkPushConstantRange pushConstant{};
+        pushConstant.offset = 0;
+        pushConstant.size = sizeof(ComputePushConstants) ;
+        pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        computeLayout.pPushConstantRanges = &pushConstant;
+        computeLayout.pushConstantRangeCount = 1;
+
         VK_CHECK(vkCreatePipelineLayout(mContext->GetLogicalDevice().handle, &computeLayout, nullptr, &mGradientPipelineLayout));
 
         // TODO: Make shaders system that automatically loads shaders based on a config file or something instead of hard-coding the relative path
-        VkShaderModule computeDrawShader = VulkanUtils::LoadShader(mContext->GetLogicalDevice().handle, "res/shaders/gradient.spv");
-        if (!computeDrawShader) {
+        VkShaderModule gradientShader = VulkanUtils::LoadShader(mContext->GetLogicalDevice().handle, "res/shaders/gradient.spv");
+        if (!gradientShader) {
             std::println("Error when building the compute shader");
         }
 
@@ -167,7 +177,7 @@ namespace VKRE {
         stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stageinfo.pNext = nullptr;
         stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-        stageinfo.module = computeDrawShader;
+        stageinfo.module = gradientShader;
         stageinfo.pName = "main";
 
         VkComputePipelineCreateInfo computePipelineCreateInfo{};
@@ -176,12 +186,33 @@ namespace VKRE {
         computePipelineCreateInfo.layout = mGradientPipelineLayout;
         computePipelineCreateInfo.stage = stageinfo;
 
-        VK_CHECK(vkCreateComputePipelines(mContext->GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &mGradientPipeline));
+        ComputeEffect gradient;
+        gradient.layout = mGradientPipelineLayout;
+        gradient.name = "gradient";
+        gradient.data = {};
 
-        vkDestroyShaderModule(mContext->GetLogicalDevice().handle, computeDrawShader, nullptr);
+        gradient.data.data1 = glm::vec4(1, 0, 0, 1);
+        gradient.data.data2 = glm::vec4(0, 0, 1, 1);
+
+        VK_CHECK(vkCreateComputePipelines(mContext->GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+
+        ComputeEffect sky;
+        sky.layout = mGradientPipelineLayout;
+        sky.name = "gradient";
+        sky.data = {};
+
+        sky.data.data1 = glm::vec4(0.1, 0.2, 0.4 ,0.97);
+
+        VK_CHECK(vkCreateComputePipelines(mContext->GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
+
+        backgroundEffects.push_back(gradient);
+        backgroundEffects.push_back(sky);
+
+        vkDestroyShaderModule(mContext->GetLogicalDevice().handle, gradientShader, nullptr);
         mDeletionQueue.PushDeleteFunc([&]() {
             vkDestroyPipelineLayout(mContext->GetLogicalDevice().handle, mGradientPipelineLayout, nullptr);
-            vkDestroyPipeline(mContext->GetLogicalDevice().handle, mGradientPipeline, nullptr);
+            vkDestroyPipeline(mContext->GetLogicalDevice().handle, backgroundEffects[0].pipeline, nullptr);
+            vkDestroyPipeline(mContext->GetLogicalDevice().handle, backgroundEffects[1].pipeline, nullptr);
         });
     }
 
@@ -272,8 +303,10 @@ namespace VKRE {
     }
 
     void VulkanRenderer::DrawGradientBackground(VkCommandBuffer cmd) {
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, mGradientPipeline);
+        ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, mGradientPipelineLayout, 0, 1, &mDrawImageDescriptors, 0, nullptr);
+        vkCmdPushConstants(cmd, mGradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
         vkCmdDispatch(cmd, std::ceil(mDrawImage->GetImageInfo().extent.width / 16.0), std::ceil(mDrawImage->GetImageInfo().extent.height / 16.0), 1);
     }
 

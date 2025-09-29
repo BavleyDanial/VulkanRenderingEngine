@@ -1,5 +1,6 @@
 #include "ImGui/Backend/ImGuiGLFW.h"
 #include "ImGui/Backend/ImGuiVulkan.h"
+#include "imgui.h"
 #include "imgui_internal.h"
 #include <Engine.h>
 
@@ -32,7 +33,26 @@ void Engine::Run() {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        ImGui::ShowDemoWindow();
+
+        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
+
+        if (ImGui::Begin("background")) {
+
+            VKRE::VulkanRenderer::ComputeEffect& selected = mVulkanRenderer->backgroundEffects[mVulkanRenderer->currentBackgroundEffect];
+
+            ImGui::Text("Selected effect: ", selected.name);
+
+            ImGui::SliderInt("Effect Index", &mVulkanRenderer->currentBackgroundEffect,0, mVulkanRenderer->backgroundEffects.size() - 1);
+
+            ImGui::InputFloat4("data1",(float*)& selected.data.data1);
+            ImGui::InputFloat4("data2",(float*)& selected.data.data2);
+            ImGui::InputFloat4("data3",(float*)& selected.data.data3);
+            ImGui::InputFloat4("data4",(float*)& selected.data.data4);
+        }
+        ImGui::End();
+        ImGui::PopStyleVar();
+
         ImGui::Render();
 
         mVulkanRenderer->Render();
