@@ -27,9 +27,6 @@ namespace VKRE {
         // NOTE: THE FOLLOWING IS TEMPORARY, WILL BE MOVED TO OTHER FILES
 
         // TODO: Move this to a ImGuiRenderer or something
-        // 1: create descriptor pool for IMGUI
-        //  the size of the pool is very oversize, but it's copied from imgui demo
-        //  itself.
         VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
             { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
             { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
@@ -52,15 +49,15 @@ namespace VKRE {
         VkDescriptorPool imguiPool;
         VK_CHECK(vkCreateDescriptorPool(mContext->GetLogicalDevice().handle, &pool_info, nullptr, &imguiPool));
 
-        // 2: initialize imgui library
-
-        // this initializes the core structures of imgui
+        IMGUI_CHECKVERSION();
         ImGui::CreateContext();
 
-        // this initializes imgui for SDL
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
         ImGui_ImplGlfw_InitForVulkan(mContext->GetWindowContext()->GetGLFWwindow(), true);
 
-        // this initializes imgui for Vulkan
         ImGui_ImplVulkan_InitInfo init_info = {};
         init_info.Instance = mContext->GetInstance();
         init_info.PhysicalDevice = mContext->GetPhysicalDevice().handle;
@@ -71,7 +68,6 @@ namespace VKRE {
         init_info.ImageCount = 3;
         init_info.UseDynamicRendering = true;
 
-        //dynamic rendering parameters for imgui to use
         ImGui_ImplVulkan_PipelineInfo pipelineInfo{};
         pipelineInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
         pipelineInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
@@ -82,7 +78,6 @@ namespace VKRE {
 
         ImGui_ImplVulkan_Init(&init_info);
 
-        // add the destroy the imgui created structures
         mDeletionQueue.PushDeleteFunc([=, this]() {
             ImGui_ImplVulkan_Shutdown();
             vkDestroyDescriptorPool(mContext->GetLogicalDevice().handle, imguiPool, nullptr);
@@ -294,9 +289,7 @@ namespace VKRE {
         VkRenderingInfo renderInfo = VulkanUtils::RenderingInfo(mPresenter->GetSwapChain().extent, &colorAttachment, nullptr);
 
         vkCmdBeginRendering(cmd, &renderInfo);
-
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-
         vkCmdEndRendering(cmd);
     }
 }
