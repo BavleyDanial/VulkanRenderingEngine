@@ -33,7 +33,7 @@ set(STB_HEADER "${CMAKE_SOURCE_DIR}/vendor/stb/")
 
 find_package(Vulkan REQUIRED)
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/glfw/")
-add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/ImGui/")
+add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/")
 
 set(BIN_NAME "VKRE-${CMAKE_SYSTEM_NAME}-${ARCHITECTURE}")
 add_executable(${BIN_NAME} "${SOURCE}" "${GLAD_SRC}" "${HEADER_SOURCE}")

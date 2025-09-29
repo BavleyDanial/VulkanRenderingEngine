@@ -10,6 +10,7 @@
 #include <cstring>
 #include <fstream>
 #include <print>
+#include <vulkan/vulkan_core.h>
 
 #ifdef NDEBUG
 #define VK_CHECK(x) x
@@ -113,5 +114,33 @@ namespace VKRE {
             return shaderModule;
         }
 
+        // TODO: This should be somewhere else maybe
+        static VkRenderingAttachmentInfo AttatchmentInfo(VkImageView view, VkClearValue* clear, VkImageLayout layout) {
+            VkRenderingAttachmentInfo colorAttachment{};
+            colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+            colorAttachment.imageView = view;
+            colorAttachment.imageLayout = layout;
+            colorAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            if (clear) colorAttachment.clearValue = *clear;
+
+            return colorAttachment;
+        }
+
+        // TODO: This should be somewhere else maybe
+        static VkRenderingInfo RenderingInfo(VkExtent2D renderExtent, VkRenderingAttachmentInfo* colorAttachment, VkRenderingAttachmentInfo* depthAttachment) {
+            VkRenderingInfo renderInfo {};
+            renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+            renderInfo.pNext = nullptr;
+
+            renderInfo.renderArea = VkRect2D { VkOffset2D { 0, 0 }, renderExtent };
+            renderInfo.layerCount = 1;
+            renderInfo.colorAttachmentCount = 1;
+            renderInfo.pColorAttachments = colorAttachment;
+            renderInfo.pDepthAttachment = depthAttachment;
+            renderInfo.pStencilAttachment = nullptr;
+
+            return renderInfo;
+        }
     };
 }

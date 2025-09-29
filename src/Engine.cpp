@@ -1,9 +1,10 @@
+#include "ImGui/Backend/ImGuiGLFW.h"
+#include "ImGui/Backend/ImGuiVulkan.h"
+#include "imgui_internal.h"
 #include <Engine.h>
 
 #include <cassert>
 #include <memory>
-
-#include <imgui.h>
 
 Engine::Engine() {
     if (mInstance) {
@@ -11,11 +12,6 @@ Engine::Engine() {
     }
 
     mInstance = this;
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     mWindow = std::make_shared<VKRE::Window>(VKRE::WindowSpecs{ .resizable = true });
     mVulkanContext = std::make_shared<VKRE::VulkanContext>(mWindow);
@@ -32,6 +28,13 @@ void Engine::Run() {
     // TODO: Change this to close when the engine decides to close, not when ONE WINDOW decides it's done. This will help with multiple windows as well.
     while (!mWindow->ShouldClose()) {
         mWindow->OnUpdate();
+
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow();
+        ImGui::Render();
+
         mVulkanRenderer->Render();
     }
 }

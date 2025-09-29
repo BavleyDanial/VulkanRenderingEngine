@@ -21,6 +21,9 @@ namespace VKRE {
         void DrawGradientBackground(VkCommandBuffer cmd);
         void ClearImage(VkCommandBuffer cmd);
 
+        // TODO: Move this to imgui renderer or something idk
+        void DrawImGui(VkCommandBuffer cmd, VkImageView targetImageView);
+
     private:
         void CreateDrawImage();
         void InitDescriptors();
