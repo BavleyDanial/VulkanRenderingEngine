@@ -26,6 +26,9 @@ namespace VKRE {
         void CreateSwapChain();
         void DestroySwapChain();
 
+        void GetSwapChainImages();
+        void GetSwapChainImageViews();
+
     private:
         std::shared_ptr<VulkanContext> mContext;
         VulkanSwapChain mSwapChain{};

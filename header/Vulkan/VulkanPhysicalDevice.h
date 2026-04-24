@@ -77,7 +77,7 @@ namespace VKRE {
         details::GenericFeatureChain extendedFeaturesChain{};
 
         std::vector<const char*> extensionsEnabled;
-        std::vector<const char*> availableExtensions;
+        std::vector<std::string> availableExtensions;
 
         std::vector<VkQueueFamilyProperties> queueFamilies;
         QueueFamilyIndinces queueFamilyIndicies{};

@@ -30,7 +30,7 @@ namespace VKRE {
     public:
         // TODO: Use templates for each Vulkan type that needs to be deleted and implement a custom deletor for each for performance
         struct DeletionQueue {
-            std::deque<std::function<void()>> deletors;
+            std::vector<std::function<void()>> deletors;
 
             void PushDeleteFunc(std::function<void()>&& function) {
                 deletors.push_back(function);

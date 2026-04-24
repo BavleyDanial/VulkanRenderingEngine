@@ -29,8 +29,8 @@ namespace  VKRE {
             abort();
         }
 
-        mSwapChainImages = mSwapChain.GetImages();
-        mSwapChainImageViews = mSwapChain.GetImageViews(mSwapChain.GetImages());
+        GetSwapChainImages();
+        GetSwapChainImageViews();
 
         mRenderCompleteSemaphores.resize(mSwapChainImages.size());
         VkSemaphoreCreateInfo semaphoreCreateInfo{};
@@ -40,6 +40,40 @@ namespace  VKRE {
             VK_CHECK(vkCreateSemaphore(mSwapChain.deviceHandle, &semaphoreCreateInfo, nullptr, &semaphore));
         }
 
+    }
+
+    void VulkanPresenter::GetSwapChainImages() {
+        uint32_t imageCount = 0;
+        vkGetSwapchainImagesKHR(mSwapChain.deviceHandle, mSwapChain.handle, &imageCount, nullptr);
+
+        mSwapChainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(mSwapChain.deviceHandle, mSwapChain.handle, &imageCount, mSwapChainImages.data());
+    }
+
+    void VulkanPresenter::GetSwapChainImageViews() {
+        mSwapChainImageViews.resize(mSwapChainImages.size());
+
+        for (size_t i = 0; i < mSwapChainImageViews.size(); i++) {
+            VkImageViewCreateInfo imageViewCreateInfo{};
+            imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            imageViewCreateInfo.image = mSwapChainImages[i];
+
+            imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            imageViewCreateInfo.format = mSwapChain.imageFormat.format;
+
+            imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+            imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+            imageViewCreateInfo.subresourceRange.levelCount = 1;
+            imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+            imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+            VK_CHECK(vkCreateImageView(mSwapChain.deviceHandle, &imageViewCreateInfo, nullptr, &mSwapChainImageViews[i]));
+        }
     }
 
     void VulkanPresenter::DestroySwapChain() {

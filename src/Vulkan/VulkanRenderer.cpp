@@ -93,7 +93,7 @@ namespace VKRE {
     }
 
     void VulkanRenderer::CreateDrawImage() {
-        auto [width, height] = mContext->GetWindowContext()->GetFrameBufferExtents();
+        auto [width, height] = mPresenter->GetSwapChain().extent;
         VkExtent3D drawImageExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
         VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT;
         VkImageUsageFlags drawImageUsages{};
@@ -229,9 +229,7 @@ namespace VKRE {
 
     void VulkanRenderer::Render() {
         if (Engine::GetInstance().hasResized) {
-            vkDeviceWaitIdle(mContext->GetLogicalDevice().handle);
-            mPresenter->ResizeSwapChain();
-            ReCreateDrawImage();
+            ReSize();
             Engine::GetInstance().hasResized = false;
             return;
         }
@@ -244,9 +242,7 @@ namespace VKRE {
         uint32_t swapchainImageIndex = 0;
         VkResult acquireResult = vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex);
         if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
-            vkDeviceWaitIdle(mContext->GetLogicalDevice().handle);
-            mPresenter->ResizeSwapChain();
-            ReCreateDrawImage();
+            ReSize();
             VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
             return;
         }
@@ -267,7 +263,7 @@ namespace VKRE {
         VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo));
 
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-        //ClearImage(cmd);
+        ClearImage(cmd);
         DrawGradientBackground(cmd);
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
@@ -323,6 +319,12 @@ namespace VKRE {
         mFrameManager->AdvanceFrame();
     }
 
+    void VulkanRenderer::ReSize() {
+        vkDeviceWaitIdle(mContext->GetLogicalDevice().handle);
+        mPresenter->ResizeSwapChain();
+        ReCreateDrawImage();
+    }
+
     void VulkanRenderer::DrawGradientBackground(VkCommandBuffer cmd) {
         ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
@@ -333,7 +335,7 @@ namespace VKRE {
 
     void VulkanRenderer::ClearImage(VkCommandBuffer cmd) {
         VkClearColorValue clearValue;
-        clearValue = { { 0.0f, 0.0f, 1.0f, 1.0f } };
+        clearValue = { { 0.0f, 0.0f, 0.0f, 1.0f } };
         VkImageSubresourceRange clearRange = ImageUtils::ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
         vkCmdClearColorImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
     }

@@ -41,6 +41,7 @@ namespace VKRE {
         ~VulkanRenderer();
 
         void Render();
+        void ReSize();
         void DrawGradientBackground(VkCommandBuffer cmd);
         void ClearImage(VkCommandBuffer cmd);
 

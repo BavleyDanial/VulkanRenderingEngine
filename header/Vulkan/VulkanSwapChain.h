@@ -25,9 +25,6 @@ namespace VKRE {
         uint32_t minImageCount = 0;
         VkImageUsageFlags imageUsage;
 
-        std::vector<VkImage> GetImages() const; // TODO: Error handling
-        std::vector<VkImageView> GetImageViews(const std::vector<VkImage>& images) const; // TODO: Error handling
-
         void DestroyImageViews(std::vector<VkImageView>& imageViews);
         void Destroy() {
             vkDestroySwapchainKHR(deviceHandle, handle, nullptr);
