@@ -4,11 +4,11 @@
 namespace VKRE {
 
     struct ImageInfo {
-        VkImage image;
-        VkImageView imageView;
-        VmaAllocation allocation;
-        VkFormat format;
-        VkExtent3D extent;
+        VkImage image{};
+        VkImageView imageView{};
+        VmaAllocation allocation{};
+        VkFormat format{};
+        VkExtent3D extent{};
     };
 
     class VulkanImage2D {

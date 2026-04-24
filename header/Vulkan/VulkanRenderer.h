@@ -49,7 +49,9 @@ namespace VKRE {
 
     private:
         void CreateDrawImage();
+        void ReCreateDrawImage();
         void InitDescriptors();
+        void InitDrawImageDescriptor();
 
         // TODO: Abstract these to a pipeline file or leave them but utilise a pipeline file
         void InitPipelines();

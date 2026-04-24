@@ -37,8 +37,8 @@ namespace VKRE {
             }
 
             void Flush() {
-                for (auto deletor : deletors) {
-                    (deletor)();
+                for (auto deletor = deletors.rbegin(); deletor != deletors.rend(); deletor++) {
+                    (*deletor)();
                 }
 
                 deletors.clear();

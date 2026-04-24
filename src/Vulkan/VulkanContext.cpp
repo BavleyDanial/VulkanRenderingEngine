@@ -6,8 +6,6 @@
 #include <Engine.h>
 #include <GLFW/glfw3.h>
 
-#include <cstring>
-
 namespace VKRE {
 
     VulkanContext::VulkanContext(std::shared_ptr<Window> window) {
@@ -59,6 +57,7 @@ namespace VKRE {
         std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
                                                             .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT })
                                                             .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
+                                                            //.SetRequiredExtensions({ "VK_KHR_portability_subset" }) Only enable when needing MacOS. Will add an optional extensions somewhere
                                                             .SetRequiredFeatures13({ .synchronization2 = true, .dynamicRendering = true })
                                                             .SetRequiredFeatures12({ .descriptorIndexing = true, .bufferDeviceAddress = true })
                                                             .Select();

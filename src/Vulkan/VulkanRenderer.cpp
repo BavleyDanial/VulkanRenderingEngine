@@ -110,6 +110,13 @@ namespace VKRE {
         mDrawImage->CreateImage(format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
     }
 
+    void VulkanRenderer::ReCreateDrawImage() {
+        mDrawImage->Release();
+        mGlobalDescriptorAllocator.ClearDescriptors(mContext->GetLogicalDevice().handle);
+        CreateDrawImage();
+        InitDrawImageDescriptor();
+    }
+
     void VulkanRenderer::InitDescriptors() {
         std::vector<DescriptorAllocator::PoolSizeRatio> poolSizes = {
             { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
@@ -123,6 +130,15 @@ namespace VKRE {
             mDrawImageDescriptorLayout = layoutBuilder.Build(mContext->GetLogicalDevice().handle, VK_SHADER_STAGE_COMPUTE_BIT);
         }
 
+        InitDrawImageDescriptor();
+
+        mDeletionQueue.PushDeleteFunc([&]() {
+            mGlobalDescriptorAllocator.DestroyPool(mContext->GetLogicalDevice().handle);
+            vkDestroyDescriptorSetLayout(mContext->GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
+        });
+    }
+
+    void VulkanRenderer::InitDrawImageDescriptor() {
         mDrawImageDescriptors = mGlobalDescriptorAllocator.Allocate(mContext->GetLogicalDevice().handle, mDrawImageDescriptorLayout);
 
         VkDescriptorImageInfo imgInfo{};
@@ -140,11 +156,6 @@ namespace VKRE {
         drawImageWrite.pImageInfo = &imgInfo;
 
         vkUpdateDescriptorSets(mContext->GetLogicalDevice().handle, 1, &drawImageWrite, 0, nullptr);
-
-        mDeletionQueue.PushDeleteFunc([&]() {
-            mGlobalDescriptorAllocator.DestroyPool(mContext->GetLogicalDevice().handle);
-            vkDestroyDescriptorSetLayout(mContext->GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
-        });
     }
 
     void VulkanRenderer::InitPipelines() {
@@ -217,21 +228,31 @@ namespace VKRE {
     }
 
     void VulkanRenderer::Render() {
+        if (Engine::GetInstance().hasResized) {
+            vkDeviceWaitIdle(mContext->GetLogicalDevice().handle);
+            mPresenter->ResizeSwapChain();
+            ReCreateDrawImage();
+            Engine::GetInstance().hasResized = false;
+            return;
+        }
+
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
 
         VK_CHECK(vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
         frame.deletionQueue.Flush();
 
-        if (Engine::GetInstance().hasResized) {
+        uint32_t swapchainImageIndex = 0;
+        VkResult acquireResult = vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex);
+        if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
+            vkDeviceWaitIdle(mContext->GetLogicalDevice().handle);
             mPresenter->ResizeSwapChain();
-            Engine::GetInstance().hasResized = false;
+            ReCreateDrawImage();
+            VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
             return;
         }
-
-        uint32_t swapchainImageIndex = 0;
-        VK_CHECK(vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex));
-
+        VK_CHECK(acquireResult);
         VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
+
 
         // NOTE: The following is temporary!
         VkCommandBuffer cmd = frame.commandBuffer;
