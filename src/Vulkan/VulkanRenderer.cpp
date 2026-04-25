@@ -7,83 +7,21 @@
 #include <memory>
 #include <vulkan/vulkan_core.h>
 
-#include <imgui.h>
-#include <ImGui/Backend/ImGuiVulkan.h>
-#include <ImGui/Backend/ImGuiGLFW.h>
+#include <Vulkan/VulkanImGuiPass.h>
 
 namespace VKRE {
 
-    VulkanRenderer::VulkanRenderer(std::shared_ptr<VulkanContext> context)
+    VulkanRenderer::VulkanRenderer(VulkanContext& context)
     :mContext(context) {
         mFrameManager = std::make_unique<VulkanFrameManager>(mContext);
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
 
         CreateDrawImage();
+        InitPasses();
         InitDescriptors();
         InitPipelines();
 
         mDeletionQueue.PushDeleteFunc([this]() { mDrawImage->Release(); });
-
-        // NOTE: THE FOLLOWING IS TEMPORARY, WILL BE MOVED TO OTHER FILES
-
-        // TODO: Move this to a ImGuiRenderer or something
-        VkDescriptorPoolSize pool_sizes[] = {
-            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-        };
-
-        VkDescriptorPoolCreateInfo pool_info = {};
-        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        pool_info.maxSets = 1000;
-        pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
-        pool_info.pPoolSizes = pool_sizes;
-
-        VkDescriptorPool imguiPool;
-        VK_CHECK(vkCreateDescriptorPool(mContext->GetLogicalDevice().handle, &pool_info, nullptr, &imguiPool));
-
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-
-        ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-        ImGui_ImplGlfw_InitForVulkan(mContext->GetWindowContext()->GetGLFWwindow(), true);
-
-        ImGui_ImplVulkan_InitInfo init_info = {};
-        init_info.Instance = mContext->GetInstance();
-        init_info.PhysicalDevice = mContext->GetPhysicalDevice().handle;
-        init_info.Device = mContext->GetLogicalDevice().handle;
-        init_info.Queue = mContext->GetGraphicsQueue();
-        init_info.DescriptorPool = imguiPool;
-        init_info.MinImageCount = 3;
-        init_info.ImageCount = 3;
-        init_info.UseDynamicRendering = true;
-
-        ImGui_ImplVulkan_PipelineInfo pipelineInfo{};
-        pipelineInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
-        pipelineInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-        pipelineInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = &mPresenter->GetSwapChain().imageFormat.format;
-        pipelineInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-        init_info.PipelineInfoMain = pipelineInfo;
-
-        ImGui_ImplVulkan_Init(&init_info);
-
-        mDeletionQueue.PushDeleteFunc([=, this]() {
-            ImGui_ImplVulkan_Shutdown();
-            vkDestroyDescriptorPool(mContext->GetLogicalDevice().handle, imguiPool, nullptr);
-        });
     }
 
     VulkanRenderer::~VulkanRenderer() {
@@ -112,9 +50,13 @@ namespace VKRE {
 
     void VulkanRenderer::ReCreateDrawImage() {
         mDrawImage->Release();
-        mGlobalDescriptorAllocator.ClearDescriptors(mContext->GetLogicalDevice().handle);
+        mGlobalDescriptorAllocator.ClearDescriptors(mContext.GetLogicalDevice().handle);
         CreateDrawImage();
         InitDrawImageDescriptor();
+    }
+
+    void VulkanRenderer::InitPasses() {
+        mPasses.push_back(std::make_unique<VulkanImGuiPass>(mContext, *mPresenter));
     }
 
     void VulkanRenderer::InitDescriptors() {
@@ -122,24 +64,24 @@ namespace VKRE {
             { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
         };
 
-        mGlobalDescriptorAllocator.InitPool(mContext->GetLogicalDevice().handle, 10, poolSizes);
+        mGlobalDescriptorAllocator.InitPool(mContext.GetLogicalDevice().handle, 10, poolSizes);
 
         {   // Compute Descriptor Set
             DescriptorLayoutBuilder layoutBuilder;
             layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0);
-            mDrawImageDescriptorLayout = layoutBuilder.Build(mContext->GetLogicalDevice().handle, VK_SHADER_STAGE_COMPUTE_BIT);
+            mDrawImageDescriptorLayout = layoutBuilder.Build(mContext.GetLogicalDevice().handle, VK_SHADER_STAGE_COMPUTE_BIT);
         }
 
         InitDrawImageDescriptor();
 
-        mDeletionQueue.PushDeleteFunc([&]() {
-            mGlobalDescriptorAllocator.DestroyPool(mContext->GetLogicalDevice().handle);
-            vkDestroyDescriptorSetLayout(mContext->GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
+        mDeletionQueue.PushDeleteFunc([this]() {
+            mGlobalDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
+            vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
         });
     }
 
     void VulkanRenderer::InitDrawImageDescriptor() {
-        mDrawImageDescriptors = mGlobalDescriptorAllocator.Allocate(mContext->GetLogicalDevice().handle, mDrawImageDescriptorLayout);
+        mDrawImageDescriptors = mGlobalDescriptorAllocator.Allocate(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout);
 
         VkDescriptorImageInfo imgInfo{};
         imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -155,7 +97,7 @@ namespace VKRE {
         drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         drawImageWrite.pImageInfo = &imgInfo;
 
-        vkUpdateDescriptorSets(mContext->GetLogicalDevice().handle, 1, &drawImageWrite, 0, nullptr);
+        vkUpdateDescriptorSets(mContext.GetLogicalDevice().handle, 1, &drawImageWrite, 0, nullptr);
     }
 
     void VulkanRenderer::InitPipelines() {
@@ -176,10 +118,10 @@ namespace VKRE {
         computeLayout.pPushConstantRanges = &pushConstant;
         computeLayout.pushConstantRangeCount = 1;
 
-        VK_CHECK(vkCreatePipelineLayout(mContext->GetLogicalDevice().handle, &computeLayout, nullptr, &mGradientPipelineLayout));
+        VK_CHECK(vkCreatePipelineLayout(mContext.GetLogicalDevice().handle, &computeLayout, nullptr, &mGradientPipelineLayout));
 
         // TODO: Make shaders system that automatically loads shaders based on a config file or something instead of hard-coding the relative path
-        VkShaderModule gradientShader = VulkanUtils::LoadShader(mContext->GetLogicalDevice().handle, "res/shaders/gradient.spv");
+        VkShaderModule gradientShader = VulkanUtils::LoadShader(mContext.GetLogicalDevice().handle, "res/shaders/gradient.spv");
         if (!gradientShader) {
             std::println("Error when building the compute shader");
         }
@@ -205,7 +147,7 @@ namespace VKRE {
         gradient.data.data1 = glm::vec4(1, 0, 0, 1);
         gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
-        VK_CHECK(vkCreateComputePipelines(mContext->GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+        VK_CHECK(vkCreateComputePipelines(mContext.GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
 
         ComputeEffect sky;
         sky.layout = mGradientPipelineLayout;
@@ -214,16 +156,16 @@ namespace VKRE {
 
         sky.data.data1 = glm::vec4(0.1, 0.2, 0.4 ,0.97);
 
-        VK_CHECK(vkCreateComputePipelines(mContext->GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
+        VK_CHECK(vkCreateComputePipelines(mContext.GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
 
         backgroundEffects.push_back(gradient);
         backgroundEffects.push_back(sky);
 
-        vkDestroyShaderModule(mContext->GetLogicalDevice().handle, gradientShader, nullptr);
-        mDeletionQueue.PushDeleteFunc([&]() {
-            vkDestroyPipelineLayout(mContext->GetLogicalDevice().handle, mGradientPipelineLayout, nullptr);
-            vkDestroyPipeline(mContext->GetLogicalDevice().handle, backgroundEffects[0].pipeline, nullptr);
-            vkDestroyPipeline(mContext->GetLogicalDevice().handle, backgroundEffects[1].pipeline, nullptr);
+        vkDestroyShaderModule(mContext.GetLogicalDevice().handle, gradientShader, nullptr);
+        mDeletionQueue.PushDeleteFunc([this]() {
+            vkDestroyPipelineLayout(mContext.GetLogicalDevice().handle, mGradientPipelineLayout, nullptr);
+            vkDestroyPipeline(mContext.GetLogicalDevice().handle, backgroundEffects[0].pipeline, nullptr);
+            vkDestroyPipeline(mContext.GetLogicalDevice().handle, backgroundEffects[1].pipeline, nullptr);
         });
     }
 
@@ -235,19 +177,18 @@ namespace VKRE {
         }
 
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
-
-        VK_CHECK(vkWaitForFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
+        VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
         frame.deletionQueue.Flush();
 
         uint32_t swapchainImageIndex = 0;
-        VkResult acquireResult = vkAcquireNextImageKHR(mContext->GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex);
+        VkResult acquireResult = vkAcquireNextImageKHR(mContext.GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex);
         if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
             ReSize();
-            VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
+            VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence));
             return;
         }
         VK_CHECK(acquireResult);
-        VK_CHECK(vkResetFences(mContext->GetLogicalDevice().handle, 1, &frame.waitFence));
+        VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence));
 
 
         // NOTE: The following is temporary!
@@ -263,6 +204,7 @@ namespace VKRE {
         VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo));
 
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        // TODO: Replace this with passes
         ClearImage(cmd);
         DrawGradientBackground(cmd);
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -273,7 +215,7 @@ namespace VKRE {
         ImageUtils::CopyImage(cmd, mDrawImage->GetImageInfo().image, swapChainImage, drawImageExtent, mPresenter->GetSwapChain().extent);
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        DrawImGui(cmd, mPresenter->GetImageViews()[swapchainImageIndex]);
+        mPasses.back()->Execute(cmd, { swapchainImageIndex, nullptr} ); // Execute ImGuiPass
 
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -305,7 +247,7 @@ namespace VKRE {
         info.commandBufferInfoCount = 1;
         info.pCommandBufferInfos = &cmdSubmitInfo;
 
-        VK_CHECK(vkQueueSubmit2(mContext->GetGraphicsQueue(), 1, &info, frame.waitFence));
+        VK_CHECK(vkQueueSubmit2(mContext.GetGraphicsQueue(), 1, &info, frame.waitFence));
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.pNext = nullptr;
@@ -314,13 +256,13 @@ namespace VKRE {
         presentInfo.pWaitSemaphores = &mPresenter->GetRenderCompleteSemaphore(swapchainImageIndex);
         presentInfo.waitSemaphoreCount = 1;
         presentInfo.pImageIndices = &swapchainImageIndex;
-        VK_CHECK(vkQueuePresentKHR(mContext->GetGraphicsQueue(), &presentInfo));
+        VK_CHECK(vkQueuePresentKHR(mContext.GetGraphicsQueue(), &presentInfo));
 
         mFrameManager->AdvanceFrame();
     }
 
     void VulkanRenderer::ReSize() {
-        vkDeviceWaitIdle(mContext->GetLogicalDevice().handle);
+        vkDeviceWaitIdle(mContext.GetLogicalDevice().handle);
         mPresenter->ResizeSwapChain();
         ReCreateDrawImage();
     }
@@ -340,12 +282,4 @@ namespace VKRE {
         vkCmdClearColorImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
     }
 
-    void VulkanRenderer::DrawImGui(VkCommandBuffer cmd, VkImageView targetImageView) {
-        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        VkRenderingInfo renderInfo = VulkanUtils::RenderingInfo(mPresenter->GetSwapChain().extent, &colorAttachment, nullptr);
-
-        vkCmdBeginRendering(cmd, &renderInfo);
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-        vkCmdEndRendering(cmd);
-    }
 }

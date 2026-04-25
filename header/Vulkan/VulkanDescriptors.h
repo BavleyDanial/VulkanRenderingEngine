@@ -1,3 +1,5 @@
+#pragma once
+
 #include "VulkanContext.h"
 
 #include <span>

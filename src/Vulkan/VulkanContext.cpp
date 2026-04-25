@@ -83,7 +83,7 @@ namespace VKRE {
         allocatorInfo.physicalDevice = physicalDevice->handle;
         allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         vmaCreateAllocator(&allocatorInfo, &mAllocator);
-        mDeletionQueue.PushDeleteFunc([&]() { vmaDestroyAllocator(mAllocator); });
+        mDeletionQueue.PushDeleteFunc([this]() { vmaDestroyAllocator(mAllocator); });
     }
 
     VulkanContext::~VulkanContext() {

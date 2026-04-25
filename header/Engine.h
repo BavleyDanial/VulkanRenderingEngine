@@ -25,6 +25,6 @@ private:
 
     // TODO: Make multiple windows possible (through an array with window ids? but then we need to make sure that each context is tied to the correct id? idk... For now this is fine especially when we add ImGui's multiviewport)
     std::shared_ptr<VKRE::Window> mWindow;
-    std::shared_ptr<VKRE::VulkanContext> mVulkanContext;
-    std::shared_ptr<VKRE::VulkanRenderer> mVulkanRenderer;
+    std::unique_ptr<VKRE::VulkanContext> mVulkanContext;
+    std::unique_ptr<VKRE::VulkanRenderer> mVulkanRenderer;
 };

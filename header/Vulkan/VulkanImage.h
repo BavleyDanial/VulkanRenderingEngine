@@ -1,3 +1,5 @@
+#pragma once
+
 #include "VulkanUtils.h"
 #include "VulkanContext.h"
 
@@ -13,7 +15,7 @@ namespace VKRE {
 
     class VulkanImage2D {
     public:
-        VulkanImage2D(std::shared_ptr<VulkanContext> context);
+        VulkanImage2D(VulkanContext& context);
         ~VulkanImage2D();
 
         ImageInfo& GetImageInfo() { return mImageInfo; }
@@ -22,7 +24,7 @@ namespace VKRE {
         void Release();
 
     private:
-        std::shared_ptr<VulkanContext> mContext;
+        VulkanContext& mContext;
         ImageInfo mImageInfo;
     };
 

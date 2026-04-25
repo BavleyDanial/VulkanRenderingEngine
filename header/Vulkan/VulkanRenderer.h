@@ -1,5 +1,6 @@
 #pragma once
 
+#include "VulkanRenderPass.h"
 #include "VulkanUtils.h"
 
 #include "VulkanContext.h"
@@ -9,6 +10,8 @@
 #include "VulkanDescriptors.h"
 
 #include <memory>
+#include <vector>
+
 #include <glm/glm.hpp>
 
 namespace VKRE {
@@ -37,7 +40,7 @@ namespace VKRE {
         int currentBackgroundEffect = 0;
 
     public:
-        VulkanRenderer(std::shared_ptr<VulkanContext> context);
+        VulkanRenderer(VulkanContext& context);
         ~VulkanRenderer();
 
         void Render();
@@ -45,12 +48,11 @@ namespace VKRE {
         void DrawGradientBackground(VkCommandBuffer cmd);
         void ClearImage(VkCommandBuffer cmd);
 
-        // TODO: Move this to imgui renderer or something idk
-        void DrawImGui(VkCommandBuffer cmd, VkImageView targetImageView);
-
     private:
         void CreateDrawImage();
         void ReCreateDrawImage();
+
+        void InitPasses();
         void InitDescriptors();
         void InitDrawImageDescriptor();
 
@@ -58,10 +60,12 @@ namespace VKRE {
         void InitPipelines();
         void InitBackgroundPipelines();
     private:
-        std::shared_ptr<VulkanContext> mContext;
+        VulkanContext& mContext;
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
-        std::unique_ptr<VulkanImage2D> mDrawImage;
+        std::unique_ptr<VulkanImage2D> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
+
+        std::vector<std::unique_ptr<IVulkanRenderPass>> mPasses;
 
         DescriptorAllocator mGlobalDescriptorAllocator;
         VkDescriptorSet mDrawImageDescriptors;

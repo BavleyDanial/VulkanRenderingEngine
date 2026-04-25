@@ -4,7 +4,7 @@
 
 namespace  VKRE {
 
-    VulkanPresenter::VulkanPresenter(std::shared_ptr<VulkanContext> context)
+    VulkanPresenter::VulkanPresenter(VulkanContext& context)
         :mContext(context) {
         CreateSwapChain();
     }
@@ -14,9 +14,9 @@ namespace  VKRE {
     }
 
     void VulkanPresenter::CreateSwapChain() {
-        auto [width, height] = mContext->GetWindowContext()->GetFrameBufferExtents();
+        auto [width, height] = mContext.GetWindowContext()->GetFrameBufferExtents();
 
-        VulkanSwapChainBuilder swapChainBuilder(mContext->GetInstance(), mContext->GetSurface(), mContext->GetPhysicalDevice(), mContext->GetLogicalDevice());
+        VulkanSwapChainBuilder swapChainBuilder(mContext.GetInstance(), mContext.GetSurface(), mContext.GetPhysicalDevice(), mContext.GetLogicalDevice());
         std::optional<VulkanSwapChain> swapChain = swapChainBuilder.SetDesiredExtent(width, height)
                                                     .SetDesiredImageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
                                                     .SetDesiredFormat(VkSurfaceFormatKHR{ VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })

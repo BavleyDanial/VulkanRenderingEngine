@@ -15,8 +15,8 @@ Engine::Engine() {
     mInstance = this;
 
     mWindow = std::make_shared<VKRE::Window>(VKRE::WindowSpecs{ .resizable = true });
-    mVulkanContext = std::make_shared<VKRE::VulkanContext>(mWindow);
-    mVulkanRenderer = std::make_shared<VKRE::VulkanRenderer>(mVulkanContext);
+    mVulkanContext = std::make_unique<VKRE::VulkanContext>(mWindow);
+    mVulkanRenderer = std::make_unique<VKRE::VulkanRenderer>(*mVulkanContext);
 }
 
 Engine::~Engine() {
@@ -41,7 +41,7 @@ void Engine::Run() {
 
             VKRE::VulkanRenderer::ComputeEffect& selected = mVulkanRenderer->backgroundEffects[mVulkanRenderer->currentBackgroundEffect];
 
-            ImGui::Text("Selected effect: ", selected.name);
+            ImGui::Text("Selected effect: %s", selected.name);
 
             ImGui::SliderInt("Effect Index", &mVulkanRenderer->currentBackgroundEffect,0, mVulkanRenderer->backgroundEffects.size() - 1);
 

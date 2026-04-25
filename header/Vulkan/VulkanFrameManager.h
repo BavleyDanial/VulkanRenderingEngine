@@ -3,8 +3,6 @@
 #include "VulkanUtils.h"
 #include "VulkanContext.h"
 
-#include <memory>
-
 namespace VKRE {
 
     struct VulkanFrameData {
@@ -17,7 +15,7 @@ namespace VKRE {
 
     class VulkanFrameManager {
     public:
-        VulkanFrameManager(std::shared_ptr<VulkanContext> context, uint32_t framesInFlight = 2);
+        VulkanFrameManager(VulkanContext& context, uint32_t framesInFlight = 2);
         ~VulkanFrameManager();
 
         VulkanFrameData& GetCurrentFrame() { return mFrames[mCurrentFrame % mFrames.size()]; }
@@ -29,7 +27,7 @@ namespace VKRE {
         void CreateSyncObjects();
 
     private:
-        std::shared_ptr<VulkanContext> mContext;
+        VulkanContext& mContext;
         std::vector<VulkanFrameData> mFrames;
         uint64_t mCurrentFrame = 0;
     };

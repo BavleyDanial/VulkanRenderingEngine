@@ -5,7 +5,6 @@
 #include <vma/vk_mem_alloc.h>
 
 #include <functional>
-#include <deque>
 #include <vector>
 #include <cstring>
 #include <fstream>

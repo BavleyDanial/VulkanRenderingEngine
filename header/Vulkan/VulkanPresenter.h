@@ -1,7 +1,5 @@
 #pragma once
 
-#include "VulkanUtils.h"
-
 #include "VulkanSwapChain.h"
 #include "VulkanContext.h"
 
@@ -11,7 +9,7 @@ namespace VKRE {
 
     class VulkanPresenter {
     public:
-        VulkanPresenter(std::shared_ptr<VulkanContext> context);
+        VulkanPresenter(VulkanContext& context);
         ~VulkanPresenter();
 
         void ResizeSwapChain();
@@ -30,7 +28,7 @@ namespace VKRE {
         void GetSwapChainImageViews();
 
     private:
-        std::shared_ptr<VulkanContext> mContext;
+        VulkanContext& mContext;
         VulkanSwapChain mSwapChain{};
         std::vector<VkImage> mSwapChainImages;
         std::vector<VkImageView> mSwapChainImageViews;

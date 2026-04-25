@@ -2,7 +2,7 @@
 
 namespace VKRE {
 
-    VulkanImage2D::VulkanImage2D(std::shared_ptr<VulkanContext> context)
+    VulkanImage2D::VulkanImage2D(VulkanContext& context)
         :mContext(context) {}
 
     VulkanImage2D::~VulkanImage2D() {
@@ -25,7 +25,7 @@ namespace VKRE {
         info.tiling = VK_IMAGE_TILING_OPTIMAL;
         info.usage = usageFlags;
 
-        VK_CHECK(vmaCreateImage(mContext->GetAllocator(), &info, &allocInfo, &mImageInfo.image, &mImageInfo.allocation, nullptr));
+        VK_CHECK(vmaCreateImage(mContext.GetAllocator(), &info, &allocInfo, &mImageInfo.image, &mImageInfo.allocation, nullptr));
         mImageInfo.extent = extent;
         mImageInfo.format = format;
 
@@ -42,17 +42,17 @@ namespace VKRE {
         imageViewCreateInfo.subresourceRange.layerCount = 1;
         imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
 
-        VK_CHECK(vkCreateImageView(mContext->GetLogicalDevice().handle, &imageViewCreateInfo, nullptr, &mImageInfo.imageView));
+        VK_CHECK(vkCreateImageView(mContext.GetLogicalDevice().handle, &imageViewCreateInfo, nullptr, &mImageInfo.imageView));
     }
 
     void VulkanImage2D::Release() {
         if (mImageInfo.image) {
-            vmaDestroyImage(mContext->GetAllocator(), mImageInfo.image, mImageInfo.allocation);
+            vmaDestroyImage(mContext.GetAllocator(), mImageInfo.image, mImageInfo.allocation);
             mImageInfo.image = nullptr;
         }
 
         if (mImageInfo.imageView) {
-            vkDestroyImageView(mContext->GetLogicalDevice().handle, mImageInfo.imageView, nullptr);
+            vkDestroyImageView(mContext.GetLogicalDevice().handle, mImageInfo.imageView, nullptr);
             mImageInfo.imageView = nullptr;
         }
     }
