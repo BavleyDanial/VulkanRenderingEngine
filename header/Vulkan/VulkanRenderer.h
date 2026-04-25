@@ -44,6 +44,7 @@ namespace VKRE {
         ~VulkanRenderer();
 
         void Render();
+        void OnImGui();
         void ReSize();
         void DrawGradientBackground(VkCommandBuffer cmd);
         void ClearImage(VkCommandBuffer cmd);
@@ -66,6 +67,7 @@ namespace VKRE {
         std::unique_ptr<VulkanImage2D> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
 
         std::vector<std::unique_ptr<IVulkanRenderPass>> mPasses;
+        std::unique_ptr<IVulkanRenderPass> mImGuiPass;
 
         DescriptorAllocator mGlobalDescriptorAllocator;
         VkDescriptorSet mDrawImageDescriptors;

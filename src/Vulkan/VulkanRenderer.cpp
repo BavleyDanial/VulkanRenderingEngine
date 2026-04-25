@@ -1,11 +1,12 @@
 #include <Vulkan/VulkanRenderer.h>
 
 #include <Engine.h>
+
 #include <glm/glm.hpp>
+#include <imgui.h>
 
 #include <cassert>
 #include <memory>
-#include <vulkan/vulkan_core.h>
 
 #include <Vulkan/VulkanImGuiPass.h>
 
@@ -56,7 +57,8 @@ namespace VKRE {
     }
 
     void VulkanRenderer::InitPasses() {
-        mPasses.push_back(std::make_unique<VulkanImGuiPass>(mContext, *mPresenter));
+        // mPasses.push_back(....); this is how we add more passes in the future
+        mImGuiPass = std::make_unique<VulkanImGuiPass>(mContext, *mPresenter);
     }
 
     void VulkanRenderer::InitDescriptors() {
@@ -209,13 +211,18 @@ namespace VKRE {
         DrawGradientBackground(cmd);
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
+        /* NOTE: This is how I will manage passes
+        for (auto& pass : mPasses) {
+            pass->Execute(cmd, {});
+        }*/
+
         VkImage swapChainImage = mPresenter->GetImages()[swapchainImageIndex];
         VkExtent2D drawImageExtent = { mDrawImage->GetImageInfo().extent.width, mDrawImage->GetImageInfo().extent.height };
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         ImageUtils::CopyImage(cmd, mDrawImage->GetImageInfo().image, swapChainImage, drawImageExtent, mPresenter->GetSwapChain().extent);
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        mPasses.back()->Execute(cmd, { swapchainImageIndex, nullptr} ); // Execute ImGuiPass
+        mImGuiPass->Execute(cmd, { swapchainImageIndex, nullptr} ); // Execute ImGuiPass
 
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -259,6 +266,27 @@ namespace VKRE {
         VK_CHECK(vkQueuePresentKHR(mContext.GetGraphicsQueue(), &presentInfo));
 
         mFrameManager->AdvanceFrame();
+    }
+
+    void VulkanRenderer::OnImGui() {
+        // NOTE: Replace this in the future with a pass
+        if (ImGui::Begin("background")) {
+
+            VKRE::VulkanRenderer::ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+
+            ImGui::Text("Selected effect: %s", selected.name);
+
+            ImGui::SliderInt("Effect Index", &currentBackgroundEffect,0, backgroundEffects.size() - 1);
+
+            ImGui::InputFloat4("data1",(float*)& selected.data.data1);
+            ImGui::InputFloat4("data2",(float*)& selected.data.data2);
+            ImGui::InputFloat4("data3",(float*)& selected.data.data3);
+            ImGui::InputFloat4("data4",(float*)& selected.data.data4);
+        }
+
+        for (auto& pass : mPasses) {
+            pass->OnImGui();
+        }
     }
 
     void VulkanRenderer::ReSize() {
