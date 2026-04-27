@@ -1,0 +1,31 @@
+#include <Vulkan/VulkanResourceCache.h>
+
+namespace VKRE {
+
+    VulkanResourceCache::VulkanResourceCache(VulkanContext& context, ResourceManager& manager)
+        :mContext(context), mResourceManager(manager) {
+
+    }
+
+    VulkanResourceCache::~VulkanResourceCache() {
+
+    }
+
+    bool VulkanResourceCache::UploadShader(ShaderHandle handle) {
+        return false;
+    }
+
+    bool VulkanResourceCache::DestroyShader(ShaderHandle handle) {
+        return false;
+    }
+
+    VkShaderModule GetShaderModule(ShaderHandle handle) const;
+    bool IsShaderUploaded(ShaderHandle handle) const;
+
+    void SyncDirtyShaders();
+    void DestroyAll();
+
+    bool CreateShaderModule(ShaderHandle handle, const ShaderHotData& hot);
+    void DestroyShaderModule(uint32_t index);
+
+}

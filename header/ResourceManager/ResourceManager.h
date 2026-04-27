@@ -7,6 +7,7 @@
 namespace VKRE {
 
     class ResourceManager {
+    public:
         ResourceManager();
         ~ResourceManager();
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Window/GlfwWindow.h>
+#include <ResourceManager/ResourceManager.h>
 
 #include <Vulkan/VulkanContext.h>
 #include <Vulkan/VulkanRenderer.h>
@@ -23,8 +24,11 @@ public:
 private:
     static inline Engine* mInstance = nullptr;
 
-    // TODO: Make multiple windows possible (through an array with window ids? but then we need to make sure that each context is tied to the correct id? idk... For now this is fine especially when we add ImGui's multiviewport)
-    std::shared_ptr<VKRE::Window> mWindow;
+    // Core
+    std::shared_ptr<VKRE::Window> mWindow; // TODO: Make multiple windows possible (through an array with window ids? but then we need to make sure that each context is tied to the correct id? idk... For now this is fine especially when we add ImGui's multiviewport)
+    std::unique_ptr<VKRE::ResourceManager> mResourceManager;
+
+    // Vulkan
     std::unique_ptr<VKRE::VulkanContext> mVulkanContext;
     std::unique_ptr<VKRE::VulkanRenderer> mVulkanRenderer;
 };

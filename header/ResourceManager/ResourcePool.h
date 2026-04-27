@@ -115,7 +115,7 @@ namespace VKRE {
         void Reserve(uint32_t capacity) {
             assert(capacity > mCapacity);
 
-            mGenerations.resize(mCapacity, 0);
+            mGenerations.resize(capacity, 0);
             mOccupied.resize(capacity, false);
             mHot.resize(capacity);
             mCold.resize(capacity);

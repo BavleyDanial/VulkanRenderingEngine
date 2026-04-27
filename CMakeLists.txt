@@ -32,6 +32,10 @@ set(GLM_HEADER "${CMAKE_SOURCE_DIR}/vendor/glm/")
 set(STB_HEADER "${CMAKE_SOURCE_DIR}/vendor/stb/")
 
 find_package(Vulkan REQUIRED)
+set(VULKAN_PATH ${Vulkan_INCLUDE_DIRS})
+STRING(REGEX REPLACE "/Include" "" VULKAN_PATH ${VULKAN_PATH})
+find_library(SHADERC_LIB shaderc_shared HINTS ${VULKAN_PATH}/Lib)
+
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/glfw/")
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/")
 
@@ -40,10 +44,8 @@ add_executable(${BIN_NAME} "${SOURCE}" "${GLAD_SRC}" "${HEADER_SOURCE}")
 
 target_link_libraries(${BIN_NAME} glfw)
 target_link_libraries(${BIN_NAME} ImGui)
+target_link_libraries(${BIN_NAME} ${SHADERC_LIB})
 target_link_libraries(${BIN_NAME} Vulkan::Vulkan)
-
-set(VULKAN_PATH ${Vulkan_INCLUDE_DIRS})
-STRING(REGEX REPLACE "/Include" "" VULKAN_PATH ${VULKAN_PATH})
 
 target_include_directories(${BIN_NAME} PUBLIC "${HEADER}" "${GLAD_HEADER}" "${GLM_HEADER}" "${STB_HEADER}" "${VULKAN_PATH}/Include")
 

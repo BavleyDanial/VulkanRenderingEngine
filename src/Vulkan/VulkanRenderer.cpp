@@ -8,12 +8,24 @@
 #include <cassert>
 #include <memory>
 
+#include <ResourceManager/ShaderCompiler.h>
 #include <Vulkan/VulkanImGuiPass.h>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
-    VulkanRenderer::VulkanRenderer(VulkanContext& context)
-    :mContext(context) {
+    static VkShaderStageFlagBits ToVkShaderStage(ShaderStage stage) {
+        switch (stage) {
+            case VKRE::ShaderStage::Vertex:                 return VK_SHADER_STAGE_VERTEX_BIT;
+            case VKRE::ShaderStage::Fragment:               return VK_SHADER_STAGE_FRAGMENT_BIT;
+            case VKRE::ShaderStage::Compute:                return VK_SHADER_STAGE_COMPUTE_BIT;
+            case VKRE::ShaderStage::None:                   return VK_SHADER_STAGE_ALL; // TODO: Make this different because this is stupid
+        }
+    };
+
+    VulkanRenderer::VulkanRenderer(VulkanContext& context, ResourceManager& resourceManager)
+    :mContext(context), mResourceManager(resourceManager) {
+        mResourceCache = std::make_unique<VulkanResourceCache>(mContext, mResourceManager);
         mFrameManager = std::make_unique<VulkanFrameManager>(mContext);
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
 
@@ -26,6 +38,14 @@ namespace VKRE {
     }
 
     VulkanRenderer::~VulkanRenderer() {
+        vkDeviceWaitIdle(mContext.GetLogicalDevice().handle);
+
+        for (ShaderHandle handle : mOwnedShaders) {
+            mResourceCache->DestroyShader(handle);
+            mResourceManager.DestroyShader(handle);
+        }
+        mOwnedShaders.clear();
+
         mPresenter.reset();
         mFrameManager.reset();
         mDeletionQueue.Flush();
@@ -107,6 +127,26 @@ namespace VKRE {
     }
 
     void VulkanRenderer::InitBackgroundPipelines() {
+        ShaderLoadingResults shaderResults = ShaderCompiler::LoadFromFile(mResourceManager, "res/shaders/gradient.glsl");
+        if (!shaderResults.Succeeded()) {
+            std::println("VulkanRenderer: Failed to load gradient shader");
+            abort();
+        }
+
+        ShaderHandle gradient = shaderResults.GetHandle(ShaderStage::Compute);
+        if (!gradient.IsValid()) {
+            std::println("VulkanRenderer: gradient.glsl shader has no compute stage");
+            abort();
+        }
+
+        if (!mResourceCache->UploadShader(gradient)) {
+            std::println("VulkanRenderer: Failed to upload gradient.glsl");
+            abort();
+        }
+
+        mOwnedShaders.push_back(gradient);
+        VkShaderModule gradientModule = mResourceCache->GetShaderModule(gradient);
+
         VkPipelineLayoutCreateInfo computeLayout{};
         computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         computeLayout.pSetLayouts = &mDrawImageDescriptorLayout;
@@ -115,25 +155,20 @@ namespace VKRE {
         VkPushConstantRange pushConstant{};
         pushConstant.offset = 0;
         pushConstant.size = sizeof(ComputePushConstants) ;
-        pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        pushConstant.stageFlags = ToVkShaderStage(ShaderStage::Compute);
 
         computeLayout.pPushConstantRanges = &pushConstant;
         computeLayout.pushConstantRangeCount = 1;
 
         VK_CHECK(vkCreatePipelineLayout(mContext.GetLogicalDevice().handle, &computeLayout, nullptr, &mGradientPipelineLayout));
 
-        // TODO: Make shaders system that automatically loads shaders based on a config file or something instead of hard-coding the relative path
-        VkShaderModule gradientShader = VulkanUtils::LoadShader(mContext.GetLogicalDevice().handle, "res/shaders/gradient.spv");
-        if (!gradientShader) {
-            std::println("Error when building the compute shader");
-        }
-
+        const ShaderHotData* hot = mResourceManager.GetShaderHot(gradient);
         VkPipelineShaderStageCreateInfo stageinfo{};
         stageinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         stageinfo.pNext = nullptr;
-        stageinfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-        stageinfo.module = gradientShader;
-        stageinfo.pName = "main";
+        stageinfo.stage = ToVkShaderStage(hot->stage);
+        stageinfo.module = gradientModule;
+        stageinfo.pName = hot->entrypoint;
 
         VkComputePipelineCreateInfo computePipelineCreateInfo{};
         computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -141,15 +176,15 @@ namespace VKRE {
         computePipelineCreateInfo.layout = mGradientPipelineLayout;
         computePipelineCreateInfo.stage = stageinfo;
 
-        ComputeEffect gradient;
-        gradient.layout = mGradientPipelineLayout;
-        gradient.name = "gradient";
-        gradient.data = {};
+        ComputeEffect grad;
+        grad.layout = mGradientPipelineLayout;
+        grad.name = "gradient";
+        grad.data = {};
 
-        gradient.data.data1 = glm::vec4(1, 0, 0, 1);
-        gradient.data.data2 = glm::vec4(0, 0, 1, 1);
+        grad.data.data1 = glm::vec4(1, 0, 0, 1);
+        grad.data.data2 = glm::vec4(0, 0, 1, 1);
 
-        VK_CHECK(vkCreateComputePipelines(mContext.GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+        VK_CHECK(vkCreateComputePipelines(mContext.GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &grad.pipeline));
 
         ComputeEffect sky;
         sky.layout = mGradientPipelineLayout;
@@ -160,10 +195,9 @@ namespace VKRE {
 
         VK_CHECK(vkCreateComputePipelines(mContext.GetLogicalDevice().handle, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
 
-        backgroundEffects.push_back(gradient);
+        backgroundEffects.push_back(grad);
         backgroundEffects.push_back(sky);
 
-        vkDestroyShaderModule(mContext.GetLogicalDevice().handle, gradientShader, nullptr);
         mDeletionQueue.PushDeleteFunc([this]() {
             vkDestroyPipelineLayout(mContext.GetLogicalDevice().handle, mGradientPipelineLayout, nullptr);
             vkDestroyPipeline(mContext.GetLogicalDevice().handle, backgroundEffects[0].pipeline, nullptr);

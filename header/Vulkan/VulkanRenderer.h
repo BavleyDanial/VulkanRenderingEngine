@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Vulkan/VulkanResourceCache.h"
 #include "VulkanRenderPass.h"
 #include "VulkanUtils.h"
 
@@ -8,6 +9,8 @@
 #include "VulkanPresenter.h"
 #include "VulkanImage.h"
 #include "VulkanDescriptors.h"
+
+#include "ResourceManager/ResourceManager.h"
 
 #include <memory>
 #include <vector>
@@ -40,7 +43,7 @@ namespace VKRE {
         int currentBackgroundEffect = 0;
 
     public:
-        VulkanRenderer(VulkanContext& context);
+        VulkanRenderer(VulkanContext& context, ResourceManager& resourceManager);
         ~VulkanRenderer();
 
         void Render();
@@ -62,6 +65,11 @@ namespace VKRE {
         void InitBackgroundPipelines();
     private:
         VulkanContext& mContext;
+        ResourceManager& mResourceManager;
+
+        std::unique_ptr<VulkanResourceCache> mResourceCache;
+        std::vector<ShaderHandle> mOwnedShaders; // TODO: Move this outside of renderer so that the shader ownership is from somewhere else not here
+
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
         std::unique_ptr<VulkanImage2D> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
