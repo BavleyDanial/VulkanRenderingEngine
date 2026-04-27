@@ -126,7 +126,7 @@ namespace VKRE {
     private:
         std::vector<uint32_t> mFreeList;
         std::vector<uint32_t> mGenerations;
-        std::vector<bool> mOccupied;
+        std::vector<uint8_t> mOccupied;
 
         std::vector<THot> mHot;
         std::vector<TCold> mCold;

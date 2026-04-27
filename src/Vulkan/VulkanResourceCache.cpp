@@ -21,10 +21,10 @@ namespace VKRE {
         const ShaderHotData* hot = mResourceManager.GetShaderHot(handle);
         assert(hot && "VulkanResourceCache Shader is valid but GetShaderHot returned nullptr");
 
-        auto it = mShaderModules.find(handle.index);
+        auto it = mShaderModules.find(handle);
         bool alreadyUploaded = it != mShaderModules.end();
 
-        const ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
+        ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
         assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
 
         if (alreadyUploaded && !cold->isDirty)
@@ -33,33 +33,35 @@ namespace VKRE {
         if (alreadyUploaded)
             DestroyShader(handle);
 
-        return CreateShaderModule(handle, hot);
+        return CreateShaderModule(handle, cold);
     }
 
     void VulkanResourceCache::DestroyShader(ShaderHandle handle) {
-        auto it = mShaderModules.find(handle.index);
+        auto it = mShaderModules.find(handle);
         if (it == mShaderModules.end()) return;
-        DestroyShaderModule(handle.index);
+        DestroyShaderModule(handle);
     }
 
     VkShaderModule VulkanResourceCache::GetShaderModule(ShaderHandle handle) const {
-        auto it = mShaderModules.find(handle.index);
+        auto it = mShaderModules.find(handle);
         if (it == mShaderModules.end()) return nullptr;
         return it->second;
     }
 
     bool VulkanResourceCache::IsShaderUploaded(ShaderHandle handle) const {
-        return mShaderModules.contains(handle.index);
+        return mShaderModules.contains(handle);
     }
 
     void VulkanResourceCache::SyncDirtyShaders() {
-        for (auto& [index, module] : mShaderModules) {
-            ShaderHandle handle { index, 0 }; // generation doesn't matter
-
+        std::vector<ShaderHandle> dirty;
+        for (auto& [handle, module] : mShaderModules) {
             const ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
             if (cold && cold->isDirty)
-                UploadShader(handle);
+                dirty.push_back(handle);
         }
+
+        for (ShaderHandle handle : dirty)
+            UploadShader(handle);
     }
 
     void VulkanResourceCache::DestroyAllShaders() {
@@ -74,8 +76,8 @@ namespace VKRE {
         DestroyAllShaders();
     }
 
-    bool VulkanResourceCache::CreateShaderModule(ShaderHandle handle, const ShaderHotData* hot) {
-        if (hot->byteCode.empty()) {
+    bool VulkanResourceCache::CreateShaderModule(ShaderHandle handle, ShaderColdData* cold) {
+        if (cold->byteCode.empty()) {
             std::println("VulkanResourceCache::CreateShaderModule Cannot create shader module, SPIRV is empty (index={})", static_cast<uint32_t>(handle.index));
             return false;
         }
@@ -84,8 +86,8 @@ namespace VKRE {
         VkShaderModuleCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.pNext = nullptr;
-        createInfo.codeSize = hot->byteCode.size() * sizeof(uint32_t);
-        createInfo.pCode = hot->byteCode.data();
+        createInfo.codeSize = cold->byteCode.size() * sizeof(uint32_t);
+        createInfo.pCode = cold->byteCode.data();
 
         VkShaderModule shaderModule;
         if (vkCreateShaderModule(mContext.GetLogicalDevice().handle, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
@@ -93,16 +95,15 @@ namespace VKRE {
             return false;
         }
 
-        mShaderModules[handle.index] = shaderModule;
-        ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
+        mShaderModules[handle] = shaderModule;
         assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
         cold->isDirty = false;
 
         return true;
     }
 
-    void VulkanResourceCache::DestroyShaderModule(uint32_t index) {
-        auto it = mShaderModules.find(index);
+    void VulkanResourceCache::DestroyShaderModule(ShaderHandle handle) {
+        auto it = mShaderModules.find(handle);
         if (it == mShaderModules.end()) return;
         vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
         mShaderModules.erase(it);

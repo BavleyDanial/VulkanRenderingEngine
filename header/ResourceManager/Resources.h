@@ -14,12 +14,12 @@ namespace VKRE {
     };
 
     struct ShaderHotData {
-        std::vector<uint32_t> byteCode;
         ShaderStage stage;
         char entrypoint[32] = "main";
     };
 
     struct ShaderColdData {
+        std::vector<uint32_t> byteCode;
         char debugName[64] = "";
         char path[256] = "";
         bool isDirty = false;

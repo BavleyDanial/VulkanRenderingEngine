@@ -24,7 +24,7 @@ namespace VKRE {
         std::string error = "Shader allocation failed (" + desc.debugName + "): Shader pointers are invalid";
         assert(hot && cold && error.c_str());
 
-        hot->byteCode = std::move(desc.byteCode);
+        cold->byteCode = std::move(desc.byteCode);
         hot->stage = desc.stage;
 
         size_t len = 0;
@@ -51,9 +51,9 @@ namespace VKRE {
             return;
         }
 
-        ShaderHotData* hot = mShaderPool.GetHot(handle);
-        hot->byteCode.clear();
-        hot->byteCode.shrink_to_fit();
+        ShaderColdData* cold = mShaderPool.GetCold(handle);
+        cold->byteCode.clear();
+        cold->byteCode.shrink_to_fit();
 
         mShaderPool.Release(handle);
     }

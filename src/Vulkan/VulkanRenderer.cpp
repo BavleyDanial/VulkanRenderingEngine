@@ -321,6 +321,8 @@ namespace VKRE {
         for (auto& pass : mPasses) {
             pass->OnImGui();
         }
+
+        ImGui::End();
     }
 
     void VulkanRenderer::ReSize() {

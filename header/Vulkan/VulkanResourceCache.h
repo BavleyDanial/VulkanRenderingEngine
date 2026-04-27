@@ -27,14 +27,14 @@ namespace VKRE {
 
         void DestroyAll();
     private:
-        bool CreateShaderModule(ShaderHandle handle, const ShaderHotData* hot);
-        void DestroyShaderModule(uint32_t index);
+        bool CreateShaderModule(ShaderHandle handle, ShaderColdData* cold);
+        void DestroyShaderModule(ShaderHandle handle);
 
     private:
         VulkanContext& mContext;
         ResourceManager& mResourceManager;
 
-        std::unordered_map<uint32_t, VkShaderModule> mShaderModules;
+        std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;
     };
 
 }

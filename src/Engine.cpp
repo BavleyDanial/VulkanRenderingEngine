@@ -40,9 +40,7 @@ void Engine::Run() {
 
         mVulkanRenderer->OnImGui();
 
-        ImGui::End();
         ImGui::PopStyleVar();
-
         ImGui::Render();
 
         mVulkanRenderer->Render();
