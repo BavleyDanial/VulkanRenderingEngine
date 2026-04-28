@@ -1,14 +1,16 @@
 #pragma once
 
-#include "Vulkan/VulkanResourceCache.h"
-#include "VulkanRenderPass.h"
 #include "VulkanUtils.h"
-
 #include "VulkanContext.h"
+
 #include "VulkanFrameManager.h"
 #include "VulkanPresenter.h"
-#include "VulkanImage.h"
+#include "VulkanRenderPass.h"
+
+#include "VulkanResourceCache.h"
 #include "VulkanDescriptors.h"
+#include "VulkanPipeline.h"
+#include "VulkanImage.h"
 
 #include "ResourceManager/ResourceManager.h"
 
@@ -32,10 +34,7 @@ namespace VKRE {
         // NOTE: THIS IS JUST FOR ILLUSTRATION OF ImGui, WILL BE REMOVED
         struct ComputeEffect {
             const char* name;
-
-            VkPipeline pipeline;
-            VkPipelineLayout layout;
-
+            VulkanPipeline compute;
             ComputePushConstants data;
         };
 
@@ -81,10 +80,7 @@ namespace VKRE {
         VkDescriptorSet mDrawImageDescriptors;
         VkDescriptorSetLayout mDrawImageDescriptorLayout;
 
-        // TODO: Abstract these to a pipeline file
-        VkPipeline mGradientPipeline;
-        VkPipelineLayout mGradientPipelineLayout;
-
+        VulkanPipeline mComputePipeline; // TODO: Remove this later
         VulkanUtils::DeletionQueue mDeletionQueue;
     };
 
