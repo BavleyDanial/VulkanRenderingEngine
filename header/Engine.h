@@ -39,6 +39,8 @@ private:
     std::unique_ptr<VKRE::VulkanContext> mVulkanContext;
     std::unique_ptr<VKRE::VulkanRenderer> mVulkanRenderer;
 
+    VKRE::DrawPassHandle mTrianglePass = VKRE::INVALID_DRAW_PASS;
+
     VKRE::ComputePassHandle mGradientPass = VKRE::INVALID_COMPUTE_PASS;
     VKRE::ComputePassHandle mSkyPass = VKRE::INVALID_COMPUTE_PASS;
     GradientParams mGradientParams{};

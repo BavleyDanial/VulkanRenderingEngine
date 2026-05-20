@@ -1,3 +1,4 @@
+#include "ResourceManager/Resources.h"
 #include "Vulkan/VulkanPipeline.h"
 #include <Vulkan/VulkanResourceCache.h>
 #include <Vulkan/VulkanPipelineBuilder.h>
@@ -152,6 +153,116 @@ namespace VKRE {
             DestroyPipelineLayout(key);
     }
 
+    VulkanGraphicsPipeline* VulkanResourceCache::CreateGraphicsPipeline(const VulkanGraphicsPipelineKey& key) {
+        auto it = mGraphicsPipelines.find(key);
+        if (it != mGraphicsPipelines.end())
+            return &it->second;
+
+        VulkanGraphicsPipelineBuilder builder;
+        builder.SetPipelineLayout(key.layout);
+
+        auto GetShader = [this](ShaderHandle handle) {
+            VkShaderModule shaderModule = GetShaderModule(handle);
+            if (!shaderModule) {
+                if (CreateShader(handle)) {
+                    shaderModule = GetShaderModule(handle);
+                }
+            }
+
+            return shaderModule;
+        };
+
+        if (key.vertexShader.IsValid()) {
+            VkShaderModule shaderModule = GetShader(key.vertexShader);
+            if (!shaderModule) {
+                std::println("VulkanResourceCache::CreateGraphicsPipeline Failed to retreive or create a shader module from shader (index={})", static_cast<uint32_t>(key.vertexShader.index));
+                return nullptr;
+            }
+
+            const ShaderHotData* hot = mResourceManager.GetShaderHot(key.vertexShader);
+            builder.SetVertexShader(shaderModule, hot->entrypoint);
+        }
+
+        if (key.fragmentShader.IsValid()) {
+            VkShaderModule shaderModule = GetShader(key.fragmentShader);
+            if (!shaderModule) {
+                std::println("VulkanResourceCache::CreateGraphicsPipeline Failed to retreive or create a shader module from shader (index={})", static_cast<uint32_t>(key.fragmentShader.index));
+                return nullptr;
+            }
+
+            const ShaderHotData* hot = mResourceManager.GetShaderHot(key.fragmentShader);
+            builder.SetFragmentShader(shaderModule, hot->entrypoint);
+        }
+
+        // TODO: Add other shaders
+
+        builder.SetTopology(key.topology)
+                .SetPrimitiveRestart(key.primitveRestartEnable)
+                .SetPolygonMode(key.polygonMode)
+                .SetCullMode(key.cullMode)
+                .SetFrontFace(key.frontFace)
+                .SetDepthClamp(key.depthClampEnable)
+                .SetRasterDiscard(key.rasterDiscardEnable)
+                .SetSamples(key.samples)
+                .SetSampleShading(key.sampleShadingEnable)
+                .SetDepthTest(key.depthTestEnable)
+                .SetDepthWrite(key.depthWriteEnable)
+                .SetDepthCompareOp(key.depthCompareOp)
+                .SetStencilTest(key.stencilTestEnable)
+                .SetBlendEnable(key.blendEnable)
+                .SetColorBlend(key.srcColorBlendFactor, key.dstColorBlendFactor, key.colorBlendOp)
+                .SetAlphaBlend(key.srcAlphaBlendFactor, key.dstAlphaBlendFactor, key.alphaBlendOp)
+                .SetColorWriteMask(key.colorWriteMask)
+                .SetColorAttachmentFormats(key.colorAttachmentFromats)
+                .SetDepthAttachmentFormat(key.depthAttachmentFormat)
+                .SetStencilAttachmentFormat(key.stencilAttachmentFormat);
+
+        VulkanGraphicsPipeline pipeline = builder.Build(mContext.GetLogicalDevice().handle);
+        if (!pipeline.Succeeded()) {
+            std::println("VulkanResourceCache::CreateGraphicsPipeline Failed to create graphics pipeline");
+            return nullptr;
+        }
+
+        mGraphicsPipelines[key] = pipeline;
+        return &mGraphicsPipelines[key];
+    }
+
+    VulkanGraphicsPipeline* VulkanResourceCache::GetGraphicsPipeline(const VulkanGraphicsPipelineKey& key) {
+        auto it = mGraphicsPipelines.find(key);
+        if (it == mGraphicsPipelines.end()) return nullptr;
+        return &it->second;
+    }
+
+    const VulkanGraphicsPipeline* VulkanResourceCache::GetGraphicsPipeline(const VulkanGraphicsPipelineKey& key) const {
+        auto it = mGraphicsPipelines.find(key);
+        if (it == mGraphicsPipelines.end()) return nullptr;
+        return &it->second;
+    }
+
+    bool VulkanResourceCache::IsGraphicsPipelineCreated(const VulkanGraphicsPipelineKey& key) const {
+        return mGraphicsPipelines.contains(key);
+    }
+
+    void VulkanResourceCache::DestroyGraphicsPipeline(const VulkanGraphicsPipelineKey& key) {
+        VulkanGraphicsPipeline* pipeline = GetGraphicsPipeline(key);
+        if (pipeline) {
+            pipeline->Destroy(mContext.GetLogicalDevice().handle);
+            mGraphicsPipelines.erase(key);
+
+            bool isShaderStillInUse = false;
+        }
+    }
+
+    void VulkanResourceCache::DestroyAllGraphicsPipelines() {
+        std::vector<VulkanGraphicsPipelineKey> keys;
+        keys.reserve(mGraphicsPipelines.size());
+        for (auto& [key, pipeline] : mGraphicsPipelines)
+            keys.push_back(key);
+
+        for (auto& key : keys)
+            DestroyGraphicsPipeline(key);
+    }
+
     VulkanComputePipeline* VulkanResourceCache::CreateComputePipeline(const VulkanComputePipelineKey& key) {
         auto it = mComputePipelines.find(key);
         if (it != mComputePipelines.end())
@@ -162,13 +273,13 @@ namespace VKRE {
             if (CreateShader(key.shader)) {
                 shaderModule = GetShaderModule(key.shader);
             } else {
-                std::println("VulkanResourceCache::CreateComputePipeline Failed to retreive or create a shader module from shader (index={})", key.shader.index);
+                std::println("VulkanResourceCache::CreateComputePipeline Failed to retreive or create a shader module from shader (index={})", static_cast<uint32_t>(key.shader.index));
                 return nullptr;
             }
         }
 
         VulkanComputePipeline pipeline = VulkanComputePipelineBuilder()
-            .SetShaderModule(shaderModule)
+            .SetComputeShader(shaderModule)
             .SetPipelineLayout(key.layout)
             .Build(mContext.GetLogicalDevice().handle);
 
@@ -218,6 +329,7 @@ namespace VKRE {
     }
 
     void VulkanResourceCache::DestroyAll() {
+        DestroyAllGraphicsPipelines();
         DestroyAllComputePipelines();
         DestroyAllPipelineLayouts();
         DestroyAllShaders();

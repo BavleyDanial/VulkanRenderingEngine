@@ -1,4 +1,5 @@
 #include "Vulkan/VulkanComputePass.h"
+#include "Vulkan/VulkanDrawPass.h"
 #include <Vulkan/VulkanRenderer.h>
 
 #include <Engine.h>
@@ -50,6 +51,71 @@ namespace VKRE {
         mPresenter.reset();
         mFrameManager.reset();
         mDeletionQueue.Flush();
+    }
+
+    DrawPassHandle VulkanRenderer::AddDrawPass(const DrawPassDesc& desc) {
+        ShaderLoadingResults shaderResults = ShaderCompiler::LoadFromFile(mResourceManager, desc.shaderPath);
+        if (!shaderResults.Succeeded()) {
+            std::println("VulkanRenderer::AddDrawPass Failed to load {}", desc.shaderPath);
+            return INVALID_DRAW_PASS;
+        }
+
+        ShaderHandle vertexShader = shaderResults.GetHandle(ShaderStage::Vertex);
+        if (!vertexShader.IsValid()) {
+            std::println("VulkanRenderer::AddDrawPass {} shader has no vertex stage", desc.shaderPath);
+            return INVALID_DRAW_PASS;
+        }
+
+        ShaderHandle fragmentShader = shaderResults.GetHandle(ShaderStage::Fragment);
+        if (!vertexShader.IsValid()) {
+            std::println("VulkanRenderer::AddDrawPass {} shader has no fragment stage", desc.shaderPath);
+            return INVALID_DRAW_PASS;
+        }
+
+        if (!mResourceCache->CreateShader(vertexShader)) {
+            std::println("VulkanRenderer::AddDrawPass Failed to upload {} vertex stage", desc.shaderPath);
+            return INVALID_DRAW_PASS;
+        }
+
+        if (!mResourceCache->CreateShader(fragmentShader)) {
+            std::println("VulkanRenderer::AddDrawPass Failed to upload {} fragment stage", desc.shaderPath);
+            return INVALID_DRAW_PASS;
+        }
+
+        VulkanPipelineLayoutKey layoutKey {
+            .descriptorSetLayouts = { mDrawImageDescriptorLayout },
+            .pushConstantRanges = desc.pushConstantRanges
+        };
+
+        VkPipelineLayout pipelineLayout = mResourceCache->CreatePipelineLayout(layoutKey);
+        if (!pipelineLayout) {
+            std::println("VulkanRenderer::AddDrawPass Failed to create or retreive pipeline layout");
+            return INVALID_DRAW_PASS;
+        }
+
+        VulkanGraphicsPipelineKey pipelineKey {};
+        pipelineKey.vertexShader = vertexShader;
+        pipelineKey.fragmentShader = fragmentShader;
+        pipelineKey.layout = pipelineLayout;
+        pipelineKey.colorAttachmentFromats = desc.colorAttachmentFormats;
+        pipelineKey.depthAttachmentFormat = desc.depthAttachmentFormat;
+        pipelineKey.stencilAttachmentFormat = desc.stencilAttachmentFormat;
+
+        if (!mResourceCache->CreateGraphicsPipeline(pipelineKey)) {
+            std::println("VulkanRenderer::AddDrawPass Failed to create or retreive pipeline");
+            return INVALID_DRAW_PASS;
+        }
+
+        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, desc.vertexCount);
+        return static_cast<DrawPassHandle>(mDrawPasses.size() - 1);
+    }
+
+    void VulkanRenderer::SetDrawPassData(DrawPassHandle handle, const void* data, uint32_t size) {
+        if (handle == INVALID_DRAW_PASS || handle >= mDrawPasses.size()) {
+            std::println("VulkanRenderer::SetComputePassData Invalid draw pass handle");
+            return;
+        }
+        mDrawPasses[handle].SetPushConstantData(data, size);
     }
 
     ComputePassHandle VulkanRenderer::AddComputePass(const ComputePassDesc& desc) {
@@ -123,6 +189,9 @@ namespace VKRE {
         InitDrawImageDescriptor();
 
         for (auto& pass : mComputePasses)
+            pass.ReBuild(mDrawImageDescriptors);
+
+        for (auto& pass : mDrawPasses)
             pass.ReBuild(mDrawImageDescriptors);
     }
 
@@ -218,12 +287,17 @@ namespace VKRE {
                 pass.Execute(cmd, drawImageExtent);
         }
 
-        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(mDrawImage->GetImageInfo().imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        RenderTargetInfo targetInfo{};
+        targetInfo.colorAttachments = { colorAttachment };
 
-        /* NOTE: This is how I will manage passes
-        for (auto& pass : mPasses) {
-            pass->Execute(cmd, {});
-        }*/
+        for (auto& pass : mDrawPasses) {
+            if (pass.IsActive())
+                pass.Execute(cmd, drawImageExtent, targetInfo);
+        }
+
+        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
         VkImage swapChainImage = mPresenter->GetImages()[swapchainImageIndex];
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);

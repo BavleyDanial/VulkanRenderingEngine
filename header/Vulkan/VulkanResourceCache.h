@@ -33,6 +33,14 @@ namespace VKRE {
         void DestroyPipelineLayout(const VulkanPipelineLayoutKey& key);
         void DestroyAllPipelineLayouts();
 
+        VulkanGraphicsPipeline* CreateGraphicsPipeline(const VulkanGraphicsPipelineKey& key);
+        VulkanGraphicsPipeline* GetGraphicsPipeline(const VulkanGraphicsPipelineKey& key);
+        const VulkanGraphicsPipeline* GetGraphicsPipeline(const VulkanGraphicsPipelineKey& key) const;
+        bool IsGraphicsPipelineCreated(const VulkanGraphicsPipelineKey& key) const;
+
+        void DestroyGraphicsPipeline(const VulkanGraphicsPipelineKey& key);
+        void DestroyAllGraphicsPipelines();
+
         VulkanComputePipeline* CreateComputePipeline(const VulkanComputePipelineKey& key);
         VulkanComputePipeline* GetComputePipeline(const VulkanComputePipelineKey& key);
         const VulkanComputePipeline* GetComputePipeline(const VulkanComputePipelineKey& key) const;
@@ -52,8 +60,10 @@ namespace VKRE {
 
         std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;
         std::unordered_map<ShaderHandle, uint32_t> mShaderModulesRefCount;
+
         std::unordered_map<VulkanPipelineLayoutKey, VkPipelineLayout> mPipelineLayouts;
         std::unordered_map<VulkanComputePipelineKey, VulkanComputePipeline> mComputePipelines;
+        std::unordered_map<VulkanGraphicsPipelineKey, VulkanGraphicsPipeline> mGraphicsPipelines;
     };
 
 }

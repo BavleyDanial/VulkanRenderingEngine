@@ -9,6 +9,7 @@
 
 #include <ImGui/Backend/ImGuiVulkan.h>
 #include <ImGui/Backend/ImGuiGLFW.h>
+#include <vulkan/vulkan_core.h>
 
 Engine::Engine() {
     if (mInstance) {
@@ -32,6 +33,14 @@ Engine::~Engine() {
 
 void Engine::Run() {
     // NOTE: This is temporary, it will be moved out
+
+    mTrianglePass = mVulkanRenderer->AddDrawPass({
+        .shaderPath = "res/shaders/colored_triangle.glsl",
+        .debugName = "triangle",
+        .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
+        .vertexCount = 3,
+    });
+
     mGradientPass = mVulkanRenderer->AddComputePass({
         .shaderPath = "res/shaders/gradient.glsl",
         .debugName = "gradient",
@@ -76,9 +85,14 @@ void Engine::Run() {
         ImGui::PopStyleVar();
 
         if (ImGui::Begin("GradientEffect")) {
-            ImGui::SliderInt("Pass", &index, 0, 1);
+            ImGui::SliderInt("Pass", &index, 0, 2);
 
             if (index == 0) {
+                mVulkanRenderer->ActivateDrawPass(mTrianglePass);
+                mVulkanRenderer->DeActivateComputePass(mGradientPass);
+                mVulkanRenderer->DeActivateComputePass(mSkyPass);
+
+            } else if (index == 1) {
                 mVulkanRenderer->ActivateComputePass(mGradientPass);
                 mVulkanRenderer->DeActivateComputePass(mSkyPass);
 
@@ -87,7 +101,7 @@ void Engine::Run() {
                     mVulkanRenderer->SetComputePassData(mGradientPass, &mGradientParams, sizeof(mGradientParams));
                 }
 
-            } else {
+            } else if (index == 2) {
                 mVulkanRenderer->ActivateComputePass(mSkyPass);
                 mVulkanRenderer->DeActivateComputePass(mGradientPass);
 
