@@ -5,7 +5,7 @@
 
 namespace VKRE {
 
-    struct ImageInfo {
+    struct VulkanImageData {
         VkImage image{};
         VkImageView imageView{};
         VmaAllocation allocation{};
@@ -18,14 +18,15 @@ namespace VKRE {
         VulkanImage2D(VulkanContext& context);
         ~VulkanImage2D();
 
-        ImageInfo& GetImageInfo() { return mImageInfo; }
+        VulkanImageData& GetImageInfo() { return mImageInfo; }
 
+        void ReCreateImage(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& info);
         void CreateImage(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& info);
         void Release();
 
     private:
         VulkanContext& mContext;
-        ImageInfo mImageInfo;
+        VulkanImageData mImageInfo;
     };
 
 

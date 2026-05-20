@@ -47,7 +47,6 @@ namespace VKRE {
         VkPipeline pipeline = VK_NULL_HANDLE;
         if (vkCreateComputePipelines(device, cache, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS) {
             std::println("VulkanComputePipelineBuilder::Build Failed to create Pipeline");
-            vkDestroyPipelineLayout(device, mPipelineLayout, nullptr);
             return {};
         }
 

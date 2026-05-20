@@ -46,16 +46,16 @@ namespace VKRE {
         std::string fileName = path.filename().string();
         bool hasFailed = false;
         for (const ParsedStage& parsed : stages) {
-            std::string debugName = std::format("{}:{}", fileName, static_cast<uint32_t>(parsed.stage));
+            std::string name = std::format("{}:{}", debugName, static_cast<uint32_t>(parsed.stage));
 
-            ShaderCompileResult compResult = CompileStage(parsed.source, parsed.stage, debugName, options);
+            ShaderCompileResult compResult = CompileStage(parsed.source, parsed.stage, name, options);
             if (!compResult.Succeeded()) {
                 std::println("ShaderCompilation::LoadFromFile Failed to compile stage, Skipping stage '{}' in '{}'", static_cast<uint32_t>(parsed.stage), fileName);
                 hasFailed = true;
                 continue;
             }
 
-            ShaderHandle handle = StoreInManager(manager, std::move(compResult.byteCode), parsed.stage, debugName, options.entrypoint, path);
+            ShaderHandle handle = StoreInManager(manager, std::move(compResult.byteCode), parsed.stage, name, options.entrypoint, path);
             if (handle.IsValid()) {
                 results.stages.push_back(parsed.stage);
                 results.handles.push_back(handle);

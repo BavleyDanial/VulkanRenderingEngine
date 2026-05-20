@@ -9,8 +9,14 @@ namespace VKRE {
         Release();
     }
 
+    void VulkanImage2D::ReCreateImage(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& info) {
+        Release();
+        CreateImage(format, usageFlags, extent, aspectFlags, info);
+    }
+
     void VulkanImage2D::CreateImage(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& allocInfo) {
-        // TODO: First make sure that we have deleted the image
+        if (mImageInfo.image)
+            return;
 
         VkImageCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

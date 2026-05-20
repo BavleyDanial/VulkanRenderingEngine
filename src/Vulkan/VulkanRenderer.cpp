@@ -114,11 +114,10 @@ namespace VKRE {
         drawImageAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         mDrawImage = std::make_unique<VulkanImage2D>(mContext);
-        mDrawImage->CreateImage(format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
+        mDrawImage->ReCreateImage(format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
     }
 
     void VulkanRenderer::ReCreateDrawImage() {
-        mDrawImage->Release();
         mGlobalDescriptorAllocator.ClearDescriptors(mContext.GetLogicalDevice().handle);
         CreateDrawImage();
         InitDrawImageDescriptor();

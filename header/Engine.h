@@ -42,4 +42,5 @@ private:
     VKRE::ComputePassHandle mGradientPass = VKRE::INVALID_COMPUTE_PASS;
     VKRE::ComputePassHandle mSkyPass = VKRE::INVALID_COMPUTE_PASS;
     GradientParams mGradientParams{};
+    GradientParams mSkyParams{};
 };

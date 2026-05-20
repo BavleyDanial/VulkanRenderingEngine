@@ -56,10 +56,11 @@ void Engine::Run() {
         }
     });
 
-    GradientParams params { .colorA = {0, 0, 0, 1}, .colorB = {0, 0, 1, 1} };
-    GradientParams skyparams { .colorA = {0.1f, 0.2f, 0.4f, 1}, .colorB = {0, 0.1f, .2f, 1} };
-    mVulkanRenderer->SetComputePassData(mGradientPass, &params, sizeof(params));
-    mVulkanRenderer->SetComputePassData(mSkyPass, &skyparams, sizeof(skyparams));
+    mGradientParams = { .colorA = {0, 0, 0, 1}, .colorB = {0, 0, 1, 1} };
+    mSkyParams = { .colorA = {0.1f, 0.2f, 0.4f, 1}, .colorB = {0, 0.1f, .2f, 1} };
+
+    mVulkanRenderer->SetComputePassData(mGradientPass, &mGradientParams, sizeof(mGradientParams));
+    mVulkanRenderer->SetComputePassData(mSkyPass, &mSkyParams, sizeof(mSkyParams));
 
     int index = 0;
 
@@ -80,15 +81,22 @@ void Engine::Run() {
             if (index == 0) {
                 mVulkanRenderer->ActivateComputePass(mGradientPass);
                 mVulkanRenderer->DeActivateComputePass(mSkyPass);
+
+                if (ImGui::SliderFloat4("Color A", glm::value_ptr(mGradientParams.colorA), 0.0f, 1.0f) ||
+                    ImGui::SliderFloat4("Color B", glm::value_ptr(mGradientParams.colorB), 0.0f, 1.0f)) {
+                    mVulkanRenderer->SetComputePassData(mGradientPass, &mGradientParams, sizeof(mGradientParams));
+                }
+
             } else {
                 mVulkanRenderer->ActivateComputePass(mSkyPass);
                 mVulkanRenderer->DeActivateComputePass(mGradientPass);
+
+                if (ImGui::SliderFloat4("Color A", glm::value_ptr(mSkyParams.colorA), 0.0f, 1.0f) ||
+                    ImGui::SliderFloat4("Color B", glm::value_ptr(mSkyParams.colorB), 0.0f, 1.0f)) {
+                    mVulkanRenderer->SetComputePassData(mSkyPass, &mSkyParams, sizeof(mSkyParams));
+                }
             }
 
-            if (ImGui::SliderFloat4("Color A", glm::value_ptr(mGradientParams.colorA), 0.0f, 1.0f) ||
-                ImGui::SliderFloat4("Color B", glm::value_ptr(mGradientParams.colorB), 0.0f, 1.0f)) {
-                mVulkanRenderer->SetComputePassData(mGradientPass, &mGradientParams, sizeof(mGradientParams));
-            }
         }
         ImGui::End();
 
