@@ -1,6 +1,6 @@
 #pragma once
 
-#include "VulkanContext.h"
+#include "VulkanUtils.h"
 
 #include <span>
 #include <vector>
@@ -22,7 +22,6 @@ namespace VKRE {
         VkDescriptorSet Allocate(VkDevice device, VkDescriptorSetLayout layout);
 
     private:
-        std::shared_ptr<VulkanContext> mContext;
         VkDescriptorPool mPool;
     };
 

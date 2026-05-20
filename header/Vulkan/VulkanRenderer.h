@@ -5,7 +5,8 @@
 
 #include "VulkanFrameManager.h"
 #include "VulkanPresenter.h"
-#include "VulkanRenderPass.h"
+#include "VulkanImGuiPass.h"
+#include "VulkanComputePass.h"
 
 #include "VulkanResourceCache.h"
 #include "VulkanDescriptors.h"
@@ -14,6 +15,7 @@
 
 #include "ResourceManager/ResourceManager.h"
 
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -21,26 +23,19 @@
 
 namespace VKRE {
 
+    using ComputePassHandle = uint32_t;
+    static constexpr ComputePassHandle INVALID_COMPUTE_PASS = std::numeric_limits<uint32_t>::max();
+
+    struct ComputePassDesc {
+        std::string shaderPath;
+        std::string debugName;
+        std::vector<VkPushConstantRange> pushConstantRanges;
+        uint32_t workgroupX = 16;
+        uint32_t workgroupY = 16;
+        uint32_t workgroupZ = 1;
+    };
+
     class VulkanRenderer {
-    public:
-        // NOTE: THIS IS JUST FOR ILLUSTRATION OF PUSH CONSTANTS, WILL BE REMOVED
-        struct ComputePushConstants {
-            glm::vec4 data1;
-            glm::vec4 data2;
-            glm::vec4 data3;
-            glm::vec4 data4;
-        };
-
-        // NOTE: THIS IS JUST FOR ILLUSTRATION OF ImGui, WILL BE REMOVED
-        struct ComputeEffect {
-            const char* name;
-            VulkanPipeline compute;
-            ComputePushConstants data;
-        };
-
-        std::vector<ComputeEffect> backgroundEffects;
-        int currentBackgroundEffect = 0;
-
     public:
         VulkanRenderer(VulkanContext& context, ResourceManager& resourceManager);
         ~VulkanRenderer();
@@ -48,9 +43,13 @@ namespace VKRE {
         void Render();
         void OnImGui();
         void ReSize();
-        void DrawGradientBackground(VkCommandBuffer cmd);
-        void ClearImage(VkCommandBuffer cmd);
 
+        ComputePassHandle AddComputePass(const ComputePassDesc& desc);
+        void SetComputePassData(ComputePassHandle handle, const void* data, uint32_t size);
+        void ActivateComputePass(ComputePassHandle handle) { mComputePasses[handle].SetActive(true); }
+        void DeActivateComputePass(ComputePassHandle handle) { mComputePasses[handle].SetActive(false); }
+
+        void ClearImage(VkCommandBuffer cmd);
     private:
         void CreateDrawImage();
         void ReCreateDrawImage();
@@ -67,20 +66,19 @@ namespace VKRE {
         ResourceManager& mResourceManager;
 
         std::unique_ptr<VulkanResourceCache> mResourceCache;
-        std::vector<ShaderHandle> mOwnedShaders; // TODO: Move this outside of renderer so that the shader ownership is from somewhere else not here
 
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
         std::unique_ptr<VulkanImage2D> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
 
-        std::vector<std::unique_ptr<IVulkanRenderPass>> mPasses;
-        std::unique_ptr<IVulkanRenderPass> mImGuiPass;
+        std::unique_ptr<VulkanImGuiPass> mImGuiPass;
+        std::vector<VulkanComputePass> mComputePasses;
 
         DescriptorAllocator mGlobalDescriptorAllocator;
         VkDescriptorSet mDrawImageDescriptors;
         VkDescriptorSetLayout mDrawImageDescriptorLayout;
 
-        VulkanPipeline mComputePipeline; // TODO: Remove this later
+        VulkanComputePipeline mComputePipeline; // TODO: Remove this later
         VulkanUtils::DeletionQueue mDeletionQueue;
     };
 

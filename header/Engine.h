@@ -8,6 +8,13 @@
 
 #include <memory>
 
+
+// NOTE: THIS IS JUST FOR ILLUSTRATION OF COMPUTE PASSES, WILL BE REMOVED
+struct GradientParams {
+    glm::vec4 colorA;
+    glm::vec4 colorB;
+};
+
 class Engine {
 public:
     Engine();
@@ -31,4 +38,8 @@ private:
     // Vulkan
     std::unique_ptr<VKRE::VulkanContext> mVulkanContext;
     std::unique_ptr<VKRE::VulkanRenderer> mVulkanRenderer;
+
+    VKRE::ComputePassHandle mGradientPass = VKRE::INVALID_COMPUTE_PASS;
+    VKRE::ComputePassHandle mSkyPass = VKRE::INVALID_COMPUTE_PASS;
+    GradientParams mGradientParams{};
 };

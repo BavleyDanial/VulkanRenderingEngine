@@ -23,7 +23,7 @@ namespace VKRE {
         std::vector<ShaderStage> stages;
         std::vector<ShaderHandle> handles;
 
-        bool Succeeded() const { return stages.back() != ShaderStage::None; }
+        bool Succeeded() const { return !stages.empty() && stages.back() != ShaderStage::None; }
 
         ShaderHandle GetHandle(ShaderStage stage) const {
             for (size_t i = 0; i < stages.size(); i++) {

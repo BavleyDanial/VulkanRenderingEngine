@@ -1,17 +1,21 @@
+#include "Vulkan/VulkanComputePass.h"
 #include <Vulkan/VulkanRenderer.h>
 
 #include <Engine.h>
 #include <ResourceManager/ShaderCompiler.h>
 
-#include <glm/glm.hpp>
-#include <imgui.h>
-
-#include <cassert>
-#include <memory>
-
 #include <Vulkan/VulkanImGuiPass.h>
 #include <Vulkan/VulkanPipelineBuilder.h>
+
+#include <imgui.h>
+#include <ImGui/Backend/ImGuiGLFW.h>
+#include <ImGui/Backend/ImGuiVulkan.h>
+#include <glm/glm.hpp>
+
 #include <stdlib.h>
+#include <cassert>
+#include <memory>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -31,9 +35,8 @@ namespace VKRE {
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
 
         CreateDrawImage();
-        InitPasses();
         InitDescriptors();
-        InitPipelines();
+        InitPasses();
 
         mDeletionQueue.PushDeleteFunc([this]() { mDrawImage->Release(); });
     }
@@ -41,15 +44,59 @@ namespace VKRE {
     VulkanRenderer::~VulkanRenderer() {
         vkDeviceWaitIdle(mContext.GetLogicalDevice().handle);
 
-        for (ShaderHandle handle : mOwnedShaders) {
-            mResourceCache->DestroyShader(handle);
-            mResourceManager.DestroyShader(handle);
-        }
-        mOwnedShaders.clear();
+        mResourceCache->DestroyAll();
+        mComputePasses.clear();
 
         mPresenter.reset();
         mFrameManager.reset();
         mDeletionQueue.Flush();
+    }
+
+    ComputePassHandle VulkanRenderer::AddComputePass(const ComputePassDesc& desc) {
+        ShaderLoadingResults shaderResults = ShaderCompiler::LoadFromFile(mResourceManager, desc.shaderPath);
+        if (!shaderResults.Succeeded()) {
+            std::println("VulkanRenderer::AddComputePass Failed to load {}", desc.shaderPath);
+            return INVALID_COMPUTE_PASS;
+        }
+
+        ShaderHandle shader = shaderResults.GetHandle(ShaderStage::Compute);
+        if (!shader.IsValid()) {
+            std::println("VulkanRenderer::AddComputePass  {} shader has no compute stage", desc.shaderPath);
+            return INVALID_COMPUTE_PASS;
+        }
+
+        if (!mResourceCache->CreateShader(shader)) {
+            std::println("VulkanRenderer::AddComputePass Failed to upload {}", desc.shaderPath);
+            return INVALID_COMPUTE_PASS;
+        }
+
+        VulkanPipelineLayoutKey layoutKey {
+            .descriptorSetLayouts = { mDrawImageDescriptorLayout },
+            .pushConstantRanges = desc.pushConstantRanges
+        };
+
+        VkPipelineLayout pipelineLayout = mResourceCache->CreatePipelineLayout(layoutKey);
+        if (!pipelineLayout) {
+            std::println("VulkanRenderer::AddComputePass Failed to create or retreive pipeline layout");
+            return INVALID_COMPUTE_PASS;
+        }
+
+        VulkanComputePipelineKey pipelineKey { shader, pipelineLayout };
+        if (!mResourceCache->CreateComputePipeline(pipelineKey)) {
+            std::println("VulkanRenderer::AddComputePass Failed to create or retreive pipeline");
+            return INVALID_COMPUTE_PASS;
+        }
+
+        mComputePasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, glm::vec3(desc.workgroupX, desc.workgroupY, desc.workgroupZ));
+        return static_cast<ComputePassHandle>(mComputePasses.size() - 1);
+    }
+
+    void VulkanRenderer::SetComputePassData(ComputePassHandle handle, const void* data, uint32_t size) {
+        if (handle == INVALID_COMPUTE_PASS || handle >= mComputePasses.size()) {
+            std::println("VulkanRenderer::SetComputePassData Invalid compute pass handle");
+            return;
+        }
+        mComputePasses[handle].SetPushConstantData(data, size);
     }
 
     void VulkanRenderer::CreateDrawImage() {
@@ -75,10 +122,12 @@ namespace VKRE {
         mGlobalDescriptorAllocator.ClearDescriptors(mContext.GetLogicalDevice().handle);
         CreateDrawImage();
         InitDrawImageDescriptor();
+
+        for (auto& pass : mComputePasses)
+            pass.ReBuild(mDrawImageDescriptors);
     }
 
     void VulkanRenderer::InitPasses() {
-        // mPasses.push_back(....); this is how we add more passes in the future
         mImGuiPass = std::make_unique<VulkanImGuiPass>(mContext, *mPresenter);
     }
 
@@ -128,54 +177,6 @@ namespace VKRE {
     }
 
     void VulkanRenderer::InitBackgroundPipelines() {
-        ShaderLoadingResults shaderResults = ShaderCompiler::LoadFromFile(mResourceManager, "res/shaders/gradient.glsl");
-        if (!shaderResults.Succeeded()) {
-            std::println("VulkanRenderer: Failed to load gradient shader");
-            abort();
-        }
-
-        ShaderHandle gradient = shaderResults.GetHandle(ShaderStage::Compute);
-        if (!gradient.IsValid()) {
-            std::println("VulkanRenderer: gradient.glsl shader has no compute stage");
-            abort();
-        }
-
-        if (!mResourceCache->UploadShader(gradient)) {
-            std::println("VulkanRenderer: Failed to upload gradient.glsl");
-            abort();
-        }
-
-        mOwnedShaders.push_back(gradient);
-        VkShaderModule gradientModule = mResourceCache->GetShaderModule(gradient);
-
-        VkDescriptorSetLayout layouts[] = { mDrawImageDescriptorLayout };
-        VulkanComputePipelineBuilder computeBuilder = VulkanComputePipelineBuilder()
-            .SetShaderModule(gradientModule)
-            .SetDescriptorSetLayouts(layouts)
-            .AddPushConstantRange(0, sizeof(ComputePushConstants));
-
-        mComputePipeline = computeBuilder.Build(mContext.GetLogicalDevice().handle);
-        if (!mComputePipeline.Succeeded()) abort();
-
-        ComputeEffect grad;
-        grad.compute = mComputePipeline;
-        grad.name = "gradient";
-        grad.data = {};
-        grad.data.data1 = glm::vec4(1, 0, 0, 1);
-        grad.data.data2 = glm::vec4(0, 0, 1, 1);
-
-        ComputeEffect sky;
-        sky.compute = mComputePipeline;
-        sky.name = "sky";
-        sky.data = {};
-        sky.data.data1 = glm::vec4(0.1, 0.2, 0.4 ,0.97);
-        
-        backgroundEffects.push_back(grad);
-        backgroundEffects.push_back(sky);
-
-        mDeletionQueue.PushDeleteFunc([this]() {
-            mComputePipeline.Destroy(mContext.GetLogicalDevice().handle);
-        });
     }
 
     void VulkanRenderer::Render() {
@@ -198,7 +199,7 @@ namespace VKRE {
         }
         VK_CHECK(acquireResult);
         VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence));
-        
+
         // NOTE: The following is temporary!
         VkCommandBuffer cmd = frame.commandBuffer;
         vkResetCommandBuffer(cmd, 0);
@@ -211,10 +212,20 @@ namespace VKRE {
 
         VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo));
 
+        VkExtent2D drawImageExtent = {
+            mDrawImage->GetImageInfo().extent.width,
+            mDrawImage->GetImageInfo().extent.height
+        };
+
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
         // TODO: Replace this with passes
         ClearImage(cmd);
-        DrawGradientBackground(cmd);
+
+        for (auto& pass : mComputePasses) {
+            if (pass.IsActive())
+                pass.Execute(cmd, drawImageExtent);
+        }
+
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
         /* NOTE: This is how I will manage passes
@@ -223,7 +234,6 @@ namespace VKRE {
         }*/
 
         VkImage swapChainImage = mPresenter->GetImages()[swapchainImageIndex];
-        VkExtent2D drawImageExtent = { mDrawImage->GetImageInfo().extent.width, mDrawImage->GetImageInfo().extent.height };
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         ImageUtils::CopyImage(cmd, mDrawImage->GetImageInfo().image, swapChainImage, drawImageExtent, mPresenter->GetSwapChain().extent);
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -275,40 +285,12 @@ namespace VKRE {
     }
 
     void VulkanRenderer::OnImGui() {
-        // NOTE: Replace this in the future with a pass
-        if (ImGui::Begin("background")) {
-
-            VKRE::VulkanRenderer::ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
-
-            ImGui::Text("Selected effect: %s", selected.name);
-
-            ImGui::SliderInt("Effect Index", &currentBackgroundEffect,0, backgroundEffects.size() - 1);
-
-            ImGui::InputFloat4("data1",(float*)& selected.data.data1);
-            ImGui::InputFloat4("data2",(float*)& selected.data.data2);
-            ImGui::InputFloat4("data3",(float*)& selected.data.data3);
-            ImGui::InputFloat4("data4",(float*)& selected.data.data4);
-        }
-
-        for (auto& pass : mPasses) {
-            pass->OnImGui();
-        }
-
-        ImGui::End();
     }
 
     void VulkanRenderer::ReSize() {
         vkDeviceWaitIdle(mContext.GetLogicalDevice().handle);
         mPresenter->ResizeSwapChain();
         ReCreateDrawImage();
-    }
-
-    void VulkanRenderer::DrawGradientBackground(VkCommandBuffer cmd) {
-        ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.compute.pipeline);
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.compute.layout, 0, 1, &mDrawImageDescriptors, 0, nullptr);
-        vkCmdPushConstants(cmd, effect.compute.layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
-        vkCmdDispatch(cmd, std::ceil(mDrawImage->GetImageInfo().extent.width / 16.0), std::ceil(mDrawImage->GetImageInfo().extent.height / 16.0), 1);
     }
 
     void VulkanRenderer::ClearImage(VkCommandBuffer cmd) {

@@ -15,8 +15,17 @@ namespace VKRE {
         if (leakedShaders > 0) std::println("ResourceManager: {} shader(s) were not explicitly destroyed before shutdown", leakedShaders);
     }
 
-    ShaderHandle ResourceManager::CreateShader(ShaderDesc&& desc) {
-        ShaderHandle handle = mShaderPool.Allocate();
+    ShaderHandle ResourceManager::LoadShader(ShaderDesc&& desc) {
+        ShaderHandle handle = mShaderPool.FindIf([&](const ShaderHotData& hot, const ShaderColdData& cold) {
+            return hot.stage == desc.stage && std::strcmp(cold.path, desc.path.c_str()) == 0;
+        });
+
+        if (handle.IsValid()) {
+            mShaderPool.AddRef(handle);
+            return handle;
+        }
+
+        handle = mShaderPool.Allocate();
 
         ShaderHotData* hot = mShaderPool.GetHot(handle);
         ShaderColdData* cold = mShaderPool.GetCold(handle);
@@ -45,17 +54,19 @@ namespace VKRE {
         return handle;
     }
 
-    void ResourceManager::DestroyShader(ShaderHandle handle) {
+    void ResourceManager::DestroyShaderRef(ShaderHandle handle) {
         if (!mShaderPool.IsValid(handle)) {
             std::println("ResourceManager::DestroyShader handle is invalid or already destroyed");
             return;
         }
 
+        if (!mShaderPool.RemoveRef(handle)) return;
+
         ShaderColdData* cold = mShaderPool.GetCold(handle);
         cold->byteCode.clear();
         cold->byteCode.shrink_to_fit();
 
-        mShaderPool.Release(handle);
+        mShaderPool.Free(handle);
     }
 
     void ResourceManager::MarkShaderDirty(ShaderHandle handle) {

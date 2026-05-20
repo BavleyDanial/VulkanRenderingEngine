@@ -1,18 +1,22 @@
 #pragma once
-#include "VulkanRenderPass.h"
 
-#include "VulkanPresenter.h"
 #include "VulkanContext.h"
+#include "VulkanPresenter.h"
+#include "VulkanImage.h"
 
 namespace VKRE {
 
-    class VulkanImGuiPass : public IVulkanRenderPass {
+    struct FrameInfo {
+        uint32_t swapchainImageIdx = 0;
+        VulkanImage2D* drawImage = nullptr;
+    };
+
+    class VulkanImGuiPass {
     public:
         VulkanImGuiPass(VulkanContext& context, VulkanPresenter& presenter);
         ~VulkanImGuiPass();
 
-        virtual void Execute(VkCommandBuffer cmd, const FrameInfo& frameInfo) override;
-        virtual void OnImGui() override {}
+        void Execute(VkCommandBuffer cmd, const FrameInfo& frameInfo);
 
     private:
         VulkanContext& mContext;

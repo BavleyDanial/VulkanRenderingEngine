@@ -1,11 +1,14 @@
 #include <Engine.h>
 
-#include <ImGui/Backend/ImGuiGLFW.h>
-#include <ImGui/Backend/ImGuiVulkan.h>
 #include <imgui.h>
 
 #include <cassert>
 #include <memory>
+
+#include <glm/gtc/type_ptr.hpp>
+
+#include <ImGui/Backend/ImGuiVulkan.h>
+#include <ImGui/Backend/ImGuiGLFW.h>
 
 Engine::Engine() {
     if (mInstance) {
@@ -23,10 +26,43 @@ Engine::Engine() {
 Engine::~Engine() {
     mVulkanRenderer.reset();
     mVulkanContext.reset();
+    mResourceManager.reset();
     mWindow.reset();
 }
 
 void Engine::Run() {
+    // NOTE: This is temporary, it will be moved out
+    mGradientPass = mVulkanRenderer->AddComputePass({
+        .shaderPath = "res/shaders/gradient.glsl",
+        .debugName = "gradient",
+        .pushConstantRanges = {
+            {
+                VK_SHADER_STAGE_COMPUTE_BIT,
+                0,
+                sizeof(GradientParams),
+            }
+        }
+    });
+
+    mSkyPass = mVulkanRenderer->AddComputePass({
+        .shaderPath = "res/shaders/gradient.glsl",
+        .debugName = "gradient",
+        .pushConstantRanges = {
+            {
+                VK_SHADER_STAGE_COMPUTE_BIT,
+                0,
+                sizeof(GradientParams),
+            }
+        }
+    });
+
+    GradientParams params { .colorA = {0, 0, 0, 1}, .colorB = {0, 0, 1, 1} };
+    GradientParams skyparams { .colorA = {0.1f, 0.2f, 0.4f, 1}, .colorB = {0, 0.1f, .2f, 1} };
+    mVulkanRenderer->SetComputePassData(mGradientPass, &params, sizeof(params));
+    mVulkanRenderer->SetComputePassData(mSkyPass, &skyparams, sizeof(skyparams));
+
+    int index = 0;
+
     // TODO: Change this to close when the engine decides to close, not when ONE WINDOW decides it's done. This will help with multiple windows as well.
     while (!mWindow->ShouldClose()) {
         mWindow->OnUpdate();
@@ -34,15 +70,31 @@ void Engine::Run() {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
+        ImGui::PopStyleVar();
+
+        if (ImGui::Begin("GradientEffect")) {
+            ImGui::SliderInt("Pass", &index, 0, 1);
+
+            if (index == 0) {
+                mVulkanRenderer->ActivateComputePass(mGradientPass);
+                mVulkanRenderer->DeActivateComputePass(mSkyPass);
+            } else {
+                mVulkanRenderer->ActivateComputePass(mSkyPass);
+                mVulkanRenderer->DeActivateComputePass(mGradientPass);
+            }
+
+            if (ImGui::SliderFloat4("Color A", glm::value_ptr(mGradientParams.colorA), 0.0f, 1.0f) ||
+                ImGui::SliderFloat4("Color B", glm::value_ptr(mGradientParams.colorB), 0.0f, 1.0f)) {
+                mVulkanRenderer->SetComputePassData(mGradientPass, &mGradientParams, sizeof(mGradientParams));
+            }
+        }
+        ImGui::End();
+
 
         mVulkanRenderer->OnImGui();
-
-        ImGui::PopStyleVar();
         ImGui::Render();
-
         mVulkanRenderer->Render();
     }
 }

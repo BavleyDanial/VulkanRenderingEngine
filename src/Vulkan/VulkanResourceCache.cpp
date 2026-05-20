@@ -1,4 +1,6 @@
+#include "Vulkan/VulkanPipeline.h"
 #include <Vulkan/VulkanResourceCache.h>
+#include <Vulkan/VulkanPipelineBuilder.h>
 
 #include <cassert>
 #include <print>
@@ -12,7 +14,7 @@ namespace VKRE {
         DestroyAll();
     }
 
-    bool VulkanResourceCache::UploadShader(ShaderHandle handle) {
+    bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
         if (!mResourceManager.IsShaderValid(handle)) {
             std::println("VulkanResourceCache::UploadShader handle is invalid");
             return false;
@@ -36,13 +38,13 @@ namespace VKRE {
         return CreateShaderModule(handle, cold);
     }
 
-    void VulkanResourceCache::DestroyShader(ShaderHandle handle) {
+    VkShaderModule VulkanResourceCache::GetShaderModule(ShaderHandle handle) const {
         auto it = mShaderModules.find(handle);
-        if (it == mShaderModules.end()) return;
-        DestroyShaderModule(handle);
+        if (it == mShaderModules.end()) return nullptr;
+        return it->second;
     }
 
-    VkShaderModule VulkanResourceCache::GetShaderModule(ShaderHandle handle) const {
+    VkShaderModule VulkanResourceCache::GetShaderModule(ShaderHandle handle) {
         auto it = mShaderModules.find(handle);
         if (it == mShaderModules.end()) return nullptr;
         return it->second;
@@ -61,18 +63,156 @@ namespace VKRE {
         }
 
         for (ShaderHandle handle : dirty)
-            UploadShader(handle);
+            CreateShader(handle);
+    }
+
+    void VulkanResourceCache::DestroyShader(ShaderHandle handle) {
+        auto it = mShaderModules.find(handle);
+        if (it == mShaderModules.end()) return;
+        vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
+        mResourceManager.DestroyShaderRef(handle);
+
+        if (!mResourceManager.IsShaderValid(handle))
+            mShaderModules.erase(it);
     }
 
     void VulkanResourceCache::DestroyAllShaders() {
-        VkDevice device = mContext.GetLogicalDevice().handle;
-        for (auto& [index, module] : mShaderModules) {
-            if (module != nullptr) vkDestroyShaderModule(device, module, nullptr);
+        std::vector<ShaderHandle> handles;
+        handles.reserve(mShaderModules.size());
+        for (auto& [handle, module] : mShaderModules)
+            handles.push_back(handle);
+
+        for (auto& handle : handles)
+            DestroyShader(handle);
+    }
+
+    VkPipelineLayout VulkanResourceCache::CreatePipelineLayout(const VulkanPipelineLayoutKey& key) {
+        auto it = mPipelineLayouts.find(key);
+        if (it != mPipelineLayouts.end())
+            return it->second;
+
+        const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts = key.descriptorSetLayouts;
+        const std::vector<VkPushConstantRange>& pushConstantRanges = key.pushConstantRanges;
+
+        VkPipelineLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        layoutInfo.pSetLayouts = descriptorSetLayouts.empty() ? nullptr : descriptorSetLayouts.data();
+        layoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+        layoutInfo.pPushConstantRanges = pushConstantRanges.empty() ? nullptr : pushConstantRanges.data();
+        layoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
+
+        VkPipelineLayout layout = VK_NULL_HANDLE;
+        if (vkCreatePipelineLayout(mContext.GetLogicalDevice().handle, &layoutInfo, nullptr, &layout) != VK_SUCCESS) {
+            std::println("VulkanComputePipelineBuilder::Build Failed to create Pipeline Layout");
+            return nullptr;
         }
-        mShaderModules.clear();
+
+        mPipelineLayouts[key] = layout;
+        return layout;
+    }
+
+    VkPipelineLayout VulkanResourceCache::GetPipelineLayout(const VulkanPipelineLayoutKey& key) {
+        auto it = mPipelineLayouts.find(key);
+        if (it == mPipelineLayouts.end()) return nullptr;
+        return it->second;
+    }
+
+    VkPipelineLayout VulkanResourceCache::GetPipelineLayout(const VulkanPipelineLayoutKey& key) const {
+        auto it = mPipelineLayouts.find(key);
+        if (it == mPipelineLayouts.end()) return nullptr;
+        return it->second;
+    }
+
+    bool VulkanResourceCache::IsPipelineLayoutCreated(const VulkanPipelineLayoutKey& key) const {
+        return mPipelineLayouts.contains(key);
+    }
+
+    void VulkanResourceCache::DestroyPipelineLayout(const VulkanPipelineLayoutKey& key) {
+        VkPipelineLayout layout = GetPipelineLayout(key);
+        if (layout) {
+            vkDestroyPipelineLayout(mContext.GetLogicalDevice().handle, layout, nullptr);
+            mPipelineLayouts.erase(key);
+        }
+    }
+
+    void VulkanResourceCache::DestroyAllPipelineLayouts() {
+        std::vector<VulkanPipelineLayoutKey> keys;
+        keys.reserve(mPipelineLayouts.size());
+        for (auto& [key, layout] : mPipelineLayouts)
+            keys.push_back(key);
+
+        for (auto& key : keys)
+            DestroyPipelineLayout(key);
+    }
+
+    VulkanComputePipeline* VulkanResourceCache::CreateComputePipeline(const VulkanComputePipelineKey& key) {
+        auto it = mComputePipelines.find(key);
+        if (it != mComputePipelines.end())
+            return &it->second;
+
+        VkShaderModule shaderModule = GetShaderModule(key.shader);
+        if (!shaderModule) {
+            if (CreateShader(key.shader)) {
+                shaderModule = GetShaderModule(key.shader);
+            } else {
+                std::println("VulkanResourceCache::CreateComputePipeline Failed to retreive or create a shader module from shader (index={})", key.shader.index);
+                return nullptr;
+            }
+        }
+
+        VulkanComputePipeline pipeline = VulkanComputePipelineBuilder()
+            .SetShaderModule(shaderModule)
+            .SetPipelineLayout(key.layout)
+            .Build(mContext.GetLogicalDevice().handle);
+
+        if (!pipeline.Succeeded()) {
+            std::println("VulkanResourceCache::CreateComputePipeline Failed to create compute pipeline");
+            return nullptr;
+        }
+
+        mComputePipelines[key] = pipeline;
+        return &mComputePipelines[key];
+    }
+
+    const VulkanComputePipeline* VulkanResourceCache::GetComputePipeline(const VulkanComputePipelineKey& key) const {
+        auto it = mComputePipelines.find(key);
+        if (it == mComputePipelines.end()) return nullptr;
+        return &it->second;
+    }
+
+    VulkanComputePipeline* VulkanResourceCache::GetComputePipeline(const VulkanComputePipelineKey& key) {
+        auto it = mComputePipelines.find(key);
+        if (it == mComputePipelines.end()) return nullptr;
+        return &it->second;
+    }
+
+    bool VulkanResourceCache::IsComputePipelineCreated(const VulkanComputePipelineKey& key) const {
+        return mComputePipelines.contains(key);
+    }
+
+    void VulkanResourceCache::DestroyComputePipeline(const VulkanComputePipelineKey& key) {
+        VulkanComputePipeline* pipeline = GetComputePipeline(key);
+        if (pipeline) {
+            pipeline->Destroy(mContext.GetLogicalDevice().handle);
+            mComputePipelines.erase(key);
+
+            bool isShaderStillInUse = false;
+        }
+    }
+
+    void VulkanResourceCache::DestroyAllComputePipelines() {
+        std::vector<VulkanComputePipelineKey> keys;
+        keys.reserve(mComputePipelines.size());
+        for (auto& [key, pipeline] : mComputePipelines)
+            keys.push_back(key);
+
+        for (auto& key : keys)
+            DestroyComputePipeline(key);
     }
 
     void VulkanResourceCache::DestroyAll() {
+        DestroyAllComputePipelines();
+        DestroyAllPipelineLayouts();
         DestroyAllShaders();
     }
 
@@ -81,7 +221,6 @@ namespace VKRE {
             std::println("VulkanResourceCache::CreateShaderModule Cannot create shader module, SPIRV is empty (index={})", static_cast<uint32_t>(handle.index));
             return false;
         }
-
 
         VkShaderModuleCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -100,13 +239,6 @@ namespace VKRE {
         cold->isDirty = false;
 
         return true;
-    }
-
-    void VulkanResourceCache::DestroyShaderModule(ShaderHandle handle) {
-        auto it = mShaderModules.find(handle);
-        if (it == mShaderModules.end()) return;
-        vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
-        mShaderModules.erase(it);
     }
 
 }

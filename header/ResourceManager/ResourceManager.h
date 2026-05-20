@@ -11,8 +11,8 @@ namespace VKRE {
         ResourceManager();
         ~ResourceManager();
 
-        ShaderHandle CreateShader(ShaderDesc&& desc);
-        void DestroyShader(ShaderHandle handle);
+        ShaderHandle LoadShader(ShaderDesc&& desc);
+        void DestroyShaderRef(ShaderHandle handle);
 
         ShaderHotData* GetShaderHot(ShaderHandle handle) { return mShaderPool.GetHot(handle); };
         const ShaderHotData* GetShaderHot(ShaderHandle handle) const { return mShaderPool.GetHot(handle); };

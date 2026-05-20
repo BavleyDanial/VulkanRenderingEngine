@@ -37,6 +37,7 @@ namespace VKRE {
             assert(!mOccupied[index] && "Allocated a slot that is already occupied");
 
             mOccupied[index] = true;
+            mRefCounts[index]++;
             mLiveCount++;
 
             if (mGenerations[index] == 0)
@@ -45,7 +46,18 @@ namespace VKRE {
             return ResourceHandle<Tag>{ index, mGenerations[index] };
         }
 
-        void Release(ResourceHandle<Tag> handle) {
+        void AddRef(ResourceHandle<Tag> handle) {
+            if (!IsValid(handle)) return;
+            mRefCounts[handle.index]++;
+        }
+
+        bool RemoveRef(ResourceHandle<Tag> handle) {
+            if (!IsValid(handle)) return false;
+            if (mRefCounts[handle.index] == 0) return false;
+            return --mRefCounts[handle.index] == 0;
+        }
+
+        void Free(ResourceHandle<Tag> handle) {
             if (!IsValid(handle)) {
                 std::println("ResourcePool::Release attempted to release a stale or invalid handle (index={}, gen={})", static_cast<uint32_t>(handle.index), static_cast<uint32_t>(handle.generation));
                 return;
@@ -90,6 +102,28 @@ namespace VKRE {
         }
 
         template<typename Fn>
+        requires std::invocable<Fn, THot&, TCold&>
+        ResourceHandle<Tag> FindIf(Fn&& fn) const {
+            for (uint32_t i = 1; i < mNextFreshSlot; i++) {
+                if (mOccupied[i] && fn(mHot[i], mCold[i])) {
+                    return ResourceHandle<Tag>{ i, mGenerations[i] };
+                }
+            }
+            return ResourceHandle<Tag>::Null();
+        }
+
+        template<typename Fn>
+        requires std::invocable<Fn, THot&, TCold&>
+        ResourceHandle<Tag> FindIf(Fn&& fn) {
+            for (uint32_t i = 1; i < mNextFreshSlot; i++) {
+                if (mOccupied[i] && fn(mHot[i], mCold[i])) {
+                    return ResourceHandle<Tag>{ i, mGenerations[i] };
+                }
+            }
+            return ResourceHandle<Tag>::Null();
+        }
+
+        template<typename Fn>
         requires std::invocable<Fn, uint32_t, THot&, TCold&>
         void ForEach(Fn&& fn) {
             for (uint32_t i = 1; i < mNextFreshSlot; i++) {
@@ -99,7 +133,7 @@ namespace VKRE {
         }
 
         template<typename Fn>
-        requires std::invocable<Fn, uint32_t, THot&, TCold&>
+        requires std::invocable<Fn, uint32_t, const THot&, const TCold&>
         void ForEach(Fn&& fn) const {
             for (uint32_t i = 1; i < mNextFreshSlot; i++) {
                 if (mOccupied[i])
@@ -117,6 +151,7 @@ namespace VKRE {
 
             mGenerations.resize(capacity, 0);
             mOccupied.resize(capacity, false);
+            mRefCounts.resize(capacity, 0);
             mHot.resize(capacity);
             mCold.resize(capacity);
 
@@ -127,6 +162,7 @@ namespace VKRE {
         std::vector<uint32_t> mFreeList;
         std::vector<uint32_t> mGenerations;
         std::vector<uint8_t> mOccupied;
+        std::vector<uint32_t> mRefCounts;
 
         std::vector<THot> mHot;
         std::vector<TCold> mCold;

@@ -129,9 +129,7 @@ namespace VKRE {
                 trimmed = trimmed.substr(start);
 
             if (trimmed.starts_with("#ShaderType")) {
-                std::istringstream stageTypeLine(trimmed);
-
-                size_t spacePos = line.find(' ');
+                size_t spacePos = trimmed.find(' ');
                 if (spacePos == std::string::npos) {
                     std::println("ShaderCompiler::ParseStages #ShaderType missing stage type");
                     continue;
@@ -219,7 +217,7 @@ namespace VKRE {
         desc.entrypoint = entrypoint;
         desc.byteCode = std::move(byteData);
 
-        return manager.CreateShader(std::move(desc));
+        return manager.LoadShader(std::move(desc));
     }
 }
 
