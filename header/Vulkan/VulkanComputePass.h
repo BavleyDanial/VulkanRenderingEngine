@@ -20,9 +20,7 @@ namespace VKRE {
         void Execute(VkCommandBuffer cmd, VkExtent2D extent);
         void Execute(VkCommandBuffer cmd, VkExtent3D extent);
     private:
-        VulkanResourceCache& mResourceCache;
-
-        VulkanComputePipelineKey mPipelineKey;
+        VulkanComputePipeline* mPipeline;
         VkDescriptorSet mDescriptorSet;
         std::vector<uint8_t> mPushConstantData;
         glm::vec3 mWorkGroup;

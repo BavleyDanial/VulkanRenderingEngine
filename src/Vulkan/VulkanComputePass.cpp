@@ -4,21 +4,20 @@
 namespace VKRE {
 
     VulkanComputePass::VulkanComputePass(VulkanResourceCache& cache, const VulkanComputePipelineKey& key, VkDescriptorSet descriptorSet, const glm::vec3& workgroup)
-        :mResourceCache(cache), mPipelineKey(key), mDescriptorSet(descriptorSet), mWorkGroup(workgroup) {}
+        :mPipeline(cache.GetComputePipeline(key)), mDescriptorSet(descriptorSet), mWorkGroup(workgroup) {}
 
     void VulkanComputePass::Execute(VkCommandBuffer cmd, VkExtent2D extent) {
         Execute(cmd, { extent.width, extent.height, 1 });
     }
 
     void VulkanComputePass::Execute(VkCommandBuffer cmd, VkExtent3D extent) {
-        VulkanComputePipeline* cp = mResourceCache.GetComputePipeline(mPipelineKey);
-        if (!cp) return;
+        if (!mPipeline) return;
 
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cp->pipeline);
-        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, cp->layout, 0, 1, &mDescriptorSet, 0, nullptr);
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline->pipeline);
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, mPipeline->layout, 0, 1, &mDescriptorSet, 0, nullptr);
 
         if (!mPushConstantData.empty()) {
-            vkCmdPushConstants(cmd, cp->layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, mPushConstantData.size(), mPushConstantData.data());
+            vkCmdPushConstants(cmd, mPipeline->layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, mPushConstantData.size(), mPushConstantData.data());
         }
 
         vkCmdDispatch(cmd,

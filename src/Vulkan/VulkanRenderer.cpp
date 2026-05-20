@@ -172,13 +172,6 @@ namespace VKRE {
         vkUpdateDescriptorSets(mContext.GetLogicalDevice().handle, 1, &drawImageWrite, 0, nullptr);
     }
 
-    void VulkanRenderer::InitPipelines() {
-        InitBackgroundPipelines();
-    }
-
-    void VulkanRenderer::InitBackgroundPipelines() {
-    }
-
     void VulkanRenderer::Render() {
         if (Engine::GetInstance().hasResized) {
             ReSize();

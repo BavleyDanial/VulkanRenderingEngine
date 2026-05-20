@@ -10,10 +10,6 @@ namespace VKRE {
     VulkanResourceCache::VulkanResourceCache(VulkanContext& context, ResourceManager& manager)
         :mContext(context), mResourceManager(manager) {}
 
-    VulkanResourceCache::~VulkanResourceCache() {
-        DestroyAll();
-    }
-
     bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
         if (!mResourceManager.IsShaderValid(handle)) {
             std::println("VulkanResourceCache::UploadShader handle is invalid");
@@ -29,8 +25,10 @@ namespace VKRE {
         ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
         assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
 
-        if (alreadyUploaded && !cold->isDirty)
+        if (alreadyUploaded && !cold->isDirty) {
+            mShaderModulesRefCount[handle] += 1;
             return true;
+        }
 
         if (alreadyUploaded)
             DestroyShader(handle);
@@ -69,11 +67,17 @@ namespace VKRE {
     void VulkanResourceCache::DestroyShader(ShaderHandle handle) {
         auto it = mShaderModules.find(handle);
         if (it == mShaderModules.end()) return;
-        vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
-        mResourceManager.DestroyShaderRef(handle);
 
-        if (!mResourceManager.IsShaderValid(handle))
+        auto refIt = mShaderModulesRefCount.find(handle);
+        if (refIt == mShaderModulesRefCount.end()) return;
+
+        mShaderModulesRefCount[handle]--;
+        if (mShaderModulesRefCount[handle] == 0) {
+            vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
+            mShaderModulesRefCount.erase(refIt);
             mShaderModules.erase(it);
+        }
+        mResourceManager.DestroyShaderRef(handle);
     }
 
     void VulkanResourceCache::DestroyAllShaders() {
@@ -82,8 +86,11 @@ namespace VKRE {
         for (auto& [handle, module] : mShaderModules)
             handles.push_back(handle);
 
-        for (auto& handle : handles)
-            DestroyShader(handle);
+        for (ShaderHandle handle : handles) {
+            uint32_t refCount = mShaderModulesRefCount[handle];
+            for (uint32_t i = 0; i < refCount; i++)
+                DestroyShader(handle);
+        }
     }
 
     VkPipelineLayout VulkanResourceCache::CreatePipelineLayout(const VulkanPipelineLayoutKey& key) {
@@ -235,6 +242,7 @@ namespace VKRE {
         }
 
         mShaderModules[handle] = shaderModule;
+        mShaderModulesRefCount[handle] = 1;
         assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
         cold->isDirty = false;
 

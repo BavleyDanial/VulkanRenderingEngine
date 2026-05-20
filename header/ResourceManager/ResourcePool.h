@@ -102,7 +102,7 @@ namespace VKRE {
         }
 
         template<typename Fn>
-        requires std::invocable<Fn, THot&, TCold&>
+        requires std::invocable<Fn, const THot&, const TCold&>
         ResourceHandle<Tag> FindIf(Fn&& fn) const {
             for (uint32_t i = 1; i < mNextFreshSlot; i++) {
                 if (mOccupied[i] && fn(mHot[i], mCold[i])) {

@@ -57,10 +57,6 @@ namespace VKRE {
         void InitPasses();
         void InitDescriptors();
         void InitDrawImageDescriptor();
-
-        // TODO: Abstract these to a pipeline file or leave them but utilise a pipeline file
-        void InitPipelines();
-        void InitBackgroundPipelines();
     private:
         VulkanContext& mContext;
         ResourceManager& mResourceManager;
@@ -78,7 +74,6 @@ namespace VKRE {
         VkDescriptorSet mDrawImageDescriptors;
         VkDescriptorSetLayout mDrawImageDescriptorLayout;
 
-        VulkanComputePipeline mComputePipeline; // TODO: Remove this later
         VulkanUtils::DeletionQueue mDeletionQueue;
     };
 

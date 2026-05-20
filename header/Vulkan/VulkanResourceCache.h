@@ -15,7 +15,6 @@ namespace VKRE {
     class VulkanResourceCache {
     public:
         VulkanResourceCache(VulkanContext& context, ResourceManager& manager);
-        ~VulkanResourceCache();
 
         bool CreateShader(ShaderHandle handle);
         VkShaderModule GetShaderModule(ShaderHandle handle);
@@ -52,6 +51,7 @@ namespace VKRE {
         ResourceManager& mResourceManager;
 
         std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;
+        std::unordered_map<ShaderHandle, uint32_t> mShaderModulesRefCount;
         std::unordered_map<VulkanPipelineLayoutKey, VkPipelineLayout> mPipelineLayouts;
         std::unordered_map<VulkanComputePipelineKey, VulkanComputePipeline> mComputePipelines;
     };
