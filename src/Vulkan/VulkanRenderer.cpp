@@ -67,7 +67,7 @@ namespace VKRE {
         }
 
         ShaderHandle fragmentShader = shaderResults.GetHandle(ShaderStage::Fragment);
-        if (!vertexShader.IsValid()) {
+        if (!fragmentShader.IsValid()) {
             std::println("VulkanRenderer::AddDrawPass {} shader has no fragment stage", desc.shaderPath);
             return INVALID_DRAW_PASS;
         }
