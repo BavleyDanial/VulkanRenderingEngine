@@ -54,13 +54,18 @@ namespace VKRE {
         }
 
         VulkanPhysicalDeviceSelector deviceSelector(sInstance, mSurface);
-        std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.SetName("Main Rendering Device")
-                                                            .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT })
-                                                            .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
-                                                            //.SetRequiredExtensions({ "VK_KHR_portability_subset" }) Only enable when needing MacOS. Will add an optional extensions somewhere
-                                                            .SetRequiredFeatures13({ .synchronization2 = true, .dynamicRendering = true })
-                                                            .SetRequiredFeatures12({ .descriptorIndexing = true, .bufferDeviceAddress = true })
-                                                            .Select();
+        deviceSelector = deviceSelector.SetName("Main Rendering Device")
+                            .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT, VK_QUEUE_COMPUTE_BIT })
+                            .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
+                            .SetRequiredFeatures13({ .synchronization2 = true, .dynamicRendering = true })
+                            .SetRequiredFeatures12({ .descriptorIndexing = true, .bufferDeviceAddress = true });
+
+
+#ifdef PLATFORM_MACOS
+        deviceSelector.SetRequiredExtensions({ "VK_KHR_portability_subset" });
+#endif
+
+        std::optional<VulkanPhysicalDevice> physicalDevice = deviceSelector.Select();
         if (physicalDevice.has_value()) {
             mPhysicalDevice = physicalDevice.value();
         } else {

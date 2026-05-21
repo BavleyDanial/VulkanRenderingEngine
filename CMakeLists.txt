@@ -32,9 +32,16 @@ set(GLM_HEADER "${CMAKE_SOURCE_DIR}/vendor/glm/")
 set(STB_HEADER "${CMAKE_SOURCE_DIR}/vendor/stb/")
 
 find_package(Vulkan REQUIRED)
-set(VULKAN_PATH ${Vulkan_INCLUDE_DIRS})
-STRING(REGEX REPLACE "/Include" "" VULKAN_PATH ${VULKAN_PATH})
-find_library(SHADERC_LIB shaderc_shared HINTS ${VULKAN_PATH}/Lib)
+
+if (WIN32)
+    find_library(SHADERC_LIB shaderc_shared HINTS $ENV{VULKAN_SDK}/Lib)
+    set(VULKAN_INCLUDE_PATH $ENV{VULKAN_SDK}/Include)
+else()
+    find_library(SHADERC_LIB shaderc_shared HINTS $ENV{VULKAN_SDK}/lib)
+    set(VULKAN_INCLUDE_PATH $ENV{VULKAN_SDK}/include)
+endif()
+
+message("Vulkan Path ${VULKAN_PATH}")
 
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/glfw/")
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/")
@@ -47,7 +54,15 @@ target_link_libraries(${BIN_NAME} ImGui)
 target_link_libraries(${BIN_NAME} ${SHADERC_LIB})
 target_link_libraries(${BIN_NAME} Vulkan::Vulkan)
 
-target_include_directories(${BIN_NAME} PUBLIC "${HEADER}" "${GLAD_HEADER}" "${GLM_HEADER}" "${STB_HEADER}" "${VULKAN_PATH}/Include")
+target_include_directories(${BIN_NAME} PUBLIC "${HEADER}" "${GLAD_HEADER}" "${GLM_HEADER}" "${STB_HEADER}" "${VULKAN_INCLUDE_PATH}")
+
+if (WIN32)
+    target_compile_definitions(${BIN_NAME} PRIVATE PLATFORM_WINDOWS=1)
+elseif (APPLE)
+    target_compile_definitions(${BIN_NAME} PRIVATE PLATFORM_MACOS=1)
+elseif (UNIX)
+    target_compile_definitions(${BIN_NAME} PRIVATE PLATFORM_LINUX=1)
+endif()
 
 set_target_properties(${BIN_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${OutputDir}"
