@@ -2,7 +2,7 @@
 #include "Vulkan/VulkanDrawPass.h"
 #include <Vulkan/VulkanRenderer.h>
 
-#include <Engine.h>
+#include <Application.h>
 #include <ResourceManager/ShaderCompiler.h>
 
 #include <Vulkan/VulkanImGuiPass.h>
@@ -241,9 +241,9 @@ namespace VKRE {
     }
 
     void VulkanRenderer::Render() {
-        if (Engine::GetInstance().hasResized) {
+        if (Application::GetInstance().hasResized) {
             ReSize();
-            Engine::GetInstance().hasResized = false;
+            Application::GetInstance().hasResized = false;
             return;
         }
 

@@ -1,7 +1,7 @@
 #include "GLFW/glfw3.h"
 
 #include <Window/GlfwWindow.h>
-#include <Engine.h>
+#include <Application.h>
 
 #include <cassert>
 
@@ -45,7 +45,7 @@ namespace VKRE {
         glfwSetWindowSizeCallback(mGLFWwindow, [](GLFWwindow* window, int width, int height) {
                 Window* VKREWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
                 VKREWindow->Resize(width, height);
-                Engine::GetInstance().hasResized = true;
+                Application::GetInstance().hasResized = true;
         });
    }
 

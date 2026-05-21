@@ -21,13 +21,11 @@ else()
     set(OutputDir "${CMAKE_SOURCE_DIR}/bin/")
 endif()
 
-file(GLOB_RECURSE SOURCE "${CMAKE_SOURCE_DIR}/src/**.cpp")
-file(GLOB_RECURSE HEADER_SOURCE "${CMAKE_SOURCE_DIR}/header/**.h")
-set(HEADER "${CMAKE_SOURCE_DIR}/header/")
+set(ARCHITECTURE ${ARCHITECTURE} CACHE INTERNAL "")
+set(OutputDir ${OutputDir} CACHE INTERNAL "")
 
 file(GLOB_RECURSE GLAD_SRC "${CMAKE_SOURCE_DIR}/vendor/glad/**.c")
 set(GLAD_HEADER "${CMAKE_SOURCE_DIR}/vendor/glad/include")
-
 set(GLM_HEADER "${CMAKE_SOURCE_DIR}/vendor/glm/")
 set(STB_HEADER "${CMAKE_SOURCE_DIR}/vendor/stb/")
 
@@ -41,34 +39,16 @@ else()
     set(VULKAN_INCLUDE_PATH $ENV{VULKAN_SDK}/include)
 endif()
 
-message("Vulkan Path ${VULKAN_PATH}")
+if (WIN32)
+    add_compile_definitions(PLATFORM_WINDOWS=1)
+elseif (APPLE)
+    add_compile_definitions(PLATFORM_MACOS=1)
+elseif (UNIX)
+    add_compile_definitions(PLATFORM_LINUX=1)
+endif()
 
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/glfw/")
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/")
 
-set(BIN_NAME "VKRE-${CMAKE_SYSTEM_NAME}-${ARCHITECTURE}")
-add_executable(${BIN_NAME} "${SOURCE}" "${GLAD_SRC}" "${HEADER_SOURCE}")
-
-target_link_libraries(${BIN_NAME} glfw)
-target_link_libraries(${BIN_NAME} ImGui)
-target_link_libraries(${BIN_NAME} ${SHADERC_LIB})
-target_link_libraries(${BIN_NAME} Vulkan::Vulkan)
-
-target_include_directories(${BIN_NAME} PUBLIC "${HEADER}" "${GLAD_HEADER}" "${GLM_HEADER}" "${STB_HEADER}" "${VULKAN_INCLUDE_PATH}")
-
-if (WIN32)
-    target_compile_definitions(${BIN_NAME} PRIVATE PLATFORM_WINDOWS=1)
-elseif (APPLE)
-    target_compile_definitions(${BIN_NAME} PRIVATE PLATFORM_MACOS=1)
-elseif (UNIX)
-    target_compile_definitions(${BIN_NAME} PRIVATE PLATFORM_LINUX=1)
-endif()
-
-set_target_properties(${BIN_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${OutputDir}"
-)
-
-set_target_properties(${BIN_NAME} PROPERTIES 
-    DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-)
+add_subdirectory("VKRE")
+add_subdirectory("Sandbox")
