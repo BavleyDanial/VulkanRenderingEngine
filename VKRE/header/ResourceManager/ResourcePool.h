@@ -11,12 +11,20 @@ namespace VKRE {
 
     template<typename Tag, typename THot, typename TCold>
     class ResourcePool {
+    private:
+        struct SlotMetaData {
+            uint32_t generation     : 12 = 1;
+            uint32_t refCount       : 20 = 0;
+            uint32_t densePosition  : 32 = 0;
+        };
+
     public:
         void Init(uint32_t initCapacity = 64) {
             assert(mCapacity == 0 && "ResourcePool::Init called more than once");
+            assert(initCapacity < ResourceHandle<Tag>::INVALID_IDX && "ResourcePool::Init called more than once");
             Reserve(initCapacity);
-            mGenerations[0] = 0;
-            mOccupied[0] = false;
+            mSlotMetaData[0].generation = ResourceHandle<Tag>::INVALID_GEN;
+            mSlotMetaData[0].refCount = 0;
         }
 
         ResourceHandle<Tag> Allocate() {
@@ -34,27 +42,27 @@ namespace VKRE {
             }
 
             assert(index != 0 && "Slot 0 is reserved and must never be allocated");
-            assert(!mOccupied[index] && "Allocated a slot that is already occupied");
+            SlotMetaData& slotMetaData = mSlotMetaData[index];
+            assert(slotMetaData.refCount == 0 && "Allocated a slot that is already occupied");
 
-            mOccupied[index] = true;
-            mRefCounts[index]++;
+            slotMetaData.refCount = 1;
             mLiveCount++;
 
-            if (mGenerations[index] == 0)
-                mGenerations[index] = 1; // We have used this slot for the first time
+            mActiveIndices.push_back(index);
+            slotMetaData.densePosition= static_cast<uint32_t>(mActiveIndices.size() - 1);
 
-            return ResourceHandle<Tag>{ index, mGenerations[index] };
+            return ResourceHandle<Tag>{ index, slotMetaData.generation };
         }
 
         void AddRef(ResourceHandle<Tag> handle) {
             if (!IsValid(handle)) return;
-            mRefCounts[handle.index]++;
+            mSlotMetaData[handle.index].refCount++;
         }
 
         bool RemoveRef(ResourceHandle<Tag> handle) {
             if (!IsValid(handle)) return false;
-            if (mRefCounts[handle.index] == 0) return false;
-            return --mRefCounts[handle.index] == 0;
+            SlotMetaData& slotMetaData = mSlotMetaData[handle.index];
+            return (--slotMetaData.refCount) == 0;
         }
 
         void Free(ResourceHandle<Tag> handle) {
@@ -63,22 +71,27 @@ namespace VKRE {
                 return;
             }
 
-            mOccupied[handle.index] = false;
+            SlotMetaData& slotMetaData = mSlotMetaData[handle.index];
+            uint32_t targetDenseIdx = static_cast<uint32_t>(slotMetaData.densePosition);
+            uint32_t lastSparseIdx = mActiveIndices.back();
+
+            mActiveIndices[targetDenseIdx] = lastSparseIdx;
+            mSlotMetaData[lastSparseIdx].densePosition = targetDenseIdx;
+            mActiveIndices.pop_back();
+
+            slotMetaData.refCount = 0;
             mLiveCount--;
 
-            mGenerations[handle.index]++;
-            if (mGenerations[handle.index] == 0)
-                mGenerations[handle.index] = 1; // if we wrapped to 0 go back to 1
+            slotMetaData.generation = (slotMetaData.generation + 1) & 0xFFF;
+            if (slotMetaData.generation == ResourceHandle<Tag>::INVALID_GEN)
+                slotMetaData.generation = 1;
 
             mFreeList.push_back(handle.index);
         }
 
         bool IsValid(ResourceHandle<Tag> handle) const {
-            if (!handle.IsValid())                                  return false;
-            if (handle.index >= mCapacity)                          return false;
-            if (!mOccupied[handle.index])                           return false;
-            if (mGenerations[handle.index] != handle.generation)    return false;
-            return true;
+            if (!handle.IsValid() || handle.index >= mCapacity) return false;
+            return mSlotMetaData[handle.index].generation == handle.generation;
         }
 
         THot* GetHot(ResourceHandle<Tag> handle) {
@@ -104,9 +117,9 @@ namespace VKRE {
         template<typename Fn>
         requires std::invocable<Fn, const THot&, const TCold&>
         ResourceHandle<Tag> FindIf(Fn&& fn) const {
-            for (uint32_t i = 1; i < mNextFreshSlot; i++) {
-                if (mOccupied[i] && fn(mHot[i], mCold[i])) {
-                    return ResourceHandle<Tag>{ i, mGenerations[i] };
+            for (uint32_t i : mActiveIndices) {
+                if (fn(mHot[i], mCold[i])) {
+                    return ResourceHandle<Tag>{ i, mSlotMetaData[i].generation };
                 }
             }
             return ResourceHandle<Tag>::Null();
@@ -115,9 +128,9 @@ namespace VKRE {
         template<typename Fn>
         requires std::invocable<Fn, THot&, TCold&>
         ResourceHandle<Tag> FindIf(Fn&& fn) {
-            for (uint32_t i = 1; i < mNextFreshSlot; i++) {
-                if (mOccupied[i] && fn(mHot[i], mCold[i])) {
-                    return ResourceHandle<Tag>{ i, mGenerations[i] };
+            for (uint32_t i : mActiveIndices) {
+                if (fn(mHot[i], mCold[i])) {
+                    return ResourceHandle<Tag>{ i, mSlotMetaData[i].generation };
                 }
             }
             return ResourceHandle<Tag>::Null();
@@ -126,18 +139,16 @@ namespace VKRE {
         template<typename Fn>
         requires std::invocable<Fn, uint32_t, THot&, TCold&>
         void ForEach(Fn&& fn) {
-            for (uint32_t i = 1; i < mNextFreshSlot; i++) {
-                if (mOccupied[i])
-                    fn(i, mHot[i], mCold[i]);
+            for (uint32_t i : mActiveIndices) {
+                fn(i, mHot[i], mCold[i]);
             }
         }
 
         template<typename Fn>
         requires std::invocable<Fn, uint32_t, const THot&, const TCold&>
         void ForEach(Fn&& fn) const {
-            for (uint32_t i = 1; i < mNextFreshSlot; i++) {
-                if (mOccupied[i])
-                    fn(i, mHot[i], mCold[i]);
+            for (uint32_t i : mActiveIndices) {
+                fn(i, mHot[i], mCold[i]);
             }
         }
 
@@ -148,10 +159,9 @@ namespace VKRE {
     private:
         void Reserve(uint32_t capacity) {
             assert(capacity > mCapacity);
+            assert(capacity < ResourceHandle<Tag>::INVALID_IDX && "Pool capacity is over 20 bits in size!");
 
-            mGenerations.resize(capacity, 0);
-            mOccupied.resize(capacity, false);
-            mRefCounts.resize(capacity, 0);
+            mSlotMetaData.resize(capacity);
             mHot.resize(capacity);
             mCold.resize(capacity);
 
@@ -159,10 +169,9 @@ namespace VKRE {
         }
 
     private:
+        std::vector<SlotMetaData> mSlotMetaData;
         std::vector<uint32_t> mFreeList;
-        std::vector<uint32_t> mGenerations;
-        std::vector<uint8_t> mOccupied;
-        std::vector<uint32_t> mRefCounts;
+        std::vector<uint32_t> mActiveIndices;
 
         std::vector<THot> mHot;
         std::vector<TCold> mCold;
