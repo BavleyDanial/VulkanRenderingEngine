@@ -12,7 +12,7 @@ namespace VKRE {
         VulkanPresenter(VulkanContext& context);
         ~VulkanPresenter();
 
-        void ResizeSwapChain();
+        void ResizeSwapChain(uint32_t width, uint32_t height);
         VulkanSwapChain& GetSwapChain() { return mSwapChain; }
 
         const std::vector<VkImage>& GetImages() const { return mSwapChainImages; }
@@ -21,7 +21,7 @@ namespace VKRE {
         VkSemaphore& GetRenderCompleteSemaphore(uint32_t index) { return mRenderCompleteSemaphores[index]; }
 
     private:
-        void CreateSwapChain();
+        void CreateSwapChain(uint32_t width, uint32_t height);
         void DestroySwapChain();
 
         void GetSwapChainImages();

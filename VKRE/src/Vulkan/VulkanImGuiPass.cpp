@@ -1,3 +1,4 @@
+#include "Application.h"
 #include <Vulkan/VulkanImGuiPass.h>
 
 #include <imgui.h>
@@ -41,7 +42,7 @@ namespace VKRE {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
-        ImGui_ImplGlfw_InitForVulkan(mContext.GetWindowContext()->GetGLFWwindow(), true);
+        ImGui_ImplGlfw_InitForVulkan(Application::GetInstance().GetWindow().GetGLFWwindow(), true);
 
         ImGui_ImplVulkan_InitInfo init_info = {};
         init_info.Instance = mContext.GetInstance();

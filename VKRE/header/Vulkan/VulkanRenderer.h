@@ -15,6 +15,7 @@
 #include "VulkanImage.h"
 
 #include "ResourceManager/ResourceManager.h"
+#include "Events.h"
 
 #include <limits>
 #include <memory>
@@ -56,7 +57,7 @@ namespace VKRE {
 
         void Render();
         void OnImGui();
-        void ReSize();
+        void ReSize(const WindowResizeEvent& event);
 
         DrawPassHandle AddDrawPass(const DrawPassDesc& desc);
         void SetDrawPassData(DrawPassHandle handle, const void* data, uint32_t size);

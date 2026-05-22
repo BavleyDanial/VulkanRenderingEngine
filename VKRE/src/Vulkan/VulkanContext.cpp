@@ -8,13 +8,11 @@
 
 namespace VKRE {
 
-    VulkanContext::VulkanContext(std::shared_ptr<Window> window) {
+    VulkanContext::VulkanContext(Window& window) {
         if (mEnableValidationLayers && !VulkanUtils::CheckValidationLayerSupport(mValidationLayers)) {
             std::println("Failed to create Vulkan Instance: Validation Layers are not supported!");
             abort();
         }
-
-        mWindow = window;
 
         if (!sInstance) {
             VkApplicationInfo appInfo{};
@@ -26,7 +24,7 @@ namespace VKRE {
             appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
 
             // TODO: Check if all required extensions are available
-            std::vector<const char*> extensions = window->GetWindowExtensions();
+            std::vector<const char*> extensions = window.GetWindowExtensions();
             extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
             VkInstanceCreateInfo createInfo{};
@@ -47,7 +45,7 @@ namespace VKRE {
         }
 
         // TODO: Change this to be API agnostic
-        GLFWwindow* glfwWindow = window->GetGLFWwindow();
+        GLFWwindow* glfwWindow = window.GetGLFWwindow();
         if (glfwCreateWindowSurface(sInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
             std::println("Failed to create Vulkan Surface!");
             abort();

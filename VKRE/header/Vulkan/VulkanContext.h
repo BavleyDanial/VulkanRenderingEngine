@@ -14,14 +14,13 @@ namespace VKRE {
 
     class VulkanContext {
     public:
-        VulkanContext(std::shared_ptr<Window> window);
+        VulkanContext(Window& window);
         ~VulkanContext();
 
         static const VkInstance GetInstance() { return sInstance; }
+        VmaAllocator GetAllocator() { return mAllocator; }
         VkSurfaceKHR GetSurface() const { return mSurface; }
 
-        VmaAllocator GetAllocator() { return mAllocator; }
-        std::shared_ptr<Window> GetWindowContext() { return mWindow; }
 
         const VulkanPhysicalDevice& GetPhysicalDevice() const { return mPhysicalDevice; }
         const VulkanLogicalDevice& GetLogicalDevice() const { return mLogicalDevice; }

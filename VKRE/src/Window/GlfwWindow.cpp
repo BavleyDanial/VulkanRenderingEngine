@@ -45,7 +45,9 @@ namespace VKRE {
         glfwSetWindowSizeCallback(mGLFWwindow, [](GLFWwindow* window, int width, int height) {
                 Window* VKREWindow = static_cast<Window*>(glfwGetWindowUserPointer(window));
                 VKREWindow->Resize(width, height);
-                Application::GetInstance().hasResized = true;
+
+                WindowResizeEvent event{ static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+                Application::GetInstance().GetEventDispatcher().BroadcastToListeners(event);
         });
    }
 

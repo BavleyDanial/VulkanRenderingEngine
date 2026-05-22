@@ -13,7 +13,6 @@
 #include <ImGui/Backend/ImGuiVulkan.h>
 #include <glm/glm.hpp>
 
-#include <stdlib.h>
 #include <cassert>
 #include <memory>
 #include <vulkan/vulkan_core.h>
@@ -31,6 +30,8 @@ namespace VKRE {
 
     VulkanRenderer::VulkanRenderer(VulkanContext& context, ResourceManager& resourceManager)
     :mContext(context), mResourceManager(resourceManager) {
+        Application::GetInstance().GetEventDispatcher().RegisterListener<WindowResizeEvent>(this, &VulkanRenderer::ReSize);
+
         mResourceCache = std::make_unique<VulkanResourceCache>(mContext, mResourceManager);
         mFrameManager = std::make_unique<VulkanFrameManager>(mContext);
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
@@ -241,12 +242,6 @@ namespace VKRE {
     }
 
     void VulkanRenderer::Render() {
-        if (Application::GetInstance().hasResized) {
-            ReSize();
-            Application::GetInstance().hasResized = false;
-            return;
-        }
-
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
         VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
         frame.deletionQueue.Flush();
@@ -254,7 +249,8 @@ namespace VKRE {
         uint32_t swapchainImageIndex = 0;
         VkResult acquireResult = vkAcquireNextImageKHR(mContext.GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex);
         if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
-            ReSize();
+            auto [width, height] = Application::GetInstance().GetWindow().GetFrameBufferExtents();
+            ReSize({ static_cast<uint32_t>(width), static_cast<uint32_t>(height) });
             VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence));
             return;
         }
@@ -353,9 +349,9 @@ namespace VKRE {
     void VulkanRenderer::OnImGui() {
     }
 
-    void VulkanRenderer::ReSize() {
+    void VulkanRenderer::ReSize(const WindowResizeEvent& event) {
         vkDeviceWaitIdle(mContext.GetLogicalDevice().handle);
-        mPresenter->ResizeSwapChain();
+        mPresenter->ResizeSwapChain(event.Width, event.Height);
         ReCreateDrawImage();
     }
 

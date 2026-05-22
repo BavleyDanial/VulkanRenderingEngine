@@ -18,17 +18,15 @@ namespace VKRE {
 
         mInstance = this;
 
-        mWindow = std::make_shared<VKRE::Window>(VKRE::WindowSpecs{ .resizable = true });
-        mResourceManager = std::make_unique<VKRE::ResourceManager>();
-        mVulkanContext = std::make_unique<VKRE::VulkanContext>(mWindow);
-        mVulkanRenderer = std::make_unique<VKRE::VulkanRenderer>(*mVulkanContext, *mResourceManager);
+        mWindow = std::make_unique<Window>(WindowSpecs{ .resizable = true });
+        mVulkanContext = std::make_unique<VulkanContext>(*mWindow);
+        mVulkanRenderer = std::make_unique<VulkanRenderer>(*mVulkanContext, mResourceManager);
         Renderer::SetRenderer(mVulkanRenderer.get());
     }
 
     Application::~Application() {
         mVulkanRenderer.reset();
         mVulkanContext.reset();
-        mResourceManager.reset();
         mWindow.reset();
     }
 
