@@ -6,13 +6,14 @@
 
 namespace VKRE {
 
+    template<typename Tag> class ResourceRef;
+
     class ResourceManager {
     public:
         ResourceManager();
         ~ResourceManager();
 
-        ShaderHandle LoadShader(ShaderDesc&& desc);
-        void DestroyShaderRef(ShaderHandle handle);
+        ResourceRef<ShaderTag> LoadShader(ShaderDesc&& desc);
 
         ShaderHotData* GetShaderHot(ShaderHandle handle) { return mShaderPool.GetHot(handle); };
         const ShaderHotData* GetShaderHot(ShaderHandle handle) const { return mShaderPool.GetHot(handle); };
@@ -21,14 +22,20 @@ namespace VKRE {
 
         void MarkShaderDirty(ShaderHandle handle);
 
-        // NOTE: Maybe turn both of these into a template for all other types?
         bool IsShaderValid(ShaderHandle handle) const { return mShaderPool.IsValid(handle); }
-        uint32_t GetLiveShaderCount() const;
+        uint32_t GetLiveShaderCount() const { return mShaderPool.GetLiveCount(); }
+
+        template<typename Tag>
+        void AddRef(ResourceHandle<Tag> handle);
+        template<typename Tag>
+        void DestroyRef(ResourceHandle<Tag> handle);
 
     private:
         static constexpr uint32_t INITIAL_SHADER_POOL_CAP = 64;
-
         ResourcePool<ShaderTag, ShaderHotData, ShaderColdData> mShaderPool;
     };
+
+    template<> void ResourceManager::AddRef<ShaderTag>(ShaderHandle handle);
+    template<> void ResourceManager::DestroyRef<ShaderTag>(ShaderHandle handle);
 
 }

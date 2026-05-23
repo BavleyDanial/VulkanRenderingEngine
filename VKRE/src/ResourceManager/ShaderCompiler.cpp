@@ -1,3 +1,4 @@
+#include "ResourceManager/ResourceRefs.h"
 #include "ResourceManager/Resources.h"
 #include <ResourceManager/ShaderCompiler.h>
 
@@ -55,50 +56,50 @@ namespace VKRE {
                 continue;
             }
 
-            ShaderHandle handle = StoreInManager(manager, std::move(compResult.byteCode), parsed.stage, name, options.entrypoint, path);
-            if (handle.IsValid()) {
+            ResourceRef<ShaderTag> shader = StoreInManager(manager, std::move(compResult.byteCode), parsed.stage, name, options.entrypoint, path);
+            if (shader) {
                 results.stages.push_back(parsed.stage);
-                results.handles.push_back(handle);
+                results.shaders.push_back(shader);
             }
         }
 
         if (hasFailed) {
             results.stages.push_back(ShaderStage::None);
-            results.handles.push_back(ShaderHandle::Null());
+            results.shaders.push_back(ResourceRef<ShaderTag>());
         }
 
         return results;
     }
 
-    ShaderHandle ShaderCompiler::LoadFromSource(ResourceManager& manager, const std::string& source, ShaderStage stage, const std::string& debugName, const ShaderCompileOptions& options) {
+    ResourceRef<ShaderTag> ShaderCompiler::LoadFromSource(ResourceManager& manager, const std::string& source, ShaderStage stage, const std::string& debugName, const ShaderCompileOptions& options) {
         ShaderCompileResult compResult = CompileStage(source, stage, debugName, options);
         if (!compResult.Succeeded()) {
             std::println("ShaderCompilation::LoadFromSource Failed to compile stage '{}' in '{}'", static_cast<uint32_t>(stage), debugName);
-            return ShaderHandle::Null();
+            return ResourceRef<ShaderTag>();
         }
 
         return StoreInManager(manager, std::move(compResult.byteCode), stage, debugName, options.entrypoint);
     }
 
     // TODO: read entrypoint automatically from precompiled file
-    ShaderHandle ShaderCompiler::LoadPreCompiledFromFile(ResourceManager& manager, const std::filesystem::path& path, ShaderStage stage, const std::string& debugName, const std::string& entrypoint) {
+    ResourceRef<ShaderTag> ShaderCompiler::LoadPreCompiledFromFile(ResourceManager& manager, const std::filesystem::path& path, ShaderStage stage, const std::string& debugName, const std::string& entrypoint) {
         static constexpr uint32_t SPIRV_MAGIC = 0x07230203;
 
         if (!std::filesystem::exists(path)) {
             std::println("ShaderCompiler::LoadPreCompiledFromFile file not found: '{}'", path.string());
-            return ShaderHandle::Null();
+            return ResourceRef<ShaderTag>();
         }
 
         std::ifstream file(path, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
             std::println("ShaderCompiler::LoadPreCompiledFromFile Could not open file: '{}'", path.string());
-            return ShaderHandle::Null();
+            return ResourceRef<ShaderTag>();
         }
 
         size_t byteSize = static_cast<size_t>(file.tellg());
         if (byteSize == 0 || byteSize % sizeof(uint32_t) != 0) {
             std::println("ShaderCompiler::LoadPreCompiledFromFile Invalid SPIR-V file size ({}) in: '{}'", byteSize, path.string());
-            return ShaderHandle::Null();
+            return ResourceRef<ShaderTag>();
         }
 
         file.seekg(0);
@@ -107,7 +108,7 @@ namespace VKRE {
 
         if (spirv[0] != SPIRV_MAGIC) {
             std::println("ShaderCompiler: Invalid SPIRV magic in: {}", path.string());
-            return ShaderHandle::Null();
+            return ResourceRef<ShaderTag>();
         }
 
         return StoreInManager(manager, std::move(spirv), stage, debugName, entrypoint, path);
@@ -207,7 +208,7 @@ namespace VKRE {
         return { std::vector<uint32_t>(result.cbegin(), result.cend()), {} };
     }
 
-    ShaderHandle ShaderCompiler::StoreInManager(ResourceManager& manager, std::vector<uint32_t>&& byteData, ShaderStage stage, const std::string& debugName, const std::string& entrypoint, const std::filesystem::path& path) {
+    ResourceRef<ShaderTag> ShaderCompiler::StoreInManager(ResourceManager& manager, std::vector<uint32_t>&& byteData, ShaderStage stage, const std::string& debugName, const std::string& entrypoint, const std::filesystem::path& path) {
         size_t len = 0;
 
         ShaderDesc desc{};

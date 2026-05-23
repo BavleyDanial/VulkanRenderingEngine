@@ -15,7 +15,7 @@ namespace VKRE {
         struct SlotMetaData {
             uint32_t generation     : 12 = 1;
             uint32_t refCount       : 20 = 0;
-            uint32_t densePosition  : 32 = 0;
+            uint32_t densePosition       = 0;
         };
 
     public:
@@ -45,9 +45,7 @@ namespace VKRE {
             SlotMetaData& slotMetaData = mSlotMetaData[index];
             assert(slotMetaData.refCount == 0 && "Allocated a slot that is already occupied");
 
-            slotMetaData.refCount = 1;
             mLiveCount++;
-
             mActiveIndices.push_back(index);
             slotMetaData.densePosition= static_cast<uint32_t>(mActiveIndices.size() - 1);
 
@@ -175,7 +173,6 @@ namespace VKRE {
 
         std::vector<THot> mHot;
         std::vector<TCold> mCold;
-
 
         uint32_t mCapacity = 0;
         uint32_t mNextFreshSlot = 1; // slot - is sentinel

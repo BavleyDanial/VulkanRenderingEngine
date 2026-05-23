@@ -1,5 +1,6 @@
-#include "ResourceManager/Resources.h"
 #include <ResourceManager/ResourceManager.h>
+#include <ResourceManager/ResourceRefs.h>
+#include <ResourceManager/Resources.h>
 
 #include <print>
 #include <algorithm>
@@ -15,14 +16,13 @@ namespace VKRE {
         if (leakedShaders > 0) std::println("ResourceManager: {} shader(s) were not explicitly destroyed before shutdown", leakedShaders);
     }
 
-    ShaderHandle ResourceManager::LoadShader(ShaderDesc&& desc) {
+    ResourceRef<ShaderTag> ResourceManager::LoadShader(ShaderDesc&& desc) {
         ShaderHandle handle = mShaderPool.FindIf([&](const ShaderHotData& hot, const ShaderColdData& cold) {
             return hot.stage == desc.stage && std::strcmp(cold.path, desc.path.c_str()) == 0;
         });
 
         if (handle.IsValid()) {
-            mShaderPool.AddRef(handle);
-            return handle;
+            return ResourceRef<ShaderTag>(handle, this);
         }
 
         handle = mShaderPool.Allocate();
@@ -51,10 +51,31 @@ namespace VKRE {
 
         cold->isDirty = false;
 
-        return handle;
+        return ResourceRef<ShaderTag>(handle, this);
     }
 
-    void ResourceManager::DestroyShaderRef(ShaderHandle handle) {
+    void ResourceManager::MarkShaderDirty(ShaderHandle handle) {
+        if (!mShaderPool.IsValid(handle)) {
+            std::println("ResourceManager::MakeShaderDirty handle is invalid");
+            return;
+        }
+
+        ShaderColdData* cold = mShaderPool.GetCold(handle);
+        cold->isDirty = true;
+    }
+
+    template<>
+    void ResourceManager::AddRef<ShaderTag>(ShaderHandle handle) {
+        if (!mShaderPool.IsValid(handle)) {
+            std::println("ResourceManager::AddRef<ShaderTag> handle is invalid or already destroyed");
+            return;
+        }
+
+        mShaderPool.AddRef(handle);
+    }
+
+    template<>
+    void ResourceManager::DestroyRef<ShaderTag>(ShaderHandle handle) {
         if (!mShaderPool.IsValid(handle)) {
             std::println("ResourceManager::DestroyShader handle is invalid or already destroyed");
             return;
@@ -67,16 +88,6 @@ namespace VKRE {
         cold->byteCode.shrink_to_fit();
 
         mShaderPool.Free(handle);
-    }
-
-    void ResourceManager::MarkShaderDirty(ShaderHandle handle) {
-        if (!mShaderPool.IsValid(handle)) {
-            std::println("ResourceManager::MakeShaderDirty handle is invalid");
-            return;
-        }
-
-        ShaderColdData* cold = mShaderPool.GetCold(handle);
-        cold->isDirty = true;
     }
 
 }

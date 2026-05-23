@@ -1,8 +1,7 @@
 #pragma once
 
-#include "Resources.h"
-#include "ResourceHandles.h"
 #include "ResourceManager.h"
+#include "ResourceRefs.h"
 
 #include <filesystem>
 #include <string>
@@ -21,15 +20,15 @@ namespace VKRE {
 
     struct ShaderLoadingResults {
         std::vector<ShaderStage> stages;
-        std::vector<ShaderHandle> handles;
+        std::vector<ResourceRef<ShaderTag>> shaders;
 
         bool Succeeded() const { return !stages.empty() && stages.back() != ShaderStage::None; }
 
-        ShaderHandle GetHandle(ShaderStage stage) const {
+        ResourceRef<ShaderTag> GetShader(ShaderStage stage) const {
             for (size_t i = 0; i < stages.size(); i++) {
-                if (stages[i] == stage) return handles[i];
+                if (stages[i] == stage) return shaders[i];
             }
-            return ShaderHandle::Null();
+            return ResourceRef<ShaderTag>();
         }
     };
 
@@ -42,7 +41,7 @@ namespace VKRE {
             const ShaderCompileOptions& options = {}
         );
 
-        static ShaderHandle LoadFromSource(
+        static ResourceRef<ShaderTag> LoadFromSource(
             ResourceManager& manager,
             const std::string& source,
             ShaderStage stage,
@@ -50,7 +49,7 @@ namespace VKRE {
             const ShaderCompileOptions& options = {}
         );
 
-        static ShaderHandle LoadPreCompiledFromFile(
+        static ResourceRef<ShaderTag> LoadPreCompiledFromFile(
             ResourceManager& manager,
             const std::filesystem::path& path,
             ShaderStage stage,
@@ -83,7 +82,7 @@ namespace VKRE {
             const ShaderCompileOptions& options = {}
         );
 
-        static ShaderHandle StoreInManager(
+        static ResourceRef<ShaderTag> StoreInManager(
             ResourceManager& manager,
             std::vector<uint32_t>&& byteData,
             ShaderStage stage,

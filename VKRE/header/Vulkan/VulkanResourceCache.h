@@ -5,10 +5,10 @@
 
 #include <ResourceManager/Resources.h>
 #include <ResourceManager/ResourceHandles.h>
+#include <ResourceManager/ResourceRefs.h>
 #include <ResourceManager/ResourceManager.h>
 
 #include <unordered_map>
-#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -22,7 +22,6 @@ namespace VKRE {
         bool IsShaderUploaded(ShaderHandle handle) const;
 
         void SyncDirtyShaders();
-        void DestroyShader(ShaderHandle handle);
         void DestroyAllShaders();
 
         VkPipelineLayout CreatePipelineLayout(const VulkanPipelineLayoutKey& key);
@@ -53,14 +52,13 @@ namespace VKRE {
 
     private:
         bool CreateShaderModule(ShaderHandle handle, ShaderColdData* cold);
+        void DestroyShaderIfUnused(ShaderHandle handle);
 
     private:
         VulkanContext& mContext;
         ResourceManager& mResourceManager;
 
         std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;
-        std::unordered_map<ShaderHandle, uint32_t> mShaderModulesRefCount;
-
         std::unordered_map<VulkanPipelineLayoutKey, VkPipelineLayout> mPipelineLayouts;
         std::unordered_map<VulkanComputePipelineKey, VulkanComputePipeline> mComputePipelines;
         std::unordered_map<VulkanGraphicsPipelineKey, VulkanGraphicsPipeline> mGraphicsPipelines;

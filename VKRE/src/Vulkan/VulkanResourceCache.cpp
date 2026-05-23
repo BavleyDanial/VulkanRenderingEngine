@@ -1,10 +1,10 @@
-#include "ResourceManager/Resources.h"
 #include "Vulkan/VulkanPipeline.h"
 #include <Vulkan/VulkanResourceCache.h>
 #include <Vulkan/VulkanPipelineBuilder.h>
 
 #include <cassert>
 #include <print>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -12,7 +12,7 @@ namespace VKRE {
         :mContext(context), mResourceManager(manager) {}
 
     bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
-        if (!mResourceManager.IsShaderValid(handle)) {
+        if (!handle.IsValid()) {
             std::println("VulkanResourceCache::UploadShader handle is invalid");
             return false;
         }
@@ -26,13 +26,14 @@ namespace VKRE {
         ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
         assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
 
-        if (alreadyUploaded && !cold->isDirty) {
-            mShaderModulesRefCount[handle] += 1;
-            return true;
-        }
+        if (alreadyUploaded) {
+            if (!cold->isDirty) {
+                return true;
+            }
 
-        if (alreadyUploaded)
-            DestroyShader(handle);
+            vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
+            mShaderModules.erase(it);
+        }
 
         return CreateShaderModule(handle, cold);
     }
@@ -61,37 +62,24 @@ namespace VKRE {
                 dirty.push_back(handle);
         }
 
-        for (ShaderHandle handle : dirty)
+        for (auto handle : dirty)
             CreateShader(handle);
     }
 
-    void VulkanResourceCache::DestroyShader(ShaderHandle handle) {
+    void VulkanResourceCache::DestroyShaderIfUnused(ShaderHandle handle) {
+        if (mResourceManager.IsShaderValid(handle)) return;
+
         auto it = mShaderModules.find(handle);
         if (it == mShaderModules.end()) return;
 
-        auto refIt = mShaderModulesRefCount.find(handle);
-        if (refIt == mShaderModulesRefCount.end()) return;
-
-        mShaderModulesRefCount[handle]--;
-        if (mShaderModulesRefCount[handle] == 0) {
-            vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
-            mShaderModulesRefCount.erase(refIt);
-            mShaderModules.erase(it);
-        }
-        mResourceManager.DestroyShaderRef(handle);
+        vkDestroyShaderModule(mContext.GetLogicalDevice().handle, it->second, nullptr);
+        mShaderModules.erase(it);
     }
 
     void VulkanResourceCache::DestroyAllShaders() {
-        std::vector<ShaderHandle> handles;
-        handles.reserve(mShaderModules.size());
         for (auto& [handle, module] : mShaderModules)
-            handles.push_back(handle);
-
-        for (ShaderHandle handle : handles) {
-            uint32_t refCount = mShaderModulesRefCount[handle];
-            for (uint32_t i = 0; i < refCount; i++)
-                DestroyShader(handle);
-        }
+            vkDestroyShaderModule(mContext.GetLogicalDevice().handle, module, nullptr);
+        mShaderModules.clear();
     }
 
     VkPipelineLayout VulkanResourceCache::CreatePipelineLayout(const VulkanPipelineLayoutKey& key) {
@@ -115,7 +103,7 @@ namespace VKRE {
             return nullptr;
         }
 
-        mPipelineLayouts[key] = layout;
+        mPipelineLayouts[key] = std::move(layout);
         return layout;
     }
 
@@ -161,19 +149,8 @@ namespace VKRE {
         VulkanGraphicsPipelineBuilder builder;
         builder.SetPipelineLayout(key.layout);
 
-        auto GetShader = [this](ShaderHandle handle) {
-            VkShaderModule shaderModule = GetShaderModule(handle);
-            if (!shaderModule) {
-                if (CreateShader(handle)) {
-                    shaderModule = GetShaderModule(handle);
-                }
-            }
-
-            return shaderModule;
-        };
-
         if (key.vertexShader.IsValid()) {
-            VkShaderModule shaderModule = GetShader(key.vertexShader);
+            VkShaderModule shaderModule = GetShaderModule(key.vertexShader);
             if (!shaderModule) {
                 std::println("VulkanResourceCache::CreateGraphicsPipeline Failed to retreive or create a shader module from shader (index={})", static_cast<uint32_t>(key.vertexShader.index));
                 return nullptr;
@@ -184,7 +161,7 @@ namespace VKRE {
         }
 
         if (key.fragmentShader.IsValid()) {
-            VkShaderModule shaderModule = GetShader(key.fragmentShader);
+            VkShaderModule shaderModule = GetShaderModule(key.fragmentShader);
             if (!shaderModule) {
                 std::println("VulkanResourceCache::CreateGraphicsPipeline Failed to retreive or create a shader module from shader (index={})", static_cast<uint32_t>(key.fragmentShader.index));
                 return nullptr;
@@ -223,7 +200,13 @@ namespace VKRE {
             return nullptr;
         }
 
-        mGraphicsPipelines[key] = pipeline;
+        pipeline.vertexShader = ResourceRef<ShaderTag>(key.vertexShader, &mResourceManager);
+        pipeline.fragmentShader = ResourceRef<ShaderTag>(key.fragmentShader, &mResourceManager);
+        pipeline.geometryShader = ResourceRef<ShaderTag>(key.geometryShader, &mResourceManager);
+        pipeline.tessControlShader = ResourceRef<ShaderTag>(key.tessControlShader, &mResourceManager);
+        pipeline.tessEvalShader = ResourceRef<ShaderTag>(key.tessEvalShader, &mResourceManager);
+
+        mGraphicsPipelines[key] = std::move(pipeline);
         return &mGraphicsPipelines[key];
     }
 
@@ -245,11 +228,22 @@ namespace VKRE {
 
     void VulkanResourceCache::DestroyGraphicsPipeline(const VulkanGraphicsPipelineKey& key) {
         VulkanGraphicsPipeline* pipeline = GetGraphicsPipeline(key);
+
         if (pipeline) {
+            ShaderHandle vertexHandle = pipeline->vertexShader.Get();
+            ShaderHandle fragmentHandle = pipeline->fragmentShader.Get();
+            ShaderHandle geometryHandle = pipeline->geometryShader.Get();
+            ShaderHandle tessControlHandle = pipeline->tessControlShader.Get();
+            ShaderHandle tessEvalHandle = pipeline->tessEvalShader.Get();
+
             pipeline->Destroy(mContext.GetLogicalDevice().handle);
             mGraphicsPipelines.erase(key);
 
-            bool isShaderStillInUse = false;
+            DestroyShaderIfUnused(vertexHandle);
+            DestroyShaderIfUnused(fragmentHandle);
+            DestroyShaderIfUnused(geometryHandle);
+            DestroyShaderIfUnused(tessControlHandle);
+            DestroyShaderIfUnused(tessEvalHandle);
         }
     }
 
@@ -288,7 +282,8 @@ namespace VKRE {
             return nullptr;
         }
 
-        mComputePipelines[key] = pipeline;
+        pipeline.shader = ResourceRef<ShaderTag>(key.shader, &mResourceManager);
+        mComputePipelines[key] = std::move(pipeline);
         return &mComputePipelines[key];
     }
 
@@ -311,10 +306,10 @@ namespace VKRE {
     void VulkanResourceCache::DestroyComputePipeline(const VulkanComputePipelineKey& key) {
         VulkanComputePipeline* pipeline = GetComputePipeline(key);
         if (pipeline) {
+            ShaderHandle handle = pipeline->shader.Get();
             pipeline->Destroy(mContext.GetLogicalDevice().handle);
             mComputePipelines.erase(key);
-
-            bool isShaderStillInUse = false;
+            DestroyShaderIfUnused(handle);
         }
     }
 
@@ -354,7 +349,6 @@ namespace VKRE {
         }
 
         mShaderModules[handle] = shaderModule;
-        mShaderModulesRefCount[handle] = 1;
         assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
         cold->isDirty = false;
 

@@ -1,10 +1,11 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+
 #include <ResourceManager/ResourceHandles.h>
+#include <ResourceManager/ResourceRefs.h>
 
 #include <functional>
-#include <vulkan/vulkan_core.h>
 
 static inline bool operator==(const VkPushConstantRange& a, const VkPushConstantRange& b) {
     return a.stageFlags == b.stageFlags && a.size == b.size && a.offset == b.offset;
@@ -87,6 +88,12 @@ namespace VKRE {
         VkPipeline pipeline = VK_NULL_HANDLE;
         VkPipelineLayout layout = VK_NULL_HANDLE;
 
+        ResourceRef<ShaderTag> vertexShader = ResourceRef<ShaderTag>();
+        ResourceRef<ShaderTag> fragmentShader = ResourceRef<ShaderTag>();
+        ResourceRef<ShaderTag> geometryShader = ResourceRef<ShaderTag>();
+        ResourceRef<ShaderTag> tessControlShader = ResourceRef<ShaderTag>();
+        ResourceRef<ShaderTag> tessEvalShader = ResourceRef<ShaderTag>();
+
         bool Succeeded() const { return pipeline != VK_NULL_HANDLE; }
 
         void Destroy(VkDevice device) {
@@ -105,12 +112,14 @@ namespace VKRE {
         bool operator==(const VulkanComputePipelineKey&) const = default;
         bool operator!=(const VulkanComputePipelineKey&) const = default;
 
-        static VulkanComputePipelineKey Null() { return { ShaderHandle::Null(), VK_NULL_HANDLE }; }
+        static VulkanComputePipelineKey Null() { return {}; }
     };
 
     struct VulkanComputePipeline {
         VkPipeline pipeline = VK_NULL_HANDLE;
         VkPipelineLayout layout = VK_NULL_HANDLE;
+
+        ResourceRef<ShaderTag> shader = ResourceRef<ShaderTag>();
 
         bool Succeeded() const { return pipeline != VK_NULL_HANDLE; }
 
