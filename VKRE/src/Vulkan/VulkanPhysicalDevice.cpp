@@ -383,9 +383,9 @@ namespace VKRE {
         return *this;
     }
 
-    VulkanPhysicalDeviceSelector& VulkanPhysicalDeviceSelector::SetRequiredQueueFamilies(const std::vector<uint32_t>& queueFlags) {
-        for (const uint32_t queue : queueFlags) {
-            mRequiredQueueFamilies |= queue;
+    VulkanPhysicalDeviceSelector& VulkanPhysicalDeviceSelector::SetRequiredQueueFamilies(const std::vector<QueueCapability>& queueFlags) {
+        for (const QueueCapability queue : queueFlags) {
+            mRequiredQueueFamilies |= static_cast<uint32_t>(queue);
         }
         return *this;
     }

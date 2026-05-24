@@ -113,7 +113,7 @@ namespace VKRE {
         VulkanPhysicalDeviceSelector& SetName(std::string_view name);
         VulkanPhysicalDeviceSelector& SetPreferredType(PhysicalDeviceType type = PhysicalDeviceType::Dedicated);
         VulkanPhysicalDeviceSelector& SetSurface(VkSurfaceKHR surface);
-        VulkanPhysicalDeviceSelector& SetRequiredQueueFamilies(const std::vector<uint32_t>& queueFlags);
+        VulkanPhysicalDeviceSelector& SetRequiredQueueFamilies(const std::vector<QueueCapability>& queueFlags);
         VulkanPhysicalDeviceSelector& SetRequiredExtensions(const std::vector<const char*>& extensions);
         VulkanPhysicalDeviceSelector& SetRequiredFeatures(const VkPhysicalDeviceFeatures& features);
         VulkanPhysicalDeviceSelector& SetRequiredFeatures11(const VkPhysicalDeviceVulkan11Features& features);

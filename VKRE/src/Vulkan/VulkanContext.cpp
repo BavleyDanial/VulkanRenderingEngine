@@ -53,7 +53,7 @@ namespace VKRE {
 
         VulkanPhysicalDeviceSelector deviceSelector(sInstance, mSurface);
         deviceSelector = deviceSelector.SetName("Main Rendering Device")
-                            .SetRequiredQueueFamilies({ VK_QUEUE_GRAPHICS_BIT, VK_QUEUE_COMPUTE_BIT })
+                            .SetRequiredQueueFamilies({ QueueCapability::Graphics, QueueCapability::Present, QueueCapability::Compute })
                             .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
                             .SetRequiredFeatures({ .shaderInt64 = true })
                             .SetRequiredFeatures13({ .synchronization2 = true, .dynamicRendering = true })
