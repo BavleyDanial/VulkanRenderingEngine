@@ -32,7 +32,7 @@ public:
         desc.Vertices = vertices;
         desc.Indices = indices;
 
-        VKRE::ResourceRef<VKRE::MeshTag> mMesh = VKRE::Renderer::LoadMesh(std::move(desc));
+        mMesh = VKRE::Renderer::LoadMesh(std::move(desc));
         VKRE::Renderer::UploadMesh(mMesh, vertices, indices);
 
         VKRE::MeshHotData* hot = VKRE::Renderer::GetMeshHot(mMesh.Get());
@@ -111,6 +111,7 @@ private:
     struct MeshPushConstants {
         uint64_t vertexBufferAddress = 0;
     };
+    VKRE::ResourceRef<VKRE::MeshTag> mMesh;
     VKRE::DrawPassHandle mMeshPass = VKRE::INVALID_DRAW_PASS;
     MeshPushConstants mPushConstants;
 

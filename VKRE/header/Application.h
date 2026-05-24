@@ -36,9 +36,9 @@ namespace VKRE {
         static inline Application* mInstance = nullptr;
 
         // Core
-        LayersStack mLayersStack;
         EventDispatcher mEventDispatcher;
         ResourceManager mResourceManager;
+        LayersStack mLayersStack;
 
         std::unique_ptr<Window> mWindow; // TODO: Make multiple windows possible (through an array with window ids? but then we need to make sure that each context is tied to the correct id? idk... For now this is fine especially when we add ImGui's multiviewport)
 
