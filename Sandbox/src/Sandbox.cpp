@@ -45,7 +45,7 @@ public:
             .debugName = "mesh",
             .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants) } },
             .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
-            .vertexCount = static_cast<uint32_t>(indices.size()),
+            .mesh = mMesh.Get()
         });
 
         mGradientPass = VKRE::Renderer::AddComputePass({

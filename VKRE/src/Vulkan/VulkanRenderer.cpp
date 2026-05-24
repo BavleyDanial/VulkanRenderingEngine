@@ -1,5 +1,7 @@
+#include "ResourceManager/Resources.h"
 #include "Vulkan/VulkanComputePass.h"
 #include "Vulkan/VulkanDrawPass.h"
+#include "Vulkan/VulkanGPUBuffer.h"
 #include <Vulkan/VulkanRenderer.h>
 
 #include <Application.h>
@@ -116,6 +118,13 @@ namespace VKRE {
             .pushConstantRanges = desc.pushConstantRanges
         };
 
+        MeshHotData* meshHot = mResourceManager.GetMeshHot(desc.mesh);
+        VulkanGPUBufferData* indexBufferData = mResourceCache->GetBufferData(meshHot->IndexBuffer);
+        if (!indexBufferData) {
+            std::println("VulkanRenderer::AddDrawPass Failed to get GPUBufferData for index buffer");
+            return INVALID_DRAW_PASS;
+        }
+
         VkPipelineLayout pipelineLayout = mResourceCache->CreatePipelineLayout(layoutKey);
         if (!pipelineLayout) {
             std::println("VulkanRenderer::AddDrawPass Failed to create or retreive pipeline layout");
@@ -135,7 +144,7 @@ namespace VKRE {
             return INVALID_DRAW_PASS;
         }
 
-        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, desc.vertexCount);
+        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, indexBufferData->buffer, meshHot->IndicesCount);
         return static_cast<DrawPassHandle>(mDrawPasses.size() - 1);
     }
 

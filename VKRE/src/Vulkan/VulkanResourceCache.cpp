@@ -16,7 +16,7 @@ namespace VKRE {
     VulkanResourceCache::VulkanResourceCache(VulkanContext& context, ResourceManager& manager)
         :mContext(context), mResourceManager(manager) {}
 
-    bool VulkanResourceCache::CreateBuffer(GPUBufferHandle handle) {
+    bool VulkanResourceCache::AllocateBuffer(GPUBufferHandle handle) {
         if (!handle.IsValid()) {
             std::println("VulkanResourceCache::UploadBuffer handle is invalid");
             return false;
@@ -88,8 +88,26 @@ namespace VKRE {
         staging.Release();
     }
 
-    bool VulkanResourceCache::IsBufferUploaded(GPUBufferHandle handle) const {
+    VulkanGPUBufferData* VulkanResourceCache::GetBufferData(GPUBufferHandle handle) {
+        auto it = mBuffers.find(handle);
+        if (it == mBuffers.end()) return nullptr;
+        return &it->second.GetGPUBufferInfo();
+    }
+
+    const VulkanGPUBufferData* VulkanResourceCache::GetBufferData(GPUBufferHandle handle) const {
+        auto it = mBuffers.find(handle);
+        if (it == mBuffers.end()) return nullptr;
+        return &it->second.GetGPUBufferInfo();
+    }
+
+    bool VulkanResourceCache::IsBufferAllocated(GPUBufferHandle handle) const {
         return mBuffers.contains(handle);
+    }
+
+    void VulkanResourceCache::DesroyBuffer(GPUBufferHandle handle) {
+        auto it = mBuffers.find(handle);
+        if (it == mBuffers.end()) return;
+        it->second.Release();
     }
 
     void VulkanResourceCache::DestroyAllBuffers() {

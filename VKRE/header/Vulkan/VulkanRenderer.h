@@ -22,7 +22,6 @@
 #include <limits>
 #include <memory>
 #include <vector>
-#include <functional>
 
 #include <glm/glm.hpp>
 
@@ -50,7 +49,7 @@ namespace VKRE {
         std::vector<VkFormat> colorAttachmentFormats;
         VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
         VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
-        uint32_t vertexCount;
+        MeshHandle mesh;
     };
 
     class VulkanRenderer {
@@ -97,8 +96,8 @@ namespace VKRE {
         void UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
             VKRE::MeshHotData* hot = mResourceManager.GetMeshHot(mMesh.Get());
 
-            mResourceCache->CreateBuffer(hot->VertexBuffer);
-            mResourceCache->CreateBuffer(hot->IndexBuffer);
+            mResourceCache->AllocateBuffer(hot->VertexBuffer);
+            mResourceCache->AllocateBuffer(hot->IndexBuffer);
 
             mResourceCache->UploadBuffer(hot->VertexBuffer, vertices.data(), vertices.size() * sizeof(VKRE::Vertex), 0);
             mResourceCache->UploadBuffer(hot->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);

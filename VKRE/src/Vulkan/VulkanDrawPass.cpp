@@ -4,8 +4,10 @@
 
 namespace VKRE {
 
-    VulkanDrawPass::VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key, VkDescriptorSet descriptorSet, uint32_t vertexCount)
-        :mPipeline(cache.GetGraphicsPipeline(key)), mDescriptorSet(descriptorSet), mVertexCount(vertexCount) {}
+    VulkanDrawPass::VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key,
+                                    VkDescriptorSet descriptorSet, VkBuffer indexBuffer, uint32_t indicesCount)
+        :mPipeline(cache.GetGraphicsPipeline(key)), mDescriptorSet(descriptorSet),
+        mIndexBuffer(indexBuffer), mIndicesCount(indicesCount) {}
 
     void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo) {
         if (!mPipeline) return;
@@ -28,12 +30,7 @@ namespace VKRE {
         }
 
         if (!mPushConstantData.empty()) {
-            vkCmdPushConstants(cmd,
-                    mPipeline->layout,
-                    VK_SHADER_STAGE_VERTEX_BIT,
-                    0,
-                    static_cast<uint32_t>(mPushConstantData.size()), 
-                    mPushConstantData.data());
+            vkCmdPushConstants(cmd, mPipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, static_cast<uint32_t>(mPushConstantData.size()), mPushConstantData.data());
         }
 
         VkViewport viewport{};
@@ -50,7 +47,8 @@ namespace VKRE {
         scissor.extent = extent;
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        vkCmdDraw(cmd, mVertexCount, 1, 0, 0);
+        vkCmdBindIndexBuffer(cmd, mIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(cmd, mIndicesCount, 1, 0, 0, 0);
 
         vkCmdEndRendering(cmd);
     }

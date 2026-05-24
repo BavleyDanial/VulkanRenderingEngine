@@ -14,7 +14,7 @@ namespace VKRE {
 
     class VulkanDrawPass {
     public:
-        VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key, VkDescriptorSet descriptorSet, uint32_t vertexCount);
+        VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key, VkDescriptorSet descriptorSet, VkBuffer indexBuffer, uint32_t indicesCount);
 
         void SetPushConstantData(const void* data, uint32_t size);
         void SetActive(bool enabled) { mIsActive = enabled; }
@@ -26,7 +26,8 @@ namespace VKRE {
         VulkanGraphicsPipeline* mPipeline;
         VkDescriptorSet mDescriptorSet;
         std::vector<uint8_t> mPushConstantData;
-        uint32_t mVertexCount;
+        VkBuffer mIndexBuffer;
+        uint32_t mIndicesCount;
         bool mIsActive = true;
     };
 

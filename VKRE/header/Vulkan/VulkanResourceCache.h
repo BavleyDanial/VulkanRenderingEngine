@@ -17,10 +17,13 @@ namespace VKRE {
     public:
         VulkanResourceCache(VulkanContext& context, ResourceManager& manager);
 
-        bool CreateBuffer(GPUBufferHandle handle);
+        bool AllocateBuffer(GPUBufferHandle handle);
         void UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset);
-        bool IsBufferUploaded(GPUBufferHandle handle) const;
+        VulkanGPUBufferData* GetBufferData(GPUBufferHandle handle);
+        const VulkanGPUBufferData* GetBufferData(GPUBufferHandle handle) const;
+        bool IsBufferAllocated(GPUBufferHandle handle) const;
 
+        void DesroyBuffer(GPUBufferHandle handle);
         void DestroyAllBuffers();
 
         bool CreateShader(ShaderHandle handle);
