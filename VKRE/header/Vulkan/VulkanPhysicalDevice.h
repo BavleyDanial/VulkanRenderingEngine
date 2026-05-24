@@ -3,8 +3,8 @@
 #include <Vulkan/VulkanUtils.h>
 
 #include <string>
-#include <optional>
 #include <vector>
+#include <optional>
 
 namespace VKRE {
 
@@ -52,16 +52,36 @@ namespace VKRE {
     }
 
     enum class PhysicalDeviceType {
-        INTEGRATED, DEDICATED
+        Integrated, Dedicated
     };
 
-    // TODO: Change this so that not all queues are required
-    struct QueueFamilyIndinces {
-        std::optional<uint32_t> graphicsFamily;
-        std::optional<uint32_t> presentFamily;
+    enum class QueueCapability : uint32_t {
+        Graphics = VK_QUEUE_GRAPHICS_BIT,
+        Compute = VK_QUEUE_COMPUTE_BIT,
+        Transfer = VK_QUEUE_TRANSFER_BIT,
+        Present = 0x80000000,
+    };
 
-        bool IsComplete() {
-            return graphicsFamily.has_value() && presentFamily.has_value();
+    struct QueueFamilyIndinces {
+        std::unordered_map<uint32_t, uint32_t> families;
+
+        bool Has(QueueCapability queue) const {
+            return families.contains(static_cast<uint32_t>(queue));
+        }
+
+        uint32_t Get(QueueCapability queue) const {
+            return families.at(static_cast<uint32_t>(queue));
+        }
+
+        bool IsComplete(uint32_t requiredQueues) const {
+            uint32_t remaining = requiredQueues;
+            while (remaining) {
+                uint32_t lowestBit = remaining & (~remaining + 1);
+                if (!families.contains(lowestBit))
+                    return false;
+                remaining &= remaining - 1;
+            }
+            return true;
         }
     };
 
@@ -91,7 +111,7 @@ namespace VKRE {
         std::optional<VulkanPhysicalDevice> Select();
 
         VulkanPhysicalDeviceSelector& SetName(std::string_view name);
-        VulkanPhysicalDeviceSelector& SetPreferredType(PhysicalDeviceType type = PhysicalDeviceType::DEDICATED);
+        VulkanPhysicalDeviceSelector& SetPreferredType(PhysicalDeviceType type = PhysicalDeviceType::Dedicated);
         VulkanPhysicalDeviceSelector& SetSurface(VkSurfaceKHR surface);
         VulkanPhysicalDeviceSelector& SetRequiredQueueFamilies(const std::vector<uint32_t>& queueFlags);
         VulkanPhysicalDeviceSelector& SetRequiredExtensions(const std::vector<const char*>& extensions);

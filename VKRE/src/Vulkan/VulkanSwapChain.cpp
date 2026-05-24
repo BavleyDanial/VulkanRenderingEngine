@@ -45,7 +45,7 @@ namespace VKRE {
         swapChain.imageUsage = mSwapChainConfig.imageUsage; // TODO: Change this to a function to check if usage is supported
 
         QueueFamilyIndinces indices = mPhysicalDevice.queueFamilyIndicies;
-        if (!indices.IsComplete()) {
+        if (!indices.Has(QueueCapability::Graphics) || !indices.Has(QueueCapability::Present)) {
             std::println("Vulkan Warning: Graphics and Present indices are not available on this physical device!");
             return std::nullopt;
         }
@@ -60,8 +60,8 @@ namespace VKRE {
         swapChainCreateInfo.imageArrayLayers = 1;
         swapChainCreateInfo.imageUsage = mSwapChainConfig.imageUsage;
 
-        if (indices.graphicsFamily.value() != indices.presentFamily.value()) {
-            uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
+        if (indices.Get(QueueCapability::Graphics) != indices.Get(QueueCapability::Present)) {
+            uint32_t queueFamilyIndices[] = { indices.Get(QueueCapability::Graphics), indices.Get(QueueCapability::Present) };
             swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             swapChainCreateInfo.queueFamilyIndexCount = 2;
             swapChainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -76,7 +76,7 @@ namespace VKRE {
         swapChainCreateInfo.presentMode = swapChain.presentMode;
         swapChainCreateInfo.clipped = VK_TRUE;
         swapChainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
-        
+
         VkResult result = vkCreateSwapchainKHR(mLogicalDevice.handle, &swapChainCreateInfo, nullptr, &swapChain.handle);
         if (result != VK_SUCCESS) {
             std::println("Vulkan Warning: Couldn't create swapchain! {}", string_VkResult(result));

@@ -13,7 +13,9 @@ namespace VKRE {
         QueueFamilyIndinces queueIndices = mPhysicalDevice.queueFamilyIndicies;
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        std::unordered_set<std::optional<uint32_t>> uniqueQueueFamilies = { queueIndices.graphicsFamily, queueIndices.presentFamily };
+        std::unordered_set<uint32_t> uniqueQueueFamilies;
+        for (auto& [queue, familyIdx] : queueIndices.families)
+            uniqueQueueFamilies.insert(familyIdx);
 
         float queuePriority = 1.0f;
         for (std::optional<uint32_t> queueFamily : uniqueQueueFamilies) {
@@ -44,10 +46,13 @@ namespace VKRE {
             return std::nullopt;
         }
 
-        if (queueIndices.graphicsFamily.has_value())
-            vkGetDeviceQueue(logicalDevice.handle, queueIndices.graphicsFamily.value(), 0, &logicalDevice.graphicsQueue);
-        if (queueIndices.presentFamily.has_value())
-            vkGetDeviceQueue(logicalDevice.handle, queueIndices.presentFamily.value(), 0, &logicalDevice.presentQueue);
+        std::unordered_map<uint32_t, VkQueue> familyQueues;
+        for (uint32_t familyIdx : uniqueQueueFamilies) {
+            vkGetDeviceQueue(logicalDevice.handle, familyIdx, 0, &familyQueues[familyIdx]);
+        }
+
+        for (auto& [queue, familyIdx] : queueIndices.families)
+            logicalDevice.queues[queue] = familyQueues[familyIdx];
 
         return logicalDevice;
     }

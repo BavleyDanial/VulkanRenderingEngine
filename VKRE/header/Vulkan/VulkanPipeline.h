@@ -2,9 +2,10 @@
 
 #include <vulkan/vulkan.h>
 
-#include <ResourceManager/ResourceHandles.h>
 #include <ResourceManager/ResourceRefs.h>
+#include <ResourceManager/ResourceHandles.h>
 
+#include <bit>
 #include <functional>
 
 static inline bool operator==(const VkPushConstantRange& a, const VkPushConstantRange& b) {
@@ -142,7 +143,7 @@ namespace std {
             size_t result = 0;
 
             for (auto layout : key.descriptorSetLayouts)
-                CombineHash(result, std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(layout)));
+                CombineHash(result, std::hash<uint64_t>{}(std::bit_cast<uint64_t>(layout)));
 
             for (auto& range : key.pushConstantRanges) {
                 CombineHash(result, std::hash<uint32_t>{}(range.size));
@@ -207,7 +208,7 @@ namespace std {
         size_t operator()(const VKRE::VulkanComputePipelineKey& key) const noexcept {
             size_t result = 0;
             CombineHash(result, std::hash<VKRE::ShaderHandle>{}(key.shader));
-            CombineHash(result, std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(key.layout)));
+            CombineHash(result, std::hash<uint64_t>{}(std::bit_cast<uint64_t>(key.layout)));
             return result;
         }
     };

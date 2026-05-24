@@ -21,12 +21,13 @@ namespace VKRE {
         VmaAllocator GetAllocator() { return mAllocator; }
         VkSurfaceKHR GetSurface() const { return mSurface; }
 
-
         const VulkanPhysicalDevice& GetPhysicalDevice() const { return mPhysicalDevice; }
         const VulkanLogicalDevice& GetLogicalDevice() const { return mLogicalDevice; }
+
         const QueueFamilyIndinces& GetQueueFamilies() const { return mPhysicalDevice.queueFamilyIndicies; }
-        const VkQueue GetGraphicsQueue() const { return mLogicalDevice.graphicsQueue; }
-        const VkQueue GetPresentQueue() const { return mLogicalDevice.presentQueue; }
+        const VkQueue GetQueue(QueueCapability queue) const { return mLogicalDevice.GetQueue(queue); }
+        const VkQueue GetGraphicsQueue() const { return mLogicalDevice.GetQueue(QueueCapability::Graphics); }
+        const VkQueue GetPresentQueue() const { return mLogicalDevice.GetQueue(QueueCapability::Present); }
 
         bool IsValidationLayersEnabled() const { return mEnableValidationLayers; }
         uint32_t GetValidationLayersCount() const { return static_cast<uint32_t>(mValidationLayers.size()); }

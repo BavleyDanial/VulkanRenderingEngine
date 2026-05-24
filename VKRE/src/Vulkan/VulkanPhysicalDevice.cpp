@@ -300,8 +300,9 @@ namespace VKRE {
     }
 
     bool VulkanPhysicalDeviceSelector::IsSuitable(const VulkanPhysicalDevice& device) const {
+        uint32_t required = mRequiredQueueFamilies;
         QueueFamilyIndinces indices = FindQueueFamilies(device.handle);
-        if (!indices.IsComplete())
+        if (!device.queueFamilyIndicies.IsComplete(required))
             return false;
 
         std::unordered_set<std::string> requiredExtensionSupport;
@@ -338,21 +339,25 @@ namespace VKRE {
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-        int index = 0;
-        for (const auto& queue : queueFamilies) {
-            VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, index, mSurface, &presentSupport);
-
-            if (queue.queueFlags & VK_QUEUE_GRAPHICS_BIT && !indices.graphicsFamily.has_value()) {
-                indices.graphicsFamily = index;
+        uint32_t required = mRequiredQueueFamilies;
+        for (uint32_t i = 0; i < queueFamilyCount; i++) {
+            for (uint32_t bit = 1; bit < static_cast<uint32_t>(QueueCapability::Present); bit <<= 1) {
+                if ((mRequiredQueueFamilies & bit) &&
+                    (queueFamilies[i].queueFlags && bit) &&
+                    !indices.families.contains(bit)) {
+                    indices.families[bit] = i;
+                }
             }
 
-            if (presentSupport && !indices.presentFamily.has_value()) {
-                indices.presentFamily = index;
+
+            if (mSurface && !indices.Has(QueueCapability::Present)) {
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSupport);
+                if (presentSupport)
+                    indices.families[static_cast<uint32_t>(QueueCapability::Present)] = i;
             }
 
-            index++;
-            if (indices.IsComplete())
+            if (indices.IsComplete(required))
                 break;
         }
 
@@ -367,10 +372,10 @@ namespace VKRE {
     // TODO: Change this completely because this is stupid
     VulkanPhysicalDeviceSelector& VulkanPhysicalDeviceSelector::SetPreferredType(PhysicalDeviceType type) {
         switch (type) {
-         case PhysicalDeviceType::INTEGRATED:
+         case PhysicalDeviceType::Integrated:
              mRequiredProperties.deviceType = VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
              break;
-         case PhysicalDeviceType::DEDICATED:
+         case PhysicalDeviceType::Dedicated:
              mRequiredProperties.deviceType = VkPhysicalDeviceType::VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
              break;
         }

@@ -4,13 +4,18 @@
 #include <Vulkan/VulkanPhysicalDevice.h>
 
 #include <optional>
+#include <unordered_map>
 
 namespace VKRE {
 
     struct VulkanLogicalDevice {
         VkDevice handle = VK_NULL_HANDLE;
-        VkQueue graphicsQueue = VK_NULL_HANDLE; // TODO: Make this support more queues
-        VkQueue presentQueue = VK_NULL_HANDLE; // TODO: Make this support more queues
+        std::unordered_map<uint32_t, VkQueue> queues;
+
+        VkQueue GetQueue(QueueCapability queue) const {
+            auto it = queues.find(static_cast<uint32_t>(queue));
+            return it != queues.end() ? it->second : VK_NULL_HANDLE;
+        };
 
         void Destroy() {
             vkDestroyDevice(handle, nullptr);
