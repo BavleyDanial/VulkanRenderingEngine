@@ -17,7 +17,6 @@ namespace VKRE {
         VulkanResourceCache(VulkanContext& context, ResourceManager& manager);
 
         bool AllocateBuffer(GPUBufferHandle handle);
-        void UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset);
         VulkanGPUBufferData* GetBufferData(GPUBufferHandle handle);
         const VulkanGPUBufferData* GetBufferData(GPUBufferHandle handle) const;
         bool IsBufferAllocated(GPUBufferHandle handle) const;

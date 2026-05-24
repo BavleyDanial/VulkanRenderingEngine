@@ -1,0 +1,119 @@
+#include "Vulkan/VulkanGPUBuffer.h"
+#include <Vulkan/VulkanUploader.h>
+#include <Vulkan/VulkanUtils.h>
+
+#include <cassert>
+#include <cstring>
+
+namespace VKRE {
+
+    VulkanUploader::VulkanUploader(VulkanContext& context, VulkanResourceCache& cache)
+        :mContext(context), mCache(cache) {
+
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.queueFamilyIndex = mContext.GetQueueFamilies().graphicsFamily.value();
+        VK_CHECK(vkCreateCommandPool(mContext.GetLogicalDevice().handle, &poolInfo, nullptr, &mImmediatePool));
+
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = mImmediatePool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+        VK_CHECK(vkAllocateCommandBuffers(mContext.GetLogicalDevice().handle, &allocInfo, &mImmediateBuffer));
+
+        VkFenceCreateInfo fenceCreateInfo{};
+        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VK_CHECK(vkCreateFence(mContext.GetLogicalDevice().handle, &fenceCreateInfo, nullptr, &mImmediateFence));
+    }
+
+    VulkanUploader::~VulkanUploader() {
+        VkDevice device = mContext.GetLogicalDevice().handle;
+        vkDestroyCommandPool(mContext.GetLogicalDevice().handle, mImmediatePool, nullptr);
+        vkDestroyFence(mContext.GetLogicalDevice().handle, mImmediateFence, nullptr);
+
+        mPendingStagingBuffers.clear();
+    }
+
+    void VulkanUploader::UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset) {
+        assert(mRecording && "VulkanUploader::UploadBuffer called without without Begin");
+
+        VulkanGPUBufferData* dst = mCache.GetBufferData(handle);
+        if (!dst) {
+            std::println("VulkanUploader::UploadBuffer buffer not found (index={})", static_cast<uint32_t>(handle.index));
+            return;
+        }
+
+        VmaAllocationCreateInfo stagingAllocInfo{};
+        stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+        std::unique_ptr<VulkanGPUBuffer> staging = std::make_unique<VulkanGPUBuffer>(mContext);
+        staging->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo);
+        memcpy(staging->GetGPUBufferInfo().info.pMappedData, data, size);
+
+        VkBufferCopy copy { .srcOffset = 0, .dstOffset = offset, .size = size };
+        vkCmdCopyBuffer(mImmediateBuffer, staging->GetGPUBufferInfo().buffer, dst->buffer, 1, &copy);
+
+        mPendingStagingBuffers.push_back(std::move(staging));
+    }
+
+    void VulkanUploader::Begin() {
+        assert(!mRecording && "VulkanUploader::Begin called without matching End");
+        VkDevice device = mContext.GetLogicalDevice().handle;
+
+        VK_CHECK(vkWaitForFences(device, 1, &mImmediateFence, VK_TRUE, UINT64_MAX));
+        VK_CHECK(vkResetFences(device, 1, &mImmediateFence));
+
+        mPendingStagingBuffers.clear();
+        vkResetCommandBuffer(mImmediateBuffer, 0);
+
+        VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+        cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        cmdBufferBeginInfo.pNext = nullptr;
+        cmdBufferBeginInfo.pInheritanceInfo = nullptr;
+        cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(vkBeginCommandBuffer(mImmediateBuffer, &cmdBufferBeginInfo));
+        mRecording = true;
+    }
+
+    void VulkanUploader::End() {
+        assert(mRecording && "VulkanUploader::End called without matching Begin");
+
+        VkMemoryBarrier2 memoryBarrier{};
+        memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+        memoryBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        memoryBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        memoryBarrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT | VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT | VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+        memoryBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_SHADER_READ_BIT;
+
+        VkDependencyInfo dependencyInfo{};
+        dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dependencyInfo.memoryBarrierCount = 1;
+        dependencyInfo.pMemoryBarriers = &memoryBarrier;
+
+        vkCmdPipelineBarrier2(mImmediateBuffer, &dependencyInfo);
+        VK_CHECK(vkEndCommandBuffer(mImmediateBuffer));
+
+        VkCommandBufferSubmitInfo cmdSubmitInfo;
+        cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+        cmdSubmitInfo.pNext = nullptr;
+        cmdSubmitInfo.commandBuffer = mImmediateBuffer;
+        cmdSubmitInfo.deviceMask = 0;
+
+        VkSubmitInfo2 info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+        info.pNext = nullptr;
+        info.commandBufferInfoCount = 1;
+        info.pCommandBufferInfos = &cmdSubmitInfo;
+
+        VK_CHECK(vkQueueSubmit2(mContext.GetGraphicsQueue(), 1, &info, mImmediateFence));
+        VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &mImmediateFence, true, UINT64_MAX));
+
+        mRecording = false;
+    }
+
+}

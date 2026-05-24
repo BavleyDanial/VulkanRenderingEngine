@@ -12,13 +12,13 @@
 
 #include <Vulkan/VulkanResourceCache.h>
 #include <Vulkan/VulkanDescriptors.h>
+#include <Vulkan/VulkanUploader.h>
 #include <Vulkan/VulkanImage.h>
 
 #include <ResourceManager/ResourceManager.h>
 #include <ResourceManager/Resources.h>
 #include <Core/Events/Events.h>
 
-#include <concepts>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -57,51 +57,12 @@ namespace VKRE {
         VulkanRenderer(VulkanContext& context, ResourceManager& resourceManager);
         ~VulkanRenderer();
 
-        template<typename Fn>
-        requires std::invocable<Fn, VkCommandBuffer>
-        void ImmediateSubmit(Fn&& fn) {
-            VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &mImmediateFence));
-            vkResetCommandBuffer(mImmediateBuffer, 0);
-
-            VkCommandBufferBeginInfo cmdBufferBeginInfo{};
-            cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            cmdBufferBeginInfo.pNext = nullptr;
-            cmdBufferBeginInfo.pInheritanceInfo = nullptr;
-            cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-            VK_CHECK(vkBeginCommandBuffer(mImmediateBuffer, &cmdBufferBeginInfo));
-            fn(mImmediateBuffer);
-            VK_CHECK(vkEndCommandBuffer(mImmediateBuffer));
-
-            VkCommandBufferSubmitInfo cmdSubmitInfo;
-            cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-            cmdSubmitInfo.pNext = nullptr;
-            cmdSubmitInfo.commandBuffer = mImmediateBuffer;
-            cmdSubmitInfo.deviceMask = 0;
-
-            VkSubmitInfo2 info = {};
-            info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
-            info.pNext = nullptr;
-            info.commandBufferInfoCount = 1;
-            info.pCommandBufferInfos = &cmdSubmitInfo;
-
-            VK_CHECK(vkQueueSubmit2(mContext.GetGraphicsQueue(), 1, &info, mImmediateFence));
-            VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &mImmediateFence, true, UINT64_MAX));
-        }
         void ReSize(const WindowResizeEvent& event);
 
         void Render();
         void OnImGui();
 
-        void UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
-            VKRE::MeshHotData* hot = mResourceManager.GetMeshHot(mMesh.Get());
-
-            mResourceCache->AllocateBuffer(hot->VertexBuffer);
-            mResourceCache->AllocateBuffer(hot->IndexBuffer);
-
-            mResourceCache->UploadBuffer(hot->VertexBuffer, vertices.data(), vertices.size() * sizeof(VKRE::Vertex), 0);
-            mResourceCache->UploadBuffer(hot->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
-        }
+        void UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 
         DrawPassHandle AddDrawPass(const DrawPassDesc& desc);
         void SetDrawPassData(DrawPassHandle handle, const void* data, uint32_t size);
@@ -118,7 +79,6 @@ namespace VKRE {
         void CreateDrawImage();
         void ReCreateDrawImage();
 
-        void CreateImmediateCommands();
         void InitPasses();
         void InitDescriptors();
         void InitDrawImageDescriptor();
@@ -127,9 +87,7 @@ namespace VKRE {
         ResourceManager& mResourceManager;
 
         std::unique_ptr<VulkanResourceCache> mResourceCache;
-        VkCommandPool mImmediatePool;
-        VkCommandBuffer mImmediateBuffer;
-        VkFence mImmediateFence;
+        std::unique_ptr<VulkanUploader> mUploader;
 
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;

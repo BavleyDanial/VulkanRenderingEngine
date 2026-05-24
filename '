@@ -24,13 +24,18 @@ namespace VKRE {
         Application::GetInstance().GetEventDispatcher().RegisterListener<WindowResizeEvent>(this, &VulkanRenderer::ReSize);
 
         mResourceCache = std::make_unique<VulkanResourceCache>(mContext, mResourceManager);
-        mUploader = std::make_unique<VulkanUploader>(mContext, *mResourceCache);
         mFrameManager = std::make_unique<VulkanFrameManager>(mContext);
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
 
+        CreateImmediateCommands();
         CreateDrawImage();
         InitDescriptors();
         InitPasses();
+
+        mDeletionQueue.PushDeleteFunc([this]() {
+            vkDestroyCommandPool(mContext.GetLogicalDevice().handle, mImmediatePool, nullptr);
+            vkDestroyFence(mContext.GetLogicalDevice().handle, mImmediateFence, nullptr);
+        });
     }
 
     VulkanRenderer::~VulkanRenderer() {
@@ -43,10 +48,12 @@ namespace VKRE {
         mPresenter.reset();
         mFrameManager.reset();
 
-        mUploader.reset();
         mDrawImage.reset();
         mResourceCache->DestroyAll();
         mDeletionQueue.Flush();
+    }
+
+    void VulkanRenderer::CreateImmediateCommands() {
     }
 
     void VulkanRenderer::UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
@@ -55,10 +62,12 @@ namespace VKRE {
         mResourceCache->AllocateBuffer(meshHot->VertexBuffer);
         mResourceCache->AllocateBuffer(meshHot->IndexBuffer);
 
-        mUploader->Begin();
-        mUploader->UploadBuffer(meshHot->VertexBuffer, vertices.data(), vertices.size() * sizeof(Vertex), 0);
-        mUploader->UploadBuffer(meshHot->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
-        mUploader->End();
+        ImmediateSubmit([&](VkCommandBuffer cmd) {
+            mResourceCache->UploadBuffer(meshHot->VertexBuffer, vertices.data(), vertices.size(), 0, cmd);
+            mResourceCache->UploadBuffer(meshHot->IndexBuffer, indices.data(), indices.size(), 0, cmd);
+        });
+
+        mResourceCache->DestroyStagingBuffers();
     }
 
     DrawPassHandle VulkanRenderer::AddDrawPass(const DrawPassDesc& desc) {

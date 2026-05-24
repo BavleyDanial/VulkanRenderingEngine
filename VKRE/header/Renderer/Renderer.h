@@ -20,11 +20,6 @@ namespace VKRE {
             sResourceManager = manager;
         }
 
-        // NOTE: THIS IS EXTRA SUPER TEMPORARY
-        static void Submit(std::function<void(VkCommandBuffer)>&& fn) {
-            return sRenderer->ImmediateSubmit(std::move(fn));
-        }
-
         static void UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
             return sRenderer->UploadMesh(mMesh, vertices, indices);
         }

@@ -47,6 +47,7 @@ namespace VKRE {
             allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
         } else {
             allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+            vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
         VulkanGPUBuffer buffer(mContext);
@@ -55,38 +56,6 @@ namespace VKRE {
         hot->DeviceAddress = buffer.GetGPUBufferInfo().deviceAddress;
         mBuffers.emplace(handle, std::move(buffer));
         return true;
-    }
-
-    void VulkanResourceCache::UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset) {
-        auto it = mBuffers.find(handle);
-        if (it == mBuffers.end()) {
-            std::println("VulkanResourceCache::UploadBuffer buffer not found (index = {})", static_cast<uint32_t>(handle.index));
-            return;
-        }
-
-        GPUBufferHotData* hot = mResourceManager.GetGPUBufferHot(handle);
-        assert(hot && "VulkanResourceCache::UploadBuffer buffer handle is valid but couldn't get hot data");
-        assert(!hot->HostVisible && "VulkanResourceCache::UploadBuffer called on host-visible buffer, use UpdateBuffer instead");
-
-        VulkanGPUBuffer staging(mContext);
-        VmaAllocationCreateInfo stagingAllocInfo{};
-        stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-        stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        staging.CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo);
-
-        memcpy(staging.GetGPUBufferInfo().info.pMappedData, data, size);
-        VkBuffer dstBuffer = it->second.GetGPUBufferInfo().buffer;
-
-        // TODO: this will be moved out into a SceneRenderer with no Vulkan leakage
-        Renderer::Submit([&](VkCommandBuffer cmd) {
-            VkBufferCopy copy{};
-            copy.srcOffset = 0;
-            copy.dstOffset = offset;
-            copy.size = size;
-            vkCmdCopyBuffer(cmd, staging.GetGPUBufferInfo().buffer, dstBuffer, 1, &copy);
-        });
-
-        staging.Release();
     }
 
     VulkanGPUBufferData* VulkanResourceCache::GetBufferData(GPUBufferHandle handle) {
