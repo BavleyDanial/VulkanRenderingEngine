@@ -1,7 +1,7 @@
-#include "GLFW/glfw3.h"
+#include <GLFW/glfw3.h>
 
 #include <Window/GlfwWindow.h>
-#include <Application.h>
+#include <Core/Application.h>
 
 #include <cassert>
 

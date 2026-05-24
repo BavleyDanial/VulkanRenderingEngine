@@ -1,10 +1,10 @@
-#include "Application.h"
 #include <Vulkan/VulkanImGuiPass.h>
 
-#include <imgui.h>
 #include <ImGui/Backend/ImGuiVulkan.h>
 #include <ImGui/Backend/ImGuiGLFW.h>
-#include <vulkan/vulkan_core.h>
+#include <imgui.h>
+
+#include <Core/Application.h>
 
 namespace VKRE {
 

@@ -7,9 +7,7 @@
 #include <functional>
 #include <vector>
 #include <cstring>
-#include <fstream>
 #include <print>
-#include <vulkan/vulkan_core.h>
 
 #ifdef NDEBUG
 #define VK_CHECK(x) x

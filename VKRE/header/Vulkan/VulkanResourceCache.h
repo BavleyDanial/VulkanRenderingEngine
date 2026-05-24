@@ -1,12 +1,11 @@
 #pragma once
 
-#include "VulkanContext.h"
-#include "VulkanPipeline.h"
-#include "VulkanGPUBuffer.h"
+#include <Vulkan/VulkanContext.h>
+#include <Vulkan/VulkanPipeline.h>
+#include <Vulkan/VulkanGPUBuffer.h>
 
-#include <ResourceManager/Resources.h>
-#include <ResourceManager/ResourceHandles.h>
 #include <ResourceManager/ResourceRefs.h>
+#include <ResourceManager/ResourceHandles.h>
 #include <ResourceManager/ResourceManager.h>
 
 #include <unordered_map>

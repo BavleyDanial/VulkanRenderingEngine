@@ -1,22 +1,22 @@
 #pragma once
 
-#include "ResourceManager/Resources.h"
-#include "VulkanUtils.h"
-#include "VulkanContext.h"
+#include <Vulkan/VulkanUtils.h>
+#include <Vulkan/VulkanContext.h>
 
-#include "VulkanFrameManager.h"
-#include "VulkanPresenter.h"
+#include <Vulkan/VulkanFrameManager.h>
+#include <Vulkan/VulkanPresenter.h>
 
-#include "VulkanDrawPass.h"
-#include "VulkanComputePass.h"
-#include "VulkanImGuiPass.h"
+#include <Vulkan/VulkanDrawPass.h>
+#include <Vulkan/VulkanComputePass.h>
+#include <Vulkan/VulkanImGuiPass.h>
 
-#include "VulkanResourceCache.h"
-#include "VulkanDescriptors.h"
-#include "VulkanImage.h"
+#include <Vulkan/VulkanResourceCache.h>
+#include <Vulkan/VulkanDescriptors.h>
+#include <Vulkan/VulkanImage.h>
 
-#include "ResourceManager/ResourceManager.h"
-#include "Events.h"
+#include <ResourceManager/ResourceManager.h>
+#include <ResourceManager/Resources.h>
+#include <Core/Events/Events.h>
 
 #include <concepts>
 #include <limits>

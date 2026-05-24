@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Vulkan/VulkanRenderer.h"
-#include "ResourceManager/ResourceManager.h"
+#include <Vulkan/VulkanRenderer.h>
+#include <ResourceManager/ResourceManager.h>
 
 #include <functional>
 #include <vulkan/vulkan.h>

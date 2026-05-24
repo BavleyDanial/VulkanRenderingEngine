@@ -1,11 +1,12 @@
 #pragma once
 
+#include <Core/Events/EventDispatcher.h>
+
 #include <Window/GlfwWindow.h>
 #include <Window/GlfwInput.h>
-#include <EventDispatcher.h>
 
-#include <Layer.h>
-#include <LayerStack.h>
+#include <Core/Layer.h>
+#include <Core/LayerStack.h>
 
 #include <ResourceManager/ResourceManager.h>
 

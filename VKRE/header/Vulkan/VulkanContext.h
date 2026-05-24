@@ -1,11 +1,11 @@
 #pragma once
 
-#include "VulkanUtils.h"
+#include <Vulkan/VulkanUtils.h>
 
-#include "VulkanPhysicalDevice.h"
-#include "VulkanLogicalDevice.h"
+#include <Vulkan/VulkanPhysicalDevice.h>
+#include <Vulkan/VulkanLogicalDevice.h>
 
-#include "Window/GlfwWindow.h"
+#include <Window/GlfwWindow.h>
 
 #include <vector>
 #include <memory>

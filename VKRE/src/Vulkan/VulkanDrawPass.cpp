@@ -1,6 +1,4 @@
 #include <Vulkan/VulkanDrawPass.h>
-#include <cstring>
-#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Application.h>
+#include <Core/Application.h>
 
 int main() {
     auto app = VKRE::CreateApplication();

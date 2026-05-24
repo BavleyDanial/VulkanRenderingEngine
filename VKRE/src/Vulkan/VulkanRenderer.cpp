@@ -1,23 +1,12 @@
-#include "ResourceManager/Resources.h"
-#include "Vulkan/VulkanComputePass.h"
-#include "Vulkan/VulkanDrawPass.h"
-#include "Vulkan/VulkanGPUBuffer.h"
 #include <Vulkan/VulkanRenderer.h>
 
-#include <Application.h>
+#include <Core/Application.h>
 #include <ResourceManager/ShaderCompiler.h>
 
-#include <Vulkan/VulkanImGuiPass.h>
-#include <Vulkan/VulkanPipelineBuilder.h>
-
-#include <imgui.h>
-#include <ImGui/Backend/ImGuiGLFW.h>
-#include <ImGui/Backend/ImGuiVulkan.h>
 #include <glm/glm.hpp>
 
 #include <cassert>
 #include <memory>
-#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 

@@ -1,4 +1,4 @@
-#include <Application.h>
+#include <Core/Application.h>
 
 #include <imgui.h>
 #include <glm/glm.hpp>
@@ -7,7 +7,7 @@
 #include <ImGui/Backend/ImGuiGLFW.h>
 #include <ImGui/Backend/ImGuiVulkan.h>
 
-#include <Renderer.h>
+#include <Renderer/Renderer.h>
 
 namespace VKRE {
 

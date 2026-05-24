@@ -1,4 +1,3 @@
-#include "ResourceManager/ResourceRefs.h"
 #include <EntryPoint.h>
 #include <Engine.h>
 

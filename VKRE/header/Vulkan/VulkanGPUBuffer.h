@@ -1,7 +1,7 @@
 #pragma once
 
-#include "VulkanUtils.h"
-#include "VulkanContext.h"
+#include <Vulkan/VulkanUtils.h>
+#include <Vulkan/VulkanContext.h>
 
 namespace VKRE {
 
