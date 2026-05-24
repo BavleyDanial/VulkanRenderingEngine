@@ -1,3 +1,4 @@
+#include "ResourceManager/ResourceRefs.h"
 #include <EntryPoint.h>
 #include <Engine.h>
 
@@ -18,11 +19,33 @@ public:
 
     virtual void OnAttach() {
         // NOTE: This is temporary, it will be moved out
-        mTrianglePass = VKRE::Renderer::AddDrawPass({
-            .shaderPath = "res/shaders/colored_triangle.glsl",
-            .debugName = "triangle",
+        std::vector<VKRE::Vertex> vertices = {
+            { glm::vec3(-0.5f, -0.5f, 0.0f), 0.0f, glm::vec3(0.0f, 0.0f, 1.0f), 0.0f, glm::vec4(1.0f) },
+            { glm::vec3( 0.5f, -0.5f, 0.0f), 1.0f, glm::vec3(0.0f, 0.0f, 1.0f), 0.0f, glm::vec4(1.0f) },
+            { glm::vec3( 0.0f,  0.5f, 0.0f), 0.5f, glm::vec3(0.0f, 0.0f, 1.0f), 1.0f, glm::vec4(1.0f) },
+        };
+
+        std::vector<uint32_t> indices = { 0, 1, 2 };
+
+        VKRE::MeshDesc desc{};
+        desc.DebugName = "Triangle";
+        desc.Vertices = vertices;
+        desc.Indices = indices;
+
+        VKRE::ResourceRef<VKRE::MeshTag> mMesh = VKRE::Renderer::LoadMesh(std::move(desc));
+        VKRE::Renderer::UploadMesh(mMesh, vertices, indices);
+
+        VKRE::MeshHotData* hot = VKRE::Renderer::GetMeshHot(mMesh.Get());
+        VKRE::GPUBufferHotData* vertexHot = VKRE::Renderer::GetGPUBufferHot(hot->VertexBuffer);
+
+        mPushConstants.vertexBufferAddress = vertexHot->DeviceAddress;
+
+        mMeshPass = VKRE::Renderer::AddDrawPass({
+            .shaderPath = "res/shaders/mesh.glsl",
+            .debugName = "mesh",
+            .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(MeshPushConstants) } },
             .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
-            .vertexCount = 3,
+            .vertexCount = static_cast<uint32_t>(indices.size()),
         });
 
         mGradientPass = VKRE::Renderer::AddComputePass({
@@ -40,6 +63,7 @@ public:
         mGradientParams = { .colorA = {0, 0, 0, 1}, .colorB = {0, 0, 1, 1} };
         mSkyParams = { .colorA = {0.1f, 0.2f, 0.4f, 1}, .colorB = {0, 0.1f, .2f, 1} };
 
+        VKRE::Renderer::SetDrawPassData(mMeshPass, &mPushConstants, sizeof(mPushConstants));
         VKRE::Renderer::SetComputePassData(mGradientPass, &mGradientParams, sizeof(mGradientParams));
         VKRE::Renderer::SetComputePassData(mSkyPass, &mSkyParams, sizeof(mSkyParams));
     }
@@ -56,7 +80,7 @@ public:
             ImGui::SliderInt("Pass", &index, 0, 2);
 
             if (index == 0) {
-                VKRE::Renderer::ActivateDrawPass(mTrianglePass);
+                VKRE::Renderer::ActivateDrawPass(mMeshPass);
                 VKRE::Renderer::DeActivateComputePass(mGradientPass);
                 VKRE::Renderer::DeActivateComputePass(mSkyPass);
 
@@ -84,7 +108,11 @@ public:
     }
 
 private:
-    VKRE::DrawPassHandle mTrianglePass = VKRE::INVALID_DRAW_PASS;
+    struct MeshPushConstants {
+        uint64_t vertexBufferAddress = 0;
+    };
+    VKRE::DrawPassHandle mMeshPass = VKRE::INVALID_DRAW_PASS;
+    MeshPushConstants mPushConstants;
 
     VKRE::ComputePassHandle mGradientPass = VKRE::INVALID_COMPUTE_PASS;
     VKRE::ComputePassHandle mSkyPass = VKRE::INVALID_COMPUTE_PASS;

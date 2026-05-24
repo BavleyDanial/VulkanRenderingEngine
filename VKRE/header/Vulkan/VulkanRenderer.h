@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ResourceManager/Resources.h"
 #include "VulkanUtils.h"
 #include "VulkanContext.h"
 
@@ -20,6 +21,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <functional>
 
 #include <glm/glm.hpp>
 
@@ -55,9 +57,21 @@ namespace VKRE {
         VulkanRenderer(VulkanContext& context, ResourceManager& resourceManager);
         ~VulkanRenderer();
 
+        void ImmediateSubmit(std::function<void(VkCommandBuffer)>&& fn);
+        void ReSize(const WindowResizeEvent& event);
+
         void Render();
         void OnImGui();
-        void ReSize(const WindowResizeEvent& event);
+
+        void UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
+            VKRE::MeshHotData* hot = mResourceManager.GetMeshHot(mMesh.Get());
+
+            mResourceCache->CreateBuffer(hot->VertexBuffer);
+            mResourceCache->CreateBuffer(hot->IndexBuffer);
+
+            mResourceCache->UploadBuffer(hot->VertexBuffer, vertices.data(), vertices.size() * sizeof(VKRE::Vertex), 0);
+            mResourceCache->UploadBuffer(hot->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
+        }
 
         DrawPassHandle AddDrawPass(const DrawPassDesc& desc);
         void SetDrawPassData(DrawPassHandle handle, const void* data, uint32_t size);
@@ -74,6 +88,7 @@ namespace VKRE {
         void CreateDrawImage();
         void ReCreateDrawImage();
 
+        void CreateImmediateCommands();
         void InitPasses();
         void InitDescriptors();
         void InitDrawImageDescriptor();
@@ -82,6 +97,9 @@ namespace VKRE {
         ResourceManager& mResourceManager;
 
         std::unique_ptr<VulkanResourceCache> mResourceCache;
+        VkCommandPool mImmediatePool;
+        VkCommandBuffer mImmediateBuffer;
+        VkFence mImmediateFence;
 
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;

@@ -23,16 +23,24 @@ namespace VKRE {
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->pipeline);
 
-        if (mDescriptorSet != VK_NULL_HANDLE)
+        if (mDescriptorSet != VK_NULL_HANDLE) {
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 0, 1, &mDescriptorSet, 0, nullptr);
-        if (!mPushConstantData.empty())
-            vkCmdPushConstants(cmd, mPipeline->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, mPushConstantData.size(), mPushConstantData.data());
+        }
+
+        if (!mPushConstantData.empty()) {
+            vkCmdPushConstants(cmd,
+                    mPipeline->layout,
+                    VK_SHADER_STAGE_VERTEX_BIT,
+                    0,
+                    static_cast<uint32_t>(mPushConstantData.size()), 
+                    mPushConstantData.data());
+        }
 
         VkViewport viewport{};
         viewport.x = 0.0f;
-        viewport.y = 0.0f;
+        viewport.y = static_cast<float>(extent.height);
         viewport.width = static_cast<float>(extent.width);
-        viewport.height = static_cast<float>(extent.height);
+        viewport.height = -static_cast<float>(extent.height); 
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
         vkCmdSetViewport(cmd, 0, 1, &viewport);

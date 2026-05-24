@@ -2,6 +2,7 @@
 
 #include "VulkanContext.h"
 #include "VulkanPipeline.h"
+#include "VulkanGPUBuffer.h"
 
 #include <ResourceManager/Resources.h>
 #include <ResourceManager/ResourceHandles.h>
@@ -15,6 +16,12 @@ namespace VKRE {
     class VulkanResourceCache {
     public:
         VulkanResourceCache(VulkanContext& context, ResourceManager& manager);
+
+        bool CreateBuffer(GPUBufferHandle handle);
+        void UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset);
+        bool IsBufferUploaded(GPUBufferHandle handle) const;
+
+        void DestroyAllBuffers();
 
         bool CreateShader(ShaderHandle handle);
         VkShaderModule GetShaderModule(ShaderHandle handle);
@@ -58,6 +65,7 @@ namespace VKRE {
         VulkanContext& mContext;
         ResourceManager& mResourceManager;
 
+        std::unordered_map<GPUBufferHandle, VulkanGPUBuffer> mBuffers;
         std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;
         std::unordered_map<VulkanPipelineLayoutKey, VkPipelineLayout> mPipelineLayouts;
         std::unordered_map<VulkanComputePipelineKey, VulkanComputePipeline> mComputePipelines;

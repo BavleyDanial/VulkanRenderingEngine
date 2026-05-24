@@ -1,33 +1,117 @@
+#include "ResourceManager/Resources.h"
+#include "Vulkan/VulkanGPUBuffer.h"
 #include "Vulkan/VulkanPipeline.h"
+#include "Vulkan/VulkanUtils.h"
 #include <Vulkan/VulkanResourceCache.h>
 #include <Vulkan/VulkanPipelineBuilder.h>
 
 #include <cassert>
 #include <print>
-#include <vulkan/vulkan_core.h>
+
+//NOTE: SUEPR EXTRA TEMPORARY
+#include <Renderer.h>
 
 namespace VKRE {
 
     VulkanResourceCache::VulkanResourceCache(VulkanContext& context, ResourceManager& manager)
         :mContext(context), mResourceManager(manager) {}
 
-    bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
+    bool VulkanResourceCache::CreateBuffer(GPUBufferHandle handle) {
         if (!handle.IsValid()) {
-            std::println("VulkanResourceCache::UploadShader handle is invalid");
+            std::println("VulkanResourceCache::UploadBuffer handle is invalid");
             return false;
         }
 
-        const ShaderHotData* hot = mResourceManager.GetShaderHot(handle);
-        assert(hot && "VulkanResourceCache Shader is valid but GetShaderHot returned nullptr");
+        auto it = mBuffers.find(handle);
+        if (it != mBuffers.end()) return true;
+
+        GPUBufferHotData* hot = mResourceManager.GetGPUBufferHot(handle);
+        assert(hot && "VulkanResourceCache::UploadBuffer buffer handle is valid but GetGPUBufferHot returned nullptr");
+
+        const GPUBufferColdData* cold = mResourceManager.GetGPUBufferCold(handle);
+        assert(hot && "VulkanResourceCache::UploadBuffer buffer handle is valid but GetGPUBufferCold returned nullptr");
+
+        VkBufferUsageFlags vkUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        if ((cold->Usage & GPUBufferUsage::Vertex) == GPUBufferUsage::Vertex)           vkUsage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        if ((cold->Usage & GPUBufferUsage::Index) == GPUBufferUsage::Index)             vkUsage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        if ((cold->Usage & GPUBufferUsage::Uniform) == GPUBufferUsage::Uniform)         vkUsage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        if ((cold->Usage & GPUBufferUsage::Storage) == GPUBufferUsage::Storage)         vkUsage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        if ((cold->Usage & GPUBufferUsage::Indirect) == GPUBufferUsage::Indirect)       vkUsage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+        if ((cold->Usage & GPUBufferUsage::TransferSrc) == GPUBufferUsage::TransferSrc) vkUsage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        if ((cold->Usage & GPUBufferUsage::TransferDst) == GPUBufferUsage::TransferDst) vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+        VmaAllocationCreateInfo allocInfo{};
+        if (hot->HostVisible) {
+            allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        } else {
+            allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        }
+
+        VulkanGPUBuffer buffer(mContext);
+        buffer.CreateBuffer(hot->Size, vkUsage, allocInfo);
+
+        hot->DeviceAddress = buffer.GetGPUBufferInfo().deviceAddress;
+        mBuffers.emplace(handle, std::move(buffer));
+        return true;
+    }
+
+    void VulkanResourceCache::UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset) {
+        auto it = mBuffers.find(handle);
+        if (it == mBuffers.end()) {
+            std::println("VulkanResourceCache::UploadBuffer buffer not found (index = {})", static_cast<uint32_t>(handle.index));
+            return;
+        }
+
+        GPUBufferHotData* hot = mResourceManager.GetGPUBufferHot(handle);
+        assert(hot && "VulkanResourceCache::UploadBuffer buffer handle is valid but couldn't get hot data");
+        assert(!hot->HostVisible && "VulkanResourceCache::UploadBuffer called on host-visible buffer, use UpdateBuffer instead");
+
+        VulkanGPUBuffer staging(mContext);
+        VmaAllocationCreateInfo stagingAllocInfo{};
+        stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        staging.CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo);
+
+        memcpy(staging.GetGPUBufferInfo().info.pMappedData, data, size);
+        VkBuffer dstBuffer = it->second.GetGPUBufferInfo().buffer;
+
+        // TODO: this will be moved out into a SceneRenderer with no Vulkan leakage
+        Renderer::Submit([&](VkCommandBuffer cmd) {
+            VkBufferCopy copy{};
+            copy.srcOffset = 0;
+            copy.dstOffset = offset;
+            copy.size = size;
+            vkCmdCopyBuffer(cmd, staging.GetGPUBufferInfo().buffer, dstBuffer, 1, &copy);
+        });
+
+        staging.Release();
+    }
+
+    bool VulkanResourceCache::IsBufferUploaded(GPUBufferHandle handle) const {
+        return mBuffers.contains(handle);
+    }
+
+    void VulkanResourceCache::DestroyAllBuffers() {
+        for (auto& [handle, buffer] : mBuffers)
+            buffer.Release();
+        mBuffers.clear();
+    }
+
+    bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
+        if (!handle.IsValid()) {
+            std::println("VulkanResourceCache::CreateShader handle is invalid");
+            return false;
+        }
 
         auto it = mShaderModules.find(handle);
         bool alreadyUploaded = it != mShaderModules.end();
 
         ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
-        assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
+        assert(cold && "VulkanResourceCache::CreateShader shader is valid but GetShaderCold returned nullptr");
 
         if (alreadyUploaded) {
-            if (!cold->isDirty) {
+            if (!cold->IsDirty) {
                 return true;
             }
 
@@ -58,7 +142,7 @@ namespace VKRE {
         std::vector<ShaderHandle> dirty;
         for (auto& [handle, module] : mShaderModules) {
             const ShaderColdData* cold = mResourceManager.GetShaderCold(handle);
-            if (cold && cold->isDirty)
+            if (cold && cold->IsDirty)
                 dirty.push_back(handle);
         }
 
@@ -157,7 +241,7 @@ namespace VKRE {
             }
 
             const ShaderHotData* hot = mResourceManager.GetShaderHot(key.vertexShader);
-            builder.SetVertexShader(shaderModule, hot->entrypoint);
+            builder.SetVertexShader(shaderModule, hot->Entrypoint);
         }
 
         if (key.fragmentShader.IsValid()) {
@@ -168,7 +252,7 @@ namespace VKRE {
             }
 
             const ShaderHotData* hot = mResourceManager.GetShaderHot(key.fragmentShader);
-            builder.SetFragmentShader(shaderModule, hot->entrypoint);
+            builder.SetFragmentShader(shaderModule, hot->Entrypoint);
         }
 
         // TODO: Add other shaders
@@ -324,6 +408,7 @@ namespace VKRE {
     }
 
     void VulkanResourceCache::DestroyAll() {
+        DestroyAllBuffers();
         DestroyAllGraphicsPipelines();
         DestroyAllComputePipelines();
         DestroyAllPipelineLayouts();
@@ -331,7 +416,7 @@ namespace VKRE {
     }
 
     bool VulkanResourceCache::CreateShaderModule(ShaderHandle handle, ShaderColdData* cold) {
-        if (cold->byteCode.empty()) {
+        if (cold->ByteCode.empty()) {
             std::println("VulkanResourceCache::CreateShaderModule Cannot create shader module, SPIRV is empty (index={})", static_cast<uint32_t>(handle.index));
             return false;
         }
@@ -339,8 +424,8 @@ namespace VKRE {
         VkShaderModuleCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.pNext = nullptr;
-        createInfo.codeSize = cold->byteCode.size() * sizeof(uint32_t);
-        createInfo.pCode = cold->byteCode.data();
+        createInfo.codeSize = cold->ByteCode.size() * sizeof(uint32_t);
+        createInfo.pCode = cold->ByteCode.data();
 
         VkShaderModule shaderModule;
         if (vkCreateShaderModule(mContext.GetLogicalDevice().handle, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
@@ -350,7 +435,7 @@ namespace VKRE {
 
         mShaderModules[handle] = shaderModule;
         assert(cold && "VulkanResourceCache Shader is valid but GetShaderCold returned nullptr");
-        cold->isDirty = false;
+        cold->IsDirty = false;
 
         return true;
     }

@@ -212,11 +212,11 @@ namespace VKRE {
         size_t len = 0;
 
         ShaderDesc desc{};
-        desc.stage = stage;
-        desc.path = path.string();
-        desc.debugName = debugName;
-        desc.entrypoint = entrypoint;
-        desc.byteCode = std::move(byteData);
+        desc.Stage = stage;
+        desc.Path = path.string();
+        desc.DebugName = debugName;
+        desc.Entrypoint = entrypoint;
+        desc.ByteCode = std::move(byteData);
 
         return manager.LoadShader(std::move(desc));
     }

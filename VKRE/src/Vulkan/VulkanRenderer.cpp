@@ -36,22 +36,80 @@ namespace VKRE {
         mFrameManager = std::make_unique<VulkanFrameManager>(mContext);
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
 
+        CreateImmediateCommands();
         CreateDrawImage();
         InitDescriptors();
         InitPasses();
 
-        mDeletionQueue.PushDeleteFunc([this]() { mDrawImage->Release(); });
+        mDeletionQueue.PushDeleteFunc([this]() {
+            vkDestroyCommandPool(mContext.GetLogicalDevice().handle, mImmediatePool, nullptr);
+            vkDestroyFence(mContext.GetLogicalDevice().handle, mImmediateFence, nullptr);
+        });
     }
 
     VulkanRenderer::~VulkanRenderer() {
         vkDeviceWaitIdle(mContext.GetLogicalDevice().handle);
 
-        mResourceCache->DestroyAll();
+        mDrawPasses.clear();
         mComputePasses.clear();
+        mImGuiPass.reset();
 
         mPresenter.reset();
         mFrameManager.reset();
+
+        mDrawImage.reset();
+        mResourceCache->DestroyAll();
         mDeletionQueue.Flush();
+    }
+
+    void VulkanRenderer::CreateImmediateCommands() {
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.queueFamilyIndex = mContext.GetQueueFamilies().graphicsFamily.value();
+        VK_CHECK(vkCreateCommandPool(mContext.GetLogicalDevice().handle, &poolInfo, nullptr, &mImmediatePool));
+
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.commandPool = mImmediatePool;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandBufferCount = 1;
+        VK_CHECK(vkAllocateCommandBuffers(mContext.GetLogicalDevice().handle, &allocInfo, &mImmediateBuffer));
+
+        VkFenceCreateInfo fenceCreateInfo{};
+        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        VK_CHECK(vkCreateFence(mContext.GetLogicalDevice().handle, &fenceCreateInfo, nullptr, &mImmediateFence));
+    }
+
+    void VulkanRenderer::ImmediateSubmit(std::function<void(VkCommandBuffer)>&& fn) {
+        VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &mImmediateFence));
+        vkResetCommandBuffer(mImmediateBuffer, 0);
+
+        VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+        cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        cmdBufferBeginInfo.pNext = nullptr;
+        cmdBufferBeginInfo.pInheritanceInfo = nullptr;
+        cmdBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VK_CHECK(vkBeginCommandBuffer(mImmediateBuffer, &cmdBufferBeginInfo));
+        fn(mImmediateBuffer);
+        VK_CHECK(vkEndCommandBuffer(mImmediateBuffer));
+
+        VkCommandBufferSubmitInfo cmdSubmitInfo;
+        cmdSubmitInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+        cmdSubmitInfo.pNext = nullptr;
+        cmdSubmitInfo.commandBuffer = mImmediateBuffer;
+        cmdSubmitInfo.deviceMask = 0;
+
+        VkSubmitInfo2 info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+        info.pNext = nullptr;
+        info.commandBufferInfoCount = 1;
+        info.pCommandBufferInfos = &cmdSubmitInfo;
+
+        VK_CHECK(vkQueueSubmit2(mContext.GetGraphicsQueue(), 1, &info, mImmediateFence));
+        VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &mImmediateFence, true, UINT64_MAX));
     }
 
     DrawPassHandle VulkanRenderer::AddDrawPass(const DrawPassDesc& desc) {
@@ -113,7 +171,7 @@ namespace VKRE {
 
     void VulkanRenderer::SetDrawPassData(DrawPassHandle handle, const void* data, uint32_t size) {
         if (handle == INVALID_DRAW_PASS || handle >= mDrawPasses.size()) {
-            std::println("VulkanRenderer::SetComputePassData Invalid draw pass handle");
+            std::println("VulkanRenderer::SetDrawPassData Invalid draw pass handle");
             return;
         }
         mDrawPasses[handle].SetPushConstantData(data, size);

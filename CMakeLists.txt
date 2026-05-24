@@ -39,6 +39,8 @@ else()
     set(VULKAN_INCLUDE_PATH $ENV{VULKAN_SDK}/include)
 endif()
 
+message("Vulkan: $ENV{VULKAN_SDK}")
+
 if (WIN32)
     add_compile_definitions(PLATFORM_WINDOWS=1)
 elseif (APPLE)

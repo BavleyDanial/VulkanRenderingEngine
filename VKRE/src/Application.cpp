@@ -22,6 +22,7 @@ namespace VKRE {
         mVulkanContext = std::make_unique<VulkanContext>(*mWindow);
         mVulkanRenderer = std::make_unique<VulkanRenderer>(*mVulkanContext, mResourceManager);
         Renderer::SetRenderer(mVulkanRenderer.get());
+        Renderer::SetResourceManager(&mResourceManager);
     }
 
     Application::~Application() {
