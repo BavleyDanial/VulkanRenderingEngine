@@ -41,7 +41,6 @@ namespace VKRE {
         VulkanLogicalDevice mLogicalDevice{};
 
         VmaAllocator mAllocator;
-        VulkanUtils::DeletionQueue mDeletionQueue;
 
         // TODO: Make validation layers only available in debug mode
         const std::vector<const char*> mValidationLayers = {

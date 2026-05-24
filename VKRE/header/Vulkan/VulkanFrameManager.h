@@ -1,7 +1,6 @@
 #pragma once
 
-#include "VulkanUtils.h"
-#include "VulkanContext.h"
+#include <Vulkan/VulkanContext.h>
 
 namespace VKRE {
 
@@ -10,7 +9,6 @@ namespace VKRE {
         VkCommandBuffer commandBuffer;
         VkSemaphore presentCompleteSemaphore;
         VkFence waitFence;
-        VulkanUtils::DeletionQueue deletionQueue;
     };
 
     class VulkanFrameManager {

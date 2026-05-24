@@ -22,7 +22,6 @@ namespace VKRE {
         VulkanContext& mContext;
         VulkanPresenter& mPresenter;
         VkDescriptorPool mImGuiPool;
-        VulkanUtils::DeletionQueue mDeletionQueue;
     };
 
 }

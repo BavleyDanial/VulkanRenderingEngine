@@ -32,8 +32,7 @@ namespace VKRE {
         pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
         pool_info.pPoolSizes = pool_sizes;
 
-        VkDescriptorPool imguiPool;
-        VK_CHECK(vkCreateDescriptorPool(mContext.GetLogicalDevice().handle, &pool_info, nullptr, &imguiPool));
+        VK_CHECK(vkCreateDescriptorPool(mContext.GetLogicalDevice().handle, &pool_info, nullptr, &mImGuiPool));
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -49,7 +48,7 @@ namespace VKRE {
         init_info.PhysicalDevice = mContext.GetPhysicalDevice().handle;
         init_info.Device = mContext.GetLogicalDevice().handle;
         init_info.Queue = mContext.GetGraphicsQueue();
-        init_info.DescriptorPool = imguiPool;
+        init_info.DescriptorPool = mImGuiPool;
         init_info.MinImageCount = 3;
         init_info.ImageCount = 3;
         init_info.UseDynamicRendering = true;
@@ -63,15 +62,11 @@ namespace VKRE {
         init_info.PipelineInfoMain = pipelineInfo;
 
         ImGui_ImplVulkan_Init(&init_info);
-
-        mDeletionQueue.PushDeleteFunc([this, imguiPool]() {
-            ImGui_ImplVulkan_Shutdown();
-            vkDestroyDescriptorPool(mContext.GetLogicalDevice().handle, imguiPool, nullptr);
-        });
     }
 
     VulkanImGuiPass::~VulkanImGuiPass() {
-        mDeletionQueue.Flush();
+        ImGui_ImplVulkan_Shutdown();
+        vkDestroyDescriptorPool(mContext.GetLogicalDevice().handle, mImGuiPool, nullptr);
     }
 
     void VulkanImGuiPass::Execute(VkCommandBuffer cmd, const FrameInfo& frameInfo) {

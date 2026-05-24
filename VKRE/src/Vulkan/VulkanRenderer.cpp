@@ -46,7 +46,9 @@ namespace VKRE {
         mUploader.reset();
         mDrawImage.reset();
         mResourceCache->DestroyAll();
-        mDeletionQueue.Flush();
+
+        mGlobalDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
+        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
     }
 
     void VulkanRenderer::UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
@@ -228,11 +230,6 @@ namespace VKRE {
         }
 
         InitDrawImageDescriptor();
-
-        mDeletionQueue.PushDeleteFunc([this]() {
-            mGlobalDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
-            vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
-        });
     }
 
     void VulkanRenderer::InitDrawImageDescriptor() {
@@ -258,7 +255,6 @@ namespace VKRE {
     void VulkanRenderer::Render() {
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
         VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
-        frame.deletionQueue.Flush();
 
         uint32_t swapchainImageIndex = 0;
         VkResult acquireResult = vkAcquireNextImageKHR(mContext.GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex);
@@ -360,8 +356,7 @@ namespace VKRE {
         mFrameManager->AdvanceFrame();
     }
 
-    void VulkanRenderer::OnImGui() {
-    }
+    void VulkanRenderer::OnImGui() {}
 
     void VulkanRenderer::ReSize(const WindowResizeEvent& event) {
         vkDeviceWaitIdle(mContext.GetLogicalDevice().handle);

@@ -100,8 +100,6 @@ namespace VKRE {
         DescriptorAllocator mGlobalDescriptorAllocator;
         VkDescriptorSet mDrawImageDescriptors;
         VkDescriptorSetLayout mDrawImageDescriptorLayout;
-
-        VulkanUtils::DeletionQueue mDeletionQueue;
     };
 
 }

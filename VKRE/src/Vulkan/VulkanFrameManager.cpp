@@ -21,7 +21,6 @@ namespace VKRE {
             vkDestroyCommandPool(device, frame.commandPool, nullptr);
             vkDestroySemaphore(device, frame.presentCompleteSemaphore, nullptr);
             vkDestroyFence(device, frame.waitFence, nullptr);
-            frame.deletionQueue.Flush();
         }
     }
 
