@@ -2,6 +2,7 @@
 
 #include "Events.h"
 
+#include <algorithm>
 #include <vector>
 #include <array>
 
@@ -73,8 +74,14 @@ namespace VKRE {
 
     private:
         struct TypeErasedDelegate {
+            using MemberFnPtr = void(TypeErasedDelegate::*)();
+            using FreeFnPtr = void(*)();
+
+            static constexpr size_t ptrSize = std::max(sizeof(MemberFnPtr), sizeof(FreeFnPtr));
+            static constexpr size_t ptrAlign = std::max(alignof(MemberFnPtr), alignof(FreeFnPtr));
+
             void* instance;
-            uint8_t fnPtr[24]; // largest a member function can be across compilers... I hope
+            alignas(ptrAlign) uint8_t fnPtr[ptrSize];
             void (*invoke)(void* instance, void* methodBuffer, const void* e);
         };
 
