@@ -123,7 +123,11 @@ namespace VKRE {
             return INVALID_DRAW_PASS;
         }
 
-        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, indexBufferData->buffer, meshHot->IndicesCount);
+        VkShaderStageFlags pushConstantsShaderStages = 0;
+        for (const auto& stage : desc.pushConstantRanges)
+            pushConstantsShaderStages |= stage.stageFlags;
+
+        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, indexBufferData->buffer, meshHot->IndicesCount, pushConstantsShaderStages);
         return static_cast<DrawPassHandle>(mDrawPasses.size() - 1);
     }
 

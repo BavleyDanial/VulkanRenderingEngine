@@ -84,7 +84,6 @@ namespace VKRE {
         bool operator==(const VulkanGraphicsPipelineKey&) const = default;
     };
 
-    // NOTE: May grow in the future which is why it is seperate from VulkanComputePipeline for now
     struct VulkanGraphicsPipeline {
         VkPipeline pipeline = VK_NULL_HANDLE;
         VkPipelineLayout layout = VK_NULL_HANDLE;

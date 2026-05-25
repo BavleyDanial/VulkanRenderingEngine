@@ -3,9 +3,11 @@
 namespace VKRE {
 
     VulkanDrawPass::VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key,
-                                    VkDescriptorSet descriptorSet, VkBuffer indexBuffer, uint32_t indicesCount)
+                                    VkDescriptorSet descriptorSet, VkBuffer indexBuffer, uint32_t indicesCount,
+                                    VkShaderStageFlags pushConstantsShaderStages)
         :mPipeline(cache.GetGraphicsPipeline(key)), mDescriptorSet(descriptorSet),
-        mIndexBuffer(indexBuffer), mIndicesCount(indicesCount) {}
+        mIndexBuffer(indexBuffer), mIndicesCount(indicesCount),
+        mPushConstantsShaderStages(pushConstantsShaderStages) {}
 
     void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo) {
         if (!mPipeline) return;
@@ -28,7 +30,7 @@ namespace VKRE {
         }
 
         if (!mPushConstantData.empty()) {
-            vkCmdPushConstants(cmd, mPipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, static_cast<uint32_t>(mPushConstantData.size()), mPushConstantData.data());
+            vkCmdPushConstants(cmd, mPipeline->layout, mPushConstantsShaderStages, 0, static_cast<uint32_t>(mPushConstantData.size()), mPushConstantData.data());
         }
 
         VkViewport viewport{};
