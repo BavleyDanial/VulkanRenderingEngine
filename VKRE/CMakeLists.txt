@@ -17,9 +17,13 @@ target_include_directories("VKRE" PUBLIC
     "${VULKAN_INCLUDE_PATH}"
 )
 
+target_link_libraries("VKRE" PRIVATE
+    assimp
+    ${SHADERC_LIB}
+)
+
 target_link_libraries("VKRE" PUBLIC
     glfw
     ImGui
-    ${SHADERC_LIB}
     Vulkan::Vulkan
 )

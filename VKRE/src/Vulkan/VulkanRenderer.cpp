@@ -1,7 +1,9 @@
 #include <Vulkan/VulkanRenderer.h>
 
 #include <Core/Application.h>
+
 #include <ResourceManager/ShaderCompiler.h>
+#include <ResourceManager/MeshLoader.h>
 
 #include <glm/glm.hpp>
 
