@@ -25,9 +25,7 @@ set(ARCHITECTURE ${ARCHITECTURE} CACHE INTERNAL "")
 set(OutputDir ${OutputDir} CACHE INTERNAL "")
 
 file(GLOB_RECURSE GLAD_SRC "${CMAKE_SOURCE_DIR}/vendor/glad/**.c")
-set(GLAD_HEADER "${CMAKE_SOURCE_DIR}/vendor/glad/include")
-set(GLM_HEADER "${CMAKE_SOURCE_DIR}/vendor/glm/")
-set(STB_HEADER "${CMAKE_SOURCE_DIR}/vendor/stb/")
+set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "Build assimp tests" FORCE)
 
 find_package(Vulkan REQUIRED)
 
@@ -51,6 +49,7 @@ endif()
 
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/glfw/")
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/")
+add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/assimp/" SYSTEM)
 
 add_subdirectory("VKRE")
 add_subdirectory("Sandbox")
