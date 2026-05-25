@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 #include <print>
+#include <string_view>
 
 namespace VKRE {
 
@@ -125,22 +126,29 @@ namespace VKRE {
         std::string line;
 
         while (std::getline(stream, line)) {
-            std::string trimmed = line;
+            std::string_view trimmed(line);
             size_t start = trimmed.find_first_not_of(" \t");
             if (start != std::string::npos)
-                trimmed = trimmed.substr(start);
+                trimmed.remove_prefix(start);
 
             if (trimmed.starts_with("#ShaderType")) {
-                size_t spacePos = trimmed.find(' ');
+                size_t spacePos = trimmed.find_first_of(" \t");
                 if (spacePos == std::string::npos) {
                     std::println("ShaderCompiler::ParseStages #ShaderType missing stage type");
                     continue;
                 }
 
-                std::string token = line.substr(spacePos + 1);
+                std::string_view token = trimmed.substr(spacePos);
+                size_t tokenPos = token.find_first_not_of(" \t");
+                if (tokenPos == std::string::npos) {
+                    std::println("ShaderCompiler::ParseStages #ShaderType missing stage type");
+                    continue;
+                }
+
+                token.remove_prefix(tokenPos);
                 ShaderStage stage = ParseStageToken(token);
                 if (stage == ShaderStage::None) {
-                    std::println("ShaderCompiler::ParseStages #ShaderType stage type is recognised {} -skipped", token);
+                    std::println("ShaderCompiler::ParseStages #ShaderType stage type is not recognised {} -skipped", token);
                     continue;
                 }
 
@@ -168,10 +176,10 @@ namespace VKRE {
         return result;
     }
 
-    ShaderStage ShaderCompiler::ParseStageToken(const std::string& token) {
+    ShaderStage ShaderCompiler::ParseStageToken(std::string_view token) {
         if (token == "Vertex")                  return ShaderStage::Vertex;
         if (token == "Fragment")                return ShaderStage::Fragment;
-        if (token == "Compute")                return ShaderStage::Compute;
+        if (token == "Compute")                 return ShaderStage::Compute;
         return ShaderStage::None;
     }
 

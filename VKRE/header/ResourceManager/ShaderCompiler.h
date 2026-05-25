@@ -73,7 +73,7 @@ namespace VKRE {
 
     private:
         static std::vector<ParsedStage> ParseStages(const std::string& source);
-        static ShaderStage ParseStageToken(const std::string& token);
+        static ShaderStage ParseStageToken(std::string_view token);
 
         static ShaderCompileResult CompileStage(
             const std::string& source,

@@ -21,7 +21,7 @@ namespace VKRE {
     public:
         void Init(uint32_t initCapacity = 64) {
             assert(mCapacity == 0 && "ResourcePool::Init called more than once");
-            assert(initCapacity < ResourceHandle<Tag>::INVALID_IDX && "ResourcePool::Init called more than once");
+            assert(initCapacity < ResourceHandle<Tag>::INVALID_IDX && "ResourcePool::Init initial capacity provided is larger than invalid index of the resource");
             Reserve(initCapacity);
             mSlotMetaData[0].generation = ResourceHandle<Tag>::INVALID_GEN;
             mSlotMetaData[0].refCount = 0;

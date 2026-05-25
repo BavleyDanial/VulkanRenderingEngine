@@ -4,7 +4,6 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include <vma/vk_mem_alloc.h>
 
-#include <functional>
 #include <vector>
 #include <cstring>
 #include <print>
@@ -24,23 +23,6 @@
 namespace VKRE {
     // TODO: Add debug fallback function
     class VulkanUtils {
-    public:
-        // TODO: Use templates for each Vulkan type that needs to be deleted and implement a custom deletor for each for performance
-        struct DeletionQueue {
-            std::vector<std::function<void()>> deletors;
-
-            void PushDeleteFunc(std::function<void()>&& function) {
-                deletors.push_back(function);
-            }
-
-            void Flush() {
-                for (auto deletor = deletors.rbegin(); deletor != deletors.rend(); deletor++) {
-                    (*deletor)();
-                }
-
-                deletors.clear();
-            }
-        };
     public:
         static bool CheckValidationLayerSupport(const std::vector<const char*>& validationLayers) {
             uint32_t layerCount = 0;

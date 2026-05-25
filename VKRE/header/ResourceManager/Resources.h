@@ -19,21 +19,21 @@ namespace VKRE {
 
     struct ShaderDesc {
         std::vector<uint32_t> ByteCode;
-        ShaderStage Stage;
-        std::string Entrypoint = "main";
         std::string DebugName = "";
         std::string Path = "";
+        std::string Entrypoint = "main";
+        ShaderStage Stage;
     };
 
     struct ShaderHotData {
         ShaderStage Stage;
-        char Entrypoint[32] = "main";
     };
 
     struct ShaderColdData {
-        std::vector<uint32_t> ByteCode;
         char DebugName[64] = "";
         char Path[256] = "";
+        char Entrypoint[32] = "main";
+        std::vector<uint32_t> ByteCode;
         bool IsDirty = false;
     };
 

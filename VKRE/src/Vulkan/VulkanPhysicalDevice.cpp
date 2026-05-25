@@ -343,7 +343,7 @@ namespace VKRE {
         for (uint32_t i = 0; i < queueFamilyCount; i++) {
             for (uint32_t bit = 1; bit < static_cast<uint32_t>(QueueCapability::Present); bit <<= 1) {
                 if ((mRequiredQueueFamilies & bit) &&
-                    (queueFamilies[i].queueFlags && bit) &&
+                    (queueFamilies[i].queueFlags & bit) &&
                     !indices.families.contains(bit)) {
                     indices.families[bit] = i;
                 }

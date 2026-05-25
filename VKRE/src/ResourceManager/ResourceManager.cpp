@@ -120,9 +120,9 @@ namespace VKRE {
         hot->Stage = desc.Stage;
 
         size_t len = 0;
-        len = std::min(desc.Entrypoint.length(), sizeof(hot->Entrypoint) - 1);
-        std::copy_n(desc.Entrypoint.begin(), len, hot->Entrypoint);
-        hot->Entrypoint[len] = '\0';
+        len = std::min(desc.Entrypoint.length(), sizeof(cold->Entrypoint) - 1);
+        std::copy_n(desc.Entrypoint.begin(), len, cold->Entrypoint);
+        cold->Entrypoint[len] = '\0';
 
         len = std::min(desc.DebugName.length(), sizeof(cold->DebugName) - 1);
         std::copy_n(desc.DebugName.begin(), len, cold->DebugName);

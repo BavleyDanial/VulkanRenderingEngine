@@ -228,8 +228,8 @@ namespace VKRE {
                 return nullptr;
             }
 
-            const ShaderHotData* hot = mResourceManager.GetShaderHot(key.vertexShader);
-            builder.SetVertexShader(shaderModule, hot->Entrypoint);
+            const ShaderColdData* cold = mResourceManager.GetShaderCold(key.vertexShader);
+            builder.SetVertexShader(shaderModule, cold->Entrypoint);
         }
 
         if (key.fragmentShader.IsValid()) {
@@ -239,8 +239,8 @@ namespace VKRE {
                 return nullptr;
             }
 
-            const ShaderHotData* hot = mResourceManager.GetShaderHot(key.fragmentShader);
-            builder.SetFragmentShader(shaderModule, hot->Entrypoint);
+            const ShaderColdData* cold = mResourceManager.GetShaderCold(key.fragmentShader);
+            builder.SetFragmentShader(shaderModule, cold->Entrypoint);
         }
 
         // TODO: Add other shaders
