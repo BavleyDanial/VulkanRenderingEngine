@@ -13,6 +13,8 @@
 #include <Vulkan/VulkanContext.h>
 #include <Vulkan/VulkanRenderer.h>
 
+#include <flecs.h>
+
 #include <memory>
 
 namespace VKRE {

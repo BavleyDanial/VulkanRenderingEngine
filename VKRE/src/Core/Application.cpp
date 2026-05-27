@@ -11,6 +11,10 @@
 
 namespace VKRE {
 
+    struct Position {
+        float x, y, z;
+    };
+
     Application::Application() {
         if (mInstance) {
             assert("Application has already been initialised!");
@@ -32,6 +36,11 @@ namespace VKRE {
     }
 
     void Application::Run() {
+        flecs::world ecs;
+        auto e = ecs.entity("TestEntity").set<Position>({0.0f, 0.0f, 0.0f});
+        const Position pos = e.get<Position>();
+        std::println("Position is: x={}, y={}, z={}", pos.x, pos.y, pos.z);
+
         // TODO: Change this to close when the engine decides to close, not when ONE WINDOW decides it's done. This will help with multiple windows as well.
         while (!mWindow->ShouldClose()) {
             mWindow->OnUpdate();

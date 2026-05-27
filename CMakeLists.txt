@@ -21,11 +21,18 @@ else()
     set(OutputDir "${CMAKE_SOURCE_DIR}/bin/")
 endif()
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${OutputDir}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${OutputDir}")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${OutputDir}")
+
 set(ARCHITECTURE ${ARCHITECTURE} CACHE INTERNAL "")
 set(OutputDir ${OutputDir} CACHE INTERNAL "")
 
 file(GLOB_RECURSE GLAD_SRC "${CMAKE_SOURCE_DIR}/vendor/glad/**.c")
 set(ASSIMP_BUILD_TESTS OFF CACHE INTERNAL "Build assimp tests" FORCE)
+
+set(FLECS_SHARED OFF CACHE INTERNAL "Disable Flecs DLL")
+set(FLECS_STATIC ON CACHE INTERNAL "Enable Flecs Static")
 
 find_package(Vulkan REQUIRED)
 
@@ -47,9 +54,10 @@ elseif (UNIX)
     add_compile_definitions(PLATFORM_LINUX=1)
 endif()
 
-add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/glfw/")
-add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/")
+add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/glfw/" SYSTEM)
+add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/flecs/" SYSTEM)
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/assimp/" SYSTEM)
+add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/" SYSTEM)
 
 add_subdirectory("VKRE")
 add_subdirectory("Sandbox")
