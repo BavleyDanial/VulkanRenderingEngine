@@ -185,7 +185,7 @@ public:
 
 };
 
-VKRE::Application* CreateApplication() {
+VKRE::Application* VKRE::CreateApplication() {
     return new Sandbox();
 }
 
