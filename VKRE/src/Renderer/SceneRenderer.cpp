@@ -3,6 +3,7 @@
 
 #include <Scene/Components.h>
 #include <ResourceManager/Resources.h>
+#include <AssetsManagers/AssetManager.h>
 
 #include <glm/glm.hpp>
 #include <glm/trigonometric.hpp>
@@ -13,8 +14,11 @@
 namespace VKRE {
 
     SceneRenderer::SceneRenderer() {
+        const ShaderAsset* basicShader = AssetManager::LoadShader("res/shaders/basic.glsl");
+
         mDrawPass = Renderer::AddDrawPass({
-            .shaderPath = "res/shaders/mesh.glsl",
+            .VertexShader = basicShader->VertexShader.Get(),
+            .FragmentShader = basicShader->FragmentShader.Get(),
             .debugName = "Scene Draw Pass",
             .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT, 0, 144 } },
             .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },

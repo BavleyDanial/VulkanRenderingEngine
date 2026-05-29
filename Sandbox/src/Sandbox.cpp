@@ -119,7 +119,7 @@ private:
     Entity mTeapot;
 
     float mSpeed = 40.0f;
-    float mSensititvity = 10.0f;
+    float mSensititvity = 60.0f;
     float mLastMouseX = 0;
     float mLastMouseY = 0;
     bool mJustLocked = false;

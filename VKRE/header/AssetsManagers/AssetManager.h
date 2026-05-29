@@ -3,6 +3,7 @@
 #include <ResourceManager/ResourceManager.h>
 
 #include <Assets/Mesh.h>
+#include <Assets/Shader.h>
 //#include <Assets/Texture.h>
 //#include <Assets/Materials.h>
 
@@ -17,13 +18,18 @@ namespace VKRE {
         ~AssetManager();
 
         static const MeshAsset* LoadMesh(const std::filesystem::path& path);
+        static const ShaderAsset* LoadShader(const std::filesystem::path& path);
 
     private:
         const MeshAsset* LoadMeshImpl(const std::filesystem::path& path);
+        const ShaderAsset* LoadShaderImpl(const std::filesystem::path& path);
 
     private:
         ResourceManager& mResourceManager;
+
+        // TODO: Use something other than unordered_map or a custom data struct to store these
         std::unordered_map<std::string, MeshAsset> mMeshAssets;
+        std::unordered_map<std::string, ShaderAsset> mShaderAssets;
 
         inline static AssetManager* sInstance = nullptr;
     };

@@ -68,31 +68,18 @@ namespace VKRE {
     }
 
     DrawPassHandle VulkanRenderer::AddDrawPass(const DrawPassDesc& desc) {
-        ShaderLoadingResults shaderResults = ShaderCompiler::LoadFromFile(mResourceManager, desc.shaderPath);
-        if (!shaderResults.Succeeded()) {
-            std::println("VulkanRenderer::AddDrawPass Failed to load {}", desc.shaderPath);
+        if (!desc.VertexShader.IsValid() || !desc.FragmentShader.IsValid()) {
+            std::println("VulkanRenderer::AddDrawPass Invalid shader handles");
             return INVALID_DRAW_PASS;
         }
 
-        ResourceRef<ShaderTag> vertexShader = shaderResults.GetShader(ShaderStage::Vertex);
-        if (!vertexShader) {
-            std::println("VulkanRenderer::AddDrawPass {} shader has no vertex stage", desc.shaderPath);
+        if (!mResourceCache->CreateShader(desc.VertexShader)) {
+            std::println("VulkanRenderer::AddDrawPass Failed to upload {} vertex stage", static_cast<uint32_t>(desc.VertexShader.index));
             return INVALID_DRAW_PASS;
         }
 
-        ResourceRef<ShaderTag> fragmentShader = shaderResults.GetShader(ShaderStage::Fragment);
-        if (!fragmentShader) {
-            std::println("VulkanRenderer::AddDrawPass {} shader has no fragment stage", desc.shaderPath);
-            return INVALID_DRAW_PASS;
-        }
-
-        if (!mResourceCache->CreateShader(vertexShader.Get())) {
-            std::println("VulkanRenderer::AddDrawPass Failed to upload {} vertex stage", desc.shaderPath);
-            return INVALID_DRAW_PASS;
-        }
-
-        if (!mResourceCache->CreateShader(fragmentShader.Get())) {
-            std::println("VulkanRenderer::AddDrawPass Failed to upload {} fragment stage", desc.shaderPath);
+        if (!mResourceCache->CreateShader(desc.FragmentShader)) {
+            std::println("VulkanRenderer::AddDrawPass Failed to upload {} fragment stage", static_cast<uint32_t>(desc.FragmentShader.index));
             return INVALID_DRAW_PASS;
         }
 
@@ -108,8 +95,8 @@ namespace VKRE {
         }
 
         VulkanGraphicsPipelineKey pipelineKey {};
-        pipelineKey.vertexShader = vertexShader.Get();
-        pipelineKey.fragmentShader = fragmentShader.Get();
+        pipelineKey.vertexShader = desc.VertexShader;
+        pipelineKey.fragmentShader = desc.FragmentShader;
         pipelineKey.layout = pipelineLayout;
         pipelineKey.colorAttachmentFromats = desc.colorAttachmentFormats;
         pipelineKey.depthAttachmentFormat = desc.depthAttachmentFormat;
@@ -140,20 +127,13 @@ namespace VKRE {
     }
 
     ComputePassHandle VulkanRenderer::AddComputePass(const ComputePassDesc& desc) {
-        ShaderLoadingResults shaderResults = ShaderCompiler::LoadFromFile(mResourceManager, desc.shaderPath);
-        if (!shaderResults.Succeeded()) {
-            std::println("VulkanRenderer::AddComputePass Failed to load {}", desc.shaderPath);
-            return INVALID_COMPUTE_PASS;
+        if (!desc.ComputeShader.IsValid()) {
+            std::println("VulkanRenderer::AddComputePass Invalid shader handle");
+            return INVALID_DRAW_PASS;
         }
 
-        ResourceRef<ShaderTag> shader = shaderResults.GetShader(ShaderStage::Compute);
-        if (!shader.IsValid()) {
-            std::println("VulkanRenderer::AddComputePass  {} shader has no compute stage", desc.shaderPath);
-            return INVALID_COMPUTE_PASS;
-        }
-
-        if (!mResourceCache->CreateShader(shader.Get())) {
-            std::println("VulkanRenderer::AddComputePass Failed to upload {}", desc.shaderPath);
+        if (!mResourceCache->CreateShader(desc.ComputeShader)) {
+            std::println("VulkanRenderer::AddComputePass Failed to upload {}", static_cast<uint32_t>(desc.ComputeShader.index));
             return INVALID_COMPUTE_PASS;
         }
 
@@ -168,7 +148,7 @@ namespace VKRE {
             return INVALID_COMPUTE_PASS;
         }
 
-        VulkanComputePipelineKey pipelineKey { shader.Get(), pipelineLayout };
+        VulkanComputePipelineKey pipelineKey { desc.ComputeShader, pipelineLayout };
         if (!mResourceCache->CreateComputePipeline(pipelineKey)) {
             std::println("VulkanRenderer::AddComputePass Failed to create or retreive pipeline");
             return INVALID_COMPUTE_PASS;

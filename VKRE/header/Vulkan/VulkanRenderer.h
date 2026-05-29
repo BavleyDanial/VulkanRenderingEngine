@@ -34,7 +34,7 @@ namespace VKRE {
     static constexpr DrawPassHandle INVALID_DRAW_PASS = std::numeric_limits<uint32_t>::max();
 
     struct ComputePassDesc {
-        std::string shaderPath;
+        ShaderHandle ComputeShader;
         std::string debugName;
         std::vector<VkPushConstantRange> pushConstantRanges;
         uint32_t workgroupX = 16;
@@ -43,7 +43,8 @@ namespace VKRE {
     };
 
     struct DrawPassDesc {
-        std::string shaderPath;
+        ShaderHandle VertexShader = ShaderHandle::Null();
+        ShaderHandle FragmentShader = ShaderHandle::Null();
         std::string debugName;
         std::vector<VkPushConstantRange> pushConstantRanges;
         std::vector<VkFormat> colorAttachmentFormats;

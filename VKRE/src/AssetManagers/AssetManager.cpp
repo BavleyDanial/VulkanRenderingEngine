@@ -1,5 +1,7 @@
 #include <AssetsManagers/AssetManager.h>
+
 #include <AssetsManagers/MeshImporter.h>
+#include <AssetsManagers/ShaderImporter.h>
 
 #include <Renderer/Renderer.h>
 
@@ -60,5 +62,34 @@ namespace VKRE {
         auto result = mMeshAssets.emplace(pathStr, std::move(meshAsset));
         return &result.first->second;
     }
+
+    const ShaderAsset* AssetManager::LoadShader(const std::filesystem::path& path) {
+        assert(sInstance && "AssetManager hasn't been initiated");
+        return sInstance->LoadShaderImpl(path);
+    }
+
+    const ShaderAsset* AssetManager::LoadShaderImpl(const std::filesystem::path& path) {
+        std::string pathStr = path.string();
+
+        auto it = mShaderAssets.find(pathStr);
+        if (it != mShaderAssets.end()) return &it->second;
+
+        std::optional<ShaderImportResults> importedShaderResults = ShaderImporter::LoadFromFile(mResourceManager, path);
+        if (!importedShaderResults.has_value())
+            return nullptr;
+
+        ShaderImportResults importedShader = std::move(importedShaderResults.value());
+
+        ShaderAsset shaderAsset;
+        shaderAsset.Name = importedShader.Name;
+        shaderAsset.Path = pathStr;
+        shaderAsset.VertexShader = std::move(importedShader.VertexShader);
+        shaderAsset.FragmentShader = std::move(importedShader.FragmentShader);
+        shaderAsset.ComputeShader = std::move(importedShader.ComputeShader);
+
+        auto result = mShaderAssets.emplace(pathStr, std::move(shaderAsset));
+        return &result.first->second;
+    }
+
 
 }

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "ResourceManager.h"
-#include "ResourceRefs.h"
+#include "Resources.h"
 
 #include <filesystem>
 #include <string>
@@ -10,85 +9,28 @@
 namespace VKRE {
 
     struct ShaderCompileOptions {
-        bool optimise = false;
-        bool generateDebugInfo = true;
+        bool Optimise = false;
+        bool GenerateDebugInfo = true;
 
-        std::string entrypoint = "main";
-        std::vector<std::string> defines;
-        std::vector<std::filesystem::path> includePaths;
+        std::string EntryPoint = "main";
+        std::vector<std::string> Defines;
+        std::vector<std::filesystem::path> IncludePaths;
     };
 
-    struct ShaderLoadingResults {
-        std::vector<ShaderStage> stages;
-        std::vector<ResourceRef<ShaderTag>> shaders;
+    struct ShaderCompileResult {
+        std::vector<uint32_t> ByteCode;
+        std::string ErrorMsg;
 
-        bool Succeeded() const { return !stages.empty() && stages.back() != ShaderStage::None; }
-
-        ResourceRef<ShaderTag> GetShader(ShaderStage stage) const {
-            for (size_t i = 0; i < stages.size(); i++) {
-                if (stages[i] == stage) return shaders[i];
-            }
-            return ResourceRef<ShaderTag>();
-        }
+        bool Succeeded() const { return !ByteCode.empty(); }
+        bool Failed() const { return ByteCode.empty(); }
     };
 
     class ShaderCompiler {
     public:
-        static ShaderLoadingResults LoadFromFile(
-            ResourceManager& manager,
-            const std::filesystem::path& path,
-            const std::string& debugName = "",
-            const ShaderCompileOptions& options = {}
-        );
-
-        static ResourceRef<ShaderTag> LoadFromSource(
-            ResourceManager& manager,
-            const std::string& source,
-            ShaderStage stage,
-            const std::string& debugName = "",
-            const ShaderCompileOptions& options = {}
-        );
-
-        static ResourceRef<ShaderTag> LoadPreCompiledFromFile(
-            ResourceManager& manager,
-            const std::filesystem::path& path,
-            ShaderStage stage,
-            const std::string& debugName = "",
-            const std::string& entrypoint = "main"
-        );
-
-    private:
-        struct ShaderCompileResult {
-            std::vector<uint32_t> byteCode;
-            std::string errorMsg;
-
-            bool Succeeded() const { return !byteCode.empty(); }
-            bool Failed() const { return byteCode.empty(); }
-        };
-
-        struct ParsedStage {
-            ShaderStage stage;
-            std::string source;
-        };
-
-    private:
-        static std::vector<ParsedStage> ParseStages(const std::string& source);
-        static ShaderStage ParseStageToken(std::string_view token);
-
-        static ShaderCompileResult CompileStage(
-            const std::string& source,
-            ShaderStage stage,
-            const std::string& debugName = "",
-            const ShaderCompileOptions& options = {}
-        );
-
-        static ResourceRef<ShaderTag> StoreInManager(
-            ResourceManager& manager,
-            std::vector<uint32_t>&& byteData,
+        static ShaderCompileResult Compile(const std::string& source,
             ShaderStage stage,
             const std::string& debugName,
-            const std::string& entrypoint,
-            const std::filesystem::path& path = ""
+            const ShaderCompileOptions& options = {}
         );
     };
 
