@@ -49,7 +49,6 @@ namespace VKRE {
         std::vector<VkFormat> colorAttachmentFormats;
         VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
         VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
-        MeshHandle mesh;
     };
 
     class VulkanRenderer {
@@ -62,10 +61,11 @@ namespace VKRE {
         void Render();
         void OnImGui();
 
-        void UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+        void UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+        uint64_t GetBufferDeviceAddress(GPUBufferHandle buffer);
 
         DrawPassHandle AddDrawPass(const DrawPassDesc& desc);
-        void SetDrawPassData(DrawPassHandle handle, const void* data, uint32_t size);
+        void SubmitMeshDraw(DrawPassHandle handle, const MeshDrawCommand& cmd);
         void ActivateDrawPass(DrawPassHandle handle) { mDrawPasses[handle].SetActive(true); }
         void DeActivateDrawPass(DrawPassHandle handle) { mDrawPasses[handle].SetActive(false); }
 
@@ -91,7 +91,9 @@ namespace VKRE {
 
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
+
         std::unique_ptr<VulkanImage2D> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
+        std::unique_ptr<VulkanImage2D> mDepthImage;
 
         std::vector<VulkanDrawPass> mDrawPasses;
         std::vector<VulkanComputePass> mComputePasses;

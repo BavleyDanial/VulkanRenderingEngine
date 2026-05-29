@@ -1,5 +1,6 @@
 #include <Core/Application.h>
 
+#include <chrono>
 #include <imgui.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -19,21 +20,31 @@ namespace VKRE {
         mInstance = this;
 
         mWindow = std::make_unique<Window>(WindowSpecs{ .resizable = true });
+        mResourceManager = std::make_unique<ResourceManager>();
+        mAssetManager = std::make_unique<AssetManager>(*mResourceManager);
         mVulkanContext = std::make_unique<VulkanContext>(*mWindow);
-        mVulkanRenderer = std::make_unique<VulkanRenderer>(*mVulkanContext, mResourceManager);
+        mVulkanRenderer = std::make_unique<VulkanRenderer>(*mVulkanContext, *mResourceManager);
+
         Renderer::SetRenderer(mVulkanRenderer.get());
-        Renderer::SetResourceManager(&mResourceManager);
     }
 
     Application::~Application() {
         mVulkanRenderer.reset();
         mVulkanContext.reset();
+        mAssetManager.reset();
+        mResourceManager.reset();
         mWindow.reset();
     }
 
     void Application::Run() {
+        auto lastFrameTime = std::chrono::high_resolution_clock::now();
+
         // TODO: Change this to close when the engine decides to close, not when ONE WINDOW decides it's done. This will help with multiple windows as well.
         while (!mWindow->ShouldClose()) {
+            auto now = std::chrono::high_resolution_clock::now();
+            float dt = std::chrono::duration<float>(now - lastFrameTime).count();
+            lastFrameTime = now;
+
             mWindow->OnUpdate();
 
             ImGui_ImplVulkan_NewFrame();
@@ -41,7 +52,7 @@ namespace VKRE {
             ImGui::NewFrame();
 
             for (auto& layer : mLayersStack)
-                layer->OnUpdate(0);
+                layer->OnUpdate(dt);
 
             for (auto& layer : mLayersStack)
                 layer->OnUIRender();

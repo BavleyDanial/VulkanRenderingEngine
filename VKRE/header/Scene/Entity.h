@@ -19,7 +19,7 @@ namespace VKRE {
         template<typename T>
         Entity& Add(T&& component) {
             assert(mHandle.is_valid() && "Attempted to add component to invalid entity");
-            mHandle.set<T>();
+            mHandle.set<T>(std::forward<T>(component));
             return *this;
         }
 
@@ -31,7 +31,7 @@ namespace VKRE {
         }
 
         template<typename T>
-        Entity& Remove(T&& component) {
+        Entity& Remove() {
             assert(mHandle.is_valid() && "Attempted to remove component to invalid entity");
             mHandle.remove<T>();
             return *this;

@@ -1,40 +1,35 @@
 #pragma once
 
 #include <Vulkan/VulkanRenderer.h>
+
 #include <ResourceManager/ResourceManager.h>
 
-#include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
 
 namespace VKRE {
 
-    // NOTE: THIS IS TEMPORARY
+    struct DrawPushConstants {
+        glm::mat4 Transform;
+        glm::mat4 ViewProjection;
+        uint64_t VertexBufferAddress;
+    };
+
     class Renderer {
     public:
         static void SetRenderer(VulkanRenderer* renderer) {
             sRenderer = renderer;
         }
 
-        // NOTE: THIS IS EXTRA SUPER TEMPORARY
-        static void SetResourceManager(ResourceManager* manager) {
-            sResourceManager = manager;
+        static void UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
+            sRenderer->UploadMesh(VertexBuffer, IndexBuffer, vertices, indices);
         }
 
-        static void UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
-            return sRenderer->UploadMesh(mMesh, vertices, indices);
-        }
-        // NOTE: THIS IS EXTRA SUPER TEMPORARY
-        static ResourceRef<MeshTag> LoadMesh(MeshDesc&& desc) {
-            return sResourceManager->LoadMesh(std::move(desc));
+        static void SubmitMeshDraw(DrawPassHandle handle, const MeshDrawCommand& cmd) {
+            sRenderer->SubmitMeshDraw(handle, cmd);
         }
 
-        // NOTE: THIS IS EXTRA SUPER TEMPORARY
-        static MeshHotData* GetMeshHot(MeshHandle handle) {
-            return sResourceManager->GetMeshHot(handle);
-        }
-
-        // NOTE: THIS IS EXTRA SUPER TEMPORARY
-        static GPUBufferHotData* GetGPUBufferHot(GPUBufferHandle handle) {
-            return sResourceManager->GetGPUBufferHot(handle);
+        static uint64_t GetBufferDeviceAddress(GPUBufferHandle handle) {
+            return sRenderer->GetBufferDeviceAddress(handle);
         }
 
         static DrawPassHandle AddDrawPass(const DrawPassDesc& desc) {
@@ -47,10 +42,6 @@ namespace VKRE {
 
         static void SetComputePassData(ComputePassHandle handle, void* data, uint32_t size) {
             sRenderer->SetComputePassData(handle, data, size);
-        }
-
-        static void SetDrawPassData(DrawPassHandle handle, void* data, uint32_t size) {
-            sRenderer->SetDrawPassData(handle, data, size);
         }
 
         static void ActivateDrawPass(DrawPassHandle handle) {

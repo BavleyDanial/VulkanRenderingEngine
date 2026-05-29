@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#include <ResourceManager/ResourceHandles.h>
+#include <Assets/Mesh.h>
 
 namespace VKRE {
 
@@ -15,7 +15,13 @@ namespace VKRE {
     };
 
     struct StaticMeshComponent {
-        MeshHandle Mesh;
+        const MeshAsset* Asset;
+    };
+
+    struct CameraComponent {
+        float FOV = 60.0f;
+        float Near = 0.1f;
+        float Far = 1000.0f;
     };
 
 }

@@ -8,6 +8,7 @@
 #include <Core/Layer.h>
 #include <Core/LayerStack.h>
 
+#include <AssetsManagers/AssetManager.h>
 #include <ResourceManager/ResourceManager.h>
 
 #include <Vulkan/VulkanContext.h>
@@ -39,11 +40,13 @@ namespace VKRE {
         static inline Application* mInstance = nullptr;
 
         // Core
+        std::unique_ptr<Window> mWindow; // TODO: Make multiple windows possible (through an array with window ids? but then we need to make sure that each context is tied to the correct id? idk... For now this is fine especially when we add ImGui's multiviewport)
         EventDispatcher mEventDispatcher;
-        ResourceManager mResourceManager;
         LayersStack mLayersStack;
 
-        std::unique_ptr<Window> mWindow; // TODO: Make multiple windows possible (through an array with window ids? but then we need to make sure that each context is tied to the correct id? idk... For now this is fine especially when we add ImGui's multiviewport)
+        // Resource & Asset Management
+        std::unique_ptr<ResourceManager> mResourceManager;
+        std::unique_ptr<AssetManager> mAssetManager;
 
         // Vulkan
         std::unique_ptr<VulkanContext> mVulkanContext;

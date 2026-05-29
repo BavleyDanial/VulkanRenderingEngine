@@ -3,12 +3,12 @@
 #include <Core/Application.h>
 
 #include <ResourceManager/ShaderCompiler.h>
-#include <ResourceManager/MeshLoader.h>
 
 #include <glm/glm.hpp>
 
 #include <cassert>
 #include <memory>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -53,16 +53,23 @@ namespace VKRE {
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
     }
 
-    void VulkanRenderer::UploadMesh(ResourceRef<MeshTag> mMesh, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
-        MeshHotData* meshHot = mResourceManager.GetMeshHot(mMesh.Get());
-
-        mResourceCache->AllocateBuffer(meshHot->VertexBuffer);
-        mResourceCache->AllocateBuffer(meshHot->IndexBuffer);
+    void VulkanRenderer::UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
+        mResourceCache->AllocateBuffer(VertexBuffer);
+        mResourceCache->AllocateBuffer(IndexBuffer);
 
         mUploader->Begin();
-        mUploader->UploadBuffer(meshHot->VertexBuffer, vertices.data(), vertices.size() * sizeof(Vertex), 0);
-        mUploader->UploadBuffer(meshHot->IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
+        mUploader->UploadBuffer(VertexBuffer, vertices.data(), vertices.size() * sizeof(Vertex), 0);
+        mUploader->UploadBuffer(IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
         mUploader->End();
+    }
+    uint64_t VulkanRenderer::GetBufferDeviceAddress(GPUBufferHandle buffer) {
+        VulkanGPUBufferData* data = mResourceCache->GetBufferData(buffer);
+        if (!data) {
+            std::println("for some reason this is returning nullptr");
+            std::println("inside vulkanrenderer index={}, gen={}", static_cast<uint32_t>(buffer.index), static_cast<uint32_t>(buffer.generation));
+            while(true);
+        }
+        return data->deviceAddress;
     }
 
     DrawPassHandle VulkanRenderer::AddDrawPass(const DrawPassDesc& desc) {
@@ -99,13 +106,6 @@ namespace VKRE {
             .pushConstantRanges = desc.pushConstantRanges
         };
 
-        MeshHotData* meshHot = mResourceManager.GetMeshHot(desc.mesh);
-        VulkanGPUBufferData* indexBufferData = mResourceCache->GetBufferData(meshHot->IndexBuffer);
-        if (!indexBufferData) {
-            std::println("VulkanRenderer::AddDrawPass Failed to get GPUBufferData for index buffer");
-            return INVALID_DRAW_PASS;
-        }
-
         VkPipelineLayout pipelineLayout = mResourceCache->CreatePipelineLayout(layoutKey);
         if (!pipelineLayout) {
             std::println("VulkanRenderer::AddDrawPass Failed to create or retreive pipeline layout");
@@ -119,6 +119,9 @@ namespace VKRE {
         pipelineKey.colorAttachmentFromats = desc.colorAttachmentFormats;
         pipelineKey.depthAttachmentFormat = desc.depthAttachmentFormat;
         pipelineKey.stencilAttachmentFormat = desc.stencilAttachmentFormat;
+        pipelineKey.depthTestEnable = VK_TRUE;
+        pipelineKey.depthWriteEnable = VK_TRUE;
+        pipelineKey.depthCompareOp = VK_COMPARE_OP_LESS;
 
         if (!mResourceCache->CreateGraphicsPipeline(pipelineKey)) {
             std::println("VulkanRenderer::AddDrawPass Failed to create or retreive pipeline");
@@ -129,16 +132,16 @@ namespace VKRE {
         for (const auto& stage : desc.pushConstantRanges)
             pushConstantsShaderStages |= stage.stageFlags;
 
-        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, indexBufferData->buffer, meshHot->IndicesCount, pushConstantsShaderStages);
+        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, pushConstantsShaderStages);
         return static_cast<DrawPassHandle>(mDrawPasses.size() - 1);
     }
 
-    void VulkanRenderer::SetDrawPassData(DrawPassHandle handle, const void* data, uint32_t size) {
+    void VulkanRenderer::SubmitMeshDraw(DrawPassHandle handle, const MeshDrawCommand& cmd) {
         if (handle == INVALID_DRAW_PASS || handle >= mDrawPasses.size()) {
-            std::println("VulkanRenderer::SetDrawPassData Invalid draw pass handle");
+            std::println("VulkanRenderer::SubmitMeshDraw Invalid draw pass handle");
             return;
         }
-        mDrawPasses[handle].SetPushConstantData(data, size);
+        mDrawPasses[handle].SubmitDraw(cmd);
     }
 
     ComputePassHandle VulkanRenderer::AddComputePass(const ComputePassDesc& desc) {
@@ -204,6 +207,9 @@ namespace VKRE {
 
         mDrawImage = std::make_unique<VulkanImage2D>(mContext);
         mDrawImage->ReCreateImage(format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
+
+        mDepthImage = std::make_unique<VulkanImage2D>(mContext);
+        mDepthImage->ReCreateImage(VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent, VK_IMAGE_ASPECT_DEPTH_BIT, drawImageAllocInfo);
     }
 
     void VulkanRenderer::ReCreateDrawImage() {
@@ -300,9 +306,25 @@ namespace VKRE {
         }
 
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(mDrawImage->GetImageInfo().imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkClearValue clearValue{};
+        clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f};
+        VkClearValue clearDepthValue{};
+        clearDepthValue.depthStencil = {1.0, 0};
+
+        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(mDrawImage->GetImageInfo().imageView, &clearValue , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo depthAttachment{};
+        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthAttachment.imageView = mDepthImage->GetImageInfo().imageView;
+        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.clearValue.depthStencil = clearDepthValue.depthStencil;
+
+        ImageUtils::TransitionImage(cmd, mDepthImage->GetImageInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+
         RenderTargetInfo targetInfo{};
         targetInfo.colorAttachments = { colorAttachment };
+        targetInfo.depthAttachment = &depthAttachment;
 
         for (auto& pass : mDrawPasses) {
             if (pass.IsActive())

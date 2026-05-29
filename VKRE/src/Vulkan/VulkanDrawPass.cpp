@@ -1,16 +1,15 @@
+#include "Renderer/Renderer.h"
 #include <Vulkan/VulkanDrawPass.h>
 
 namespace VKRE {
 
     VulkanDrawPass::VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key,
-                                    VkDescriptorSet descriptorSet, VkBuffer indexBuffer, uint32_t indicesCount,
-                                    VkShaderStageFlags pushConstantsShaderStages)
-        :mPipeline(cache.GetGraphicsPipeline(key)), mDescriptorSet(descriptorSet),
-        mIndexBuffer(indexBuffer), mIndicesCount(indicesCount),
-        mPushConstantsShaderStages(pushConstantsShaderStages) {}
+                                    VkDescriptorSet descriptorSet, VkShaderStageFlags pushConstantsShaderStages)
+        :mCache(cache), mPipeline(cache.GetGraphicsPipeline(key)),
+        mDescriptorSet(descriptorSet), mPushConstantsShaderStages(pushConstantsShaderStages) {}
 
     void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo) {
-        if (!mPipeline) return;
+        if (!mPipeline || !mIsActive) return;
 
         VkRenderingInfo info{};
         info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -29,10 +28,6 @@ namespace VKRE {
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 0, 1, &mDescriptorSet, 0, nullptr);
         }
 
-        if (!mPushConstantData.empty()) {
-            vkCmdPushConstants(cmd, mPipeline->layout, mPushConstantsShaderStages, 0, static_cast<uint32_t>(mPushConstantData.size()), mPushConstantData.data());
-        }
-
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = static_cast<float>(extent.height);
@@ -47,15 +42,30 @@ namespace VKRE {
         scissor.extent = extent;
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
-        vkCmdBindIndexBuffer(cmd, mIndexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(cmd, mIndicesCount, 1, 0, 0, 0);
+        VkBuffer lastIB = VK_NULL_HANDLE;
+        for (const auto& draw : mDrawCommands) {
+            DrawPushConstants pushConstants{};
+            pushConstants.VertexBufferAddress = draw.VertexBufferAddress;
+            pushConstants.Transform = draw.Transform;
+            pushConstants.ViewProjection = draw.ViewProjection;
+
+            vkCmdPushConstants(cmd, mPipeline->layout, mPushConstantsShaderStages, 0, sizeof(DrawPushConstants), &pushConstants);
+
+            VkBuffer ib = mCache.GetBufferData(draw.IndexBuffer)->buffer;
+            if (ib != lastIB) {
+                vkCmdBindIndexBuffer(cmd, ib, 0, VK_INDEX_TYPE_UINT32);
+                lastIB = ib;
+            }
+
+            vkCmdDrawIndexed(cmd, draw.IndexCount, 1, draw.BaseIndex, draw.BaseVertex, 0);
+        }
 
         vkCmdEndRendering(cmd);
+        mDrawCommands.clear();
     }
 
-    void VulkanDrawPass::SetPushConstantData(const void* data, uint32_t size) {
-        mPushConstantData.resize(size);
-        memcpy(mPushConstantData.data(), data, size);
+    void VulkanDrawPass::SubmitDraw(const MeshDrawCommand& command) {
+        mDrawCommands.push_back(command);
     }
 
     void VulkanDrawPass::ReBuild(VkDescriptorSet newDescriptorSet) {

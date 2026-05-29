@@ -60,7 +60,7 @@ namespace VKRE {
         VkBool32 mPrimitiveRestart = VK_FALSE;
 
         VkPolygonMode mPolygonMode = VK_POLYGON_MODE_FILL;
-        VkCullModeFlags mCullMode = VK_CULL_MODE_BACK_BIT;
+        VkCullModeFlags mCullMode = VK_CULL_MODE_NONE;
         VkFrontFace mFrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         VkBool32 mRasterDiscardEnable = VK_FALSE;
         VkBool32 mDepthClampEnable = VK_FALSE;

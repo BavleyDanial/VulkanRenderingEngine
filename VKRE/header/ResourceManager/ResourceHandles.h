@@ -24,7 +24,6 @@ namespace VKRE {
     using ShaderHandle = ResourceHandle<struct ShaderTag>;
     using TextureHandle = ResourceHandle<struct TextureTag>;
     using GPUBufferHandle = ResourceHandle<struct GPUBufferTag>;
-    using MeshHandle = ResourceHandle<struct MeshTag>;
 
 }
 

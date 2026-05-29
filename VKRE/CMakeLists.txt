@@ -30,3 +30,7 @@ target_link_libraries("VKRE" PUBLIC
     flecs_static
     Vulkan::Vulkan
 )
+
+target_compile_definitions("VKRE" PUBLIC
+    GLM_FORCE_DEPTH_ZERO_TO_ONE
+)

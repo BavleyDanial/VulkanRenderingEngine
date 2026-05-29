@@ -227,7 +227,7 @@ namespace VKRE {
         desc.Entrypoint = entrypoint;
         desc.ByteCode = std::move(byteData);
 
-        return manager.LoadShader(std::move(desc));
+        return manager.LoadShader(desc);
     }
 }
 

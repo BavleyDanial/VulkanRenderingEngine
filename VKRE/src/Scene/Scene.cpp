@@ -16,6 +16,16 @@ namespace VKRE {
         return Entity(e);
     }
 
+    void Scene::DestroyEntity(Entity entity) {
+        entity.Destroy();
+    }
+
+    Entity Scene::AddCamera(std::string_view name, float fov, float near, float far) {
+        Entity e = AddEntity(name);
+        e.Add<CameraComponent>({ fov, near, far });
+        return e;
+    }
+
     Entity Scene::AddChildEntity(Entity parent, std::string_view name) {
         assert(parent.IsValid() && "Tried to create a child entity to an invalid parent");
 
@@ -23,10 +33,6 @@ namespace VKRE {
         e.SetParent(parent);
 
         return e;
-    }
-
-    void Scene::DestroyEntity(Entity entity) {
-        entity.Destroy();
     }
 
     void Scene::OnUpdate(float dt) {

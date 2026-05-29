@@ -6,8 +6,6 @@
 
 #include <glm/glm.hpp>
 
-#include "ResourceHandles.h"
-
 namespace VKRE {
 
     enum class ShaderStage : uint8_t {
@@ -72,23 +70,6 @@ namespace VKRE {
         glm::vec3 Normal;
         float UVy;
         glm::vec4 Color;
-    };
-
-    struct MeshDesc {
-        std::string DebugName = "";
-        std::vector<Vertex> Vertices;
-        std::vector<uint32_t> Indices;
-    };
-
-    struct MeshHotData {
-        GPUBufferHandle VertexBuffer = GPUBufferHandle::Null();
-        GPUBufferHandle IndexBuffer = GPUBufferHandle::Null();
-        uint32_t VerticesCount = 0;
-        uint32_t IndicesCount = 0;
-    };
-
-    struct MeshColdData {
-        char DebugName[64] = "";
     };
 
 }

@@ -2,6 +2,8 @@
 
 #include "VulkanResourceCache.h"
 
+#include <glm/glm.hpp>
+
 #include <vector>
 
 namespace VKRE {
@@ -12,25 +14,34 @@ namespace VKRE {
         VkRenderingAttachmentInfo* stencilAttachment = nullptr;
     };
 
+    struct MeshDrawCommand {
+        GPUBufferHandle IndexBuffer;
+        uint32_t IndexCount;
+        uint32_t BaseIndex;
+        uint32_t BaseVertex;
+        uint64_t VertexBufferAddress;
+        glm::mat4 Transform;
+        glm::mat4 ViewProjection;
+    };
+
     class VulkanDrawPass {
     public:
         VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key, VkDescriptorSet descriptorSet,
-                        VkBuffer indexBuffer, uint32_t indicesCount,
                         VkShaderStageFlags pushConstantsShaderStages);
 
-        void SetPushConstantData(const void* data, uint32_t size);
         void SetActive(bool enabled) { mIsActive = enabled; }
         bool IsActive() const { return mIsActive; }
+
+        void SubmitDraw(const MeshDrawCommand& command);
 
         void ReBuild(VkDescriptorSet newDescriptorSet);
         void Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo);
     private:
+        VulkanResourceCache& mCache;
         VulkanGraphicsPipeline* mPipeline;
         VkDescriptorSet mDescriptorSet;
-        std::vector<uint8_t> mPushConstantData;
         VkShaderStageFlags mPushConstantsShaderStages;
-        VkBuffer mIndexBuffer;
-        uint32_t mIndicesCount;
+        std::vector<MeshDrawCommand> mDrawCommands;
         bool mIsActive = true;
     };
 
