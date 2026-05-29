@@ -2,6 +2,8 @@
 #include <ResourceManager/ShaderCompiler.h>
 
 #include <fstream>
+#include <sstream>
+
 #include <optional>
 
 namespace VKRE {
