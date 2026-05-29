@@ -392,6 +392,13 @@ namespace VKRE {
         ReCreateDrawImage();
     }
 
+    glm::vec2 VulkanRenderer::GetViewportDimensions() const {
+        return {
+            mDrawImage->GetImageInfo().extent.width,
+            mDrawImage->GetImageInfo().extent.height
+        };
+    }
+
     void VulkanRenderer::ClearImage(VkCommandBuffer cmd) {
         VkClearColorValue clearValue;
         clearValue = { { 0.0f, 0.0f, 0.0f, 1.0f } };

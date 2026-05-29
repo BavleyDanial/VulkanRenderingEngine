@@ -93,9 +93,6 @@ public:
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
         ImGui::PopStyleVar();
 
-        TransformComponent& camTransform = mCamera.GetMutable<TransformComponent>();
-        TransformComponent& teapotTransform = mTeapot.GetMutable<TransformComponent>();
-
         if (ImGui::Begin("CamSettings")) {
             ImGui::DragFloat("speed", &mSpeed, 0.1f, 0.0f);
             ImGui::DragFloat("sensitivity", &mSensititvity, 0.1f, 0.0f);

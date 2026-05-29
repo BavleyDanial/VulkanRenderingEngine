@@ -1,9 +1,8 @@
 #include <Renderer/SceneRenderer.h>
+#include <Renderer/Renderer.h>
 
 #include <Scene/Components.h>
 #include <ResourceManager/Resources.h>
-
-#include <Renderer/Renderer.h>
 
 #include <glm/glm.hpp>
 #include <glm/trigonometric.hpp>
@@ -40,8 +39,10 @@ namespace VKRE {
             glm::quat rotation = glm::quat(glm::radians(transform.Rotation));
             glm::vec3 forward = rotation * glm::vec3(0, 0, 1);
 
+            glm::vec2 viewport = Renderer::GetViewportDimensions();
+
             view = glm::lookAt(position, position + forward, glm::vec3(0, 1, 0));
-            projection = glm::perspective(glm::radians(camComponent.FOV), 1280.0f/720.0f, camComponent.Near, camComponent.Far);
+            projection = glm::perspective(glm::radians(camComponent.FOV), viewport.x / viewport.y, camComponent.Near, camComponent.Far);
             projection[0][0] *= -1; // flip the x axis
         }
 

@@ -57,6 +57,7 @@ namespace VKRE {
         ~VulkanRenderer();
 
         void ReSize(const WindowResizeEvent& event);
+        glm::vec2 GetViewportDimensions() const;
 
         void Render();
         void OnImGui();
