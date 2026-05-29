@@ -33,14 +33,15 @@ Current Features:
 
 ### Prerequisites
 
-None for now
+* CMake (minimum version 3.13)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-### Installation### Installation
+### Installation
 
 ```
 git clone "https://github.com/BavleyDanial/VulkanRenderingEngine"
+cmake -B build
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
