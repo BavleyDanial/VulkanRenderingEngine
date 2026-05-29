@@ -15,6 +15,7 @@ namespace VKRE {
 
     AssetManager::~AssetManager() {
         mMeshAssets.clear();
+        mShaderAssets.clear();
     }
 
     const MeshAsset* AssetManager::LoadMesh(const std::filesystem::path& path) {

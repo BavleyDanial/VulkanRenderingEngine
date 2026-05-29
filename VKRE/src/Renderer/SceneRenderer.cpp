@@ -20,7 +20,7 @@ namespace VKRE {
             .VertexShader = basicShader->VertexShader.Get(),
             .FragmentShader = basicShader->FragmentShader.Get(),
             .debugName = "Scene Draw Pass",
-            .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT, 0, 144 } },
+            .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DrawPushConstants)} },
             .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
             .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT
         });
