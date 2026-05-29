@@ -1,23 +1,17 @@
-<!-- TABLE OF CONTENTS -->
+<a id="readme-top"></a>
+
 <details>
   <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-  </ol>
+
+1. [About The Project](#about-the-project)
+2. [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+3. [Usage](#usage)
+4. [Roadmap](#roadmap)
+5. [Known Issues](#known-issues)
 </details>
 
-<!-- ABOUT THE PROJECT -->
 ## About The Project
 
 [![Example Name Screen Shot][example-1-screenshot]](https://example.com)
@@ -32,6 +26,22 @@ Current Features:
 * Forward Rendering
 * Compute Passes
 * Draw Passes
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Getting Started
+
+### Prerequisites
+
+None for now
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Installation### Installation
+
+```
+git clone "https://github.com/BavleyDanial/VulkanRenderingEngine"
+```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -120,11 +130,11 @@ virtual void OnUIRender() {
 <!-- ROADMAP -->
 ## Roadmap
 
-- [] Add Blinn-Phong Specular Model
-- [] Add Textures
-- [] Add Materials
-- [] Add Render Graph
-  - [] Add Deffered Rendering
+- [ ] Add Blinn-Phong Specular Model
+- [ ] Add Textures
+- [ ] Add Materials
+- [ ] Add Render Graph
+  - [ ] Add Deffered Rendering
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -132,6 +142,7 @@ virtual void OnUIRender() {
 ## Known Issues
 
 * Currently there is no way to change viewport
+* All vendors are included in the vendors folder, in the future this will be done either with git submodules or through cmake
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
