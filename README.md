@@ -33,7 +33,8 @@ Current Features:
 
 ### Prerequisites
 
-* CMake (minimum version 3.13)
+* CMake 3.13+
+* Vulkan SDK & Vulkan 1.3+ (developed and tested on Vulkan SDK 1.4.313.1)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

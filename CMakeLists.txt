@@ -59,5 +59,10 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/flecs/" SYSTEM)
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/assimp/" SYSTEM)
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/" SYSTEM)
 
+get_target_property(ASSIMP_INCLUDE_DIRS assimp INTERFACE_INCLUDE_DIRECTORIES)
+set_target_properties(zlibstatic PROPERTIES
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${ASSIMP_INCLUDE_DIRS}"
+)
+
 add_subdirectory("VKRE")
 add_subdirectory("Sandbox")
