@@ -1,5 +1,3 @@
-#include "Scene/Components.h"
-#include "glm/common.hpp"
 #include <EntryPoint.h>
 #include <Engine.h>
 

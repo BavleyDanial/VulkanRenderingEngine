@@ -62,14 +62,9 @@ namespace VKRE {
         mUploader->UploadBuffer(IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
         mUploader->End();
     }
+
     uint64_t VulkanRenderer::GetBufferDeviceAddress(GPUBufferHandle buffer) {
-        VulkanGPUBufferData* data = mResourceCache->GetBufferData(buffer);
-        if (!data) {
-            std::println("for some reason this is returning nullptr");
-            std::println("inside vulkanrenderer index={}, gen={}", static_cast<uint32_t>(buffer.index), static_cast<uint32_t>(buffer.generation));
-            while(true);
-        }
-        return data->deviceAddress;
+        return mResourceCache->GetBufferData(buffer)->deviceAddress;
     }
 
     DrawPassHandle VulkanRenderer::AddDrawPass(const DrawPassDesc& desc) {

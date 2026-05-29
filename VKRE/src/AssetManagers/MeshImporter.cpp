@@ -1,5 +1,4 @@
-#include "Assets/Mesh.h"
-#include <AssetsManagers/MeshLoader.h>
+#include <AssetsManagers/MeshImporter.h>
 
 #include <assimp/postprocess.h>
 #include <glm/gtc/type_ptr.hpp>
