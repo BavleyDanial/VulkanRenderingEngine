@@ -1,7 +1,9 @@
+#include "ResourceManager/Resources.h"
 #include <AssetsManagers/AssetManager.h>
 
 #include <AssetsManagers/MeshImporter.h>
 #include <AssetsManagers/ShaderImporter.h>
+#include <AssetsManagers/TextureImporter.h>
 
 #include <Renderer/Renderer.h>
 
@@ -92,5 +94,44 @@ namespace VKRE {
         return &result.first->second;
     }
 
+    const Texture2DAsset* AssetManager::LoadTexture2D(const std::filesystem::path& path) {
+        assert(sInstance && "AssetManager hasn't been initiated");
+        return sInstance->LoadTexture2DImpl(path);
+    }
+
+    const Texture2DAsset* AssetManager::LoadTexture2DImpl(const std::filesystem::path& path) {
+        std::string pathStr = path.string();
+
+        auto it = mTexture2DAssets.find(pathStr);
+        if (it != mTexture2DAssets.end()) return &it->second;
+
+        std::optional<TextureImportResults> importedTextureResults = TextureImporter::LoadFromFile(path);
+        if (!importedTextureResults.has_value())
+            return nullptr;
+
+        TextureImportResults importedTexture = std::move(importedTextureResults.value());
+
+        Texture2DAsset textureAsset;
+        textureAsset.Name = importedTexture.Name;
+        textureAsset.Path = pathStr;
+        textureAsset.Width = importedTexture.Width;
+        textureAsset.Height = importedTexture.Height;
+        textureAsset.Format = importedTexture.Format;
+        textureAsset.MipLevels = 1; //static_cast<uint32_t>(glm::floor(glm::log2(glm::max(importedTexture.Width, importedTexture.Height)))) + 1;
+
+        TextureDesc desc{};
+        desc.Format = importedTexture.Format;
+        desc.Data = std::move(importedTexture.Data);
+        desc.Usage = TextureUsage::Sampled | TextureUsage::TransferDst;
+        desc.DebugName = importedTexture.Name;
+        desc.Dimensions = { importedTexture.Width, importedTexture.Height, 1 };
+        desc.MipLevels = textureAsset.MipLevels;
+
+        ResourceRef<Texture2DTag> texture = mResourceManager.CreateTexture2D(desc);
+        textureAsset.Texture = texture;
+
+        auto result = mTexture2DAssets.emplace(pathStr, std::move(textureAsset));
+        return &result.first->second;
+    }
 
 }

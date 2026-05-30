@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -36,7 +37,7 @@ namespace VKRE {
     };
 
     enum class GPUBufferUsage : uint16_t {
-        None = 0,
+        None        = 0,
         Vertex      = 1 << 0,
         Index       = 1 << 1,
         Uniform     = 1 << 2,
@@ -72,6 +73,66 @@ namespace VKRE {
         glm::vec4 Color;
     };
 
+    enum class TextureUsage : uint16_t {
+        None                    = 0,
+        Sampled                 = 1 << 0,
+        ColorAttachment         = 1 << 1,
+        DepthStencilAttachment  = 1 << 2,
+        InputAttachment         = 1 << 3,
+        Storage                 = 1 << 4,
+        TransferSrc             = 1 << 5,
+        TransferDst             = 1 << 6,
+    };
+
+    // TODO: Add the rest of the formats
+    enum class TextureFormat : uint16_t {
+        None = 0,
+
+        R8G8B8A8_SRGB,
+        R8G8B8A8_UNORM,
+        B8G8R8A8_SRGB,
+        B8G8R8A8_UNORM,
+
+        R16G16B16A16_SFLOAT,
+        R32G32B32A32_SFLOAT,
+
+        R16G16_SFLOAT,
+        R8G8_UNORM,
+        R32_UINT,
+
+        D32_SFLOAT,
+        D24_UNORM_S8_UINT,
+
+        BC1_RGB_SRGB,
+        BC1_RGB_UNORM,
+        BC3_RGBA_SRGB,
+        BC5_UNORM,
+        BC7_RGBA_SRGB,
+        BC7_RGBA_UNORM,
+    };
+
+    struct TextureDesc {
+        std::string DebugName = "";
+        std::vector<std::byte> Data;
+        glm::vec3 Dimensions = { 0, 0, 0 };
+        TextureUsage Usage = TextureUsage::None;
+        TextureFormat Format = TextureFormat::None;
+        uint32_t MipLevels = 0;
+    };
+
+    struct Texture2DHotData {
+        uint32_t Width;
+        uint32_t Height;
+        uint32_t MipLevels;
+        TextureFormat Format;
+    };
+
+    struct Texture2DColdData {
+        char DebugName[64] = "";
+        std::vector<std::byte> Data;
+        TextureUsage Usage = TextureUsage::None;
+    };
+
 }
 
 inline VKRE::GPUBufferUsage operator|(VKRE::GPUBufferUsage a, VKRE::GPUBufferUsage b) {
@@ -80,4 +141,12 @@ inline VKRE::GPUBufferUsage operator|(VKRE::GPUBufferUsage a, VKRE::GPUBufferUsa
 
 inline VKRE::GPUBufferUsage operator&(VKRE::GPUBufferUsage a, VKRE::GPUBufferUsage b) {
     return static_cast<VKRE::GPUBufferUsage>(static_cast<uint16_t>(a) & static_cast<uint16_t>(b));
+}
+
+inline VKRE::TextureUsage operator|(VKRE::TextureUsage a, VKRE::TextureUsage b) {
+    return static_cast<VKRE::TextureUsage>(static_cast<uint16_t>(a) | static_cast<uint16_t>(b));
+}
+
+inline VKRE::TextureUsage operator&(VKRE::TextureUsage a, VKRE::TextureUsage b) {
+    return static_cast<VKRE::TextureUsage>(static_cast<uint16_t>(a) & static_cast<uint16_t>(b));
 }

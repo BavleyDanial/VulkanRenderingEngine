@@ -48,7 +48,7 @@ namespace VKRE {
             desc.Entrypoint = options.EntryPoint;
             desc.Path = path.string();
 
-            ResourceRef<ShaderTag> shader = manager.LoadShader(desc);
+            ResourceRef<ShaderTag> shader = manager.CreateShader(desc);
             if (!shader.IsValid()) continue;
 
             switch (parsed.stage) {
