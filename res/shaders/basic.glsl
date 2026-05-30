@@ -51,5 +51,5 @@ void main() {
     DirLight light;
     light = DirLight(vec3(0.0f, -1.0f, -1.0f), vec3(1.0f), 1.0f);
 
-    outFragColor = light.intensity * vec4(1.0f) * max(dot(inNormal, -normalize(light.direction)), 0.0f);
+    outFragColor = light.intensity * vec4(inNormal, 1.0) * max(dot(inNormal, -normalize(light.direction)), 0.0f) + 0.1 * vec4(inNormal, 1.0);
 }

@@ -1,6 +1,6 @@
-#include <Sandbox.h>
+#include <Example.h>
 
-void SandboxLayer::OnAttach() {
+void ExampleLayer::OnAttach() {
     mScene = std::make_unique<Scene>();
     mCamera = mScene->AddCamera("camera");
     mSceneRenderer.SetScene(mScene.get());
@@ -10,15 +10,11 @@ void SandboxLayer::OnAttach() {
     mTeapot = mScene->AddEntity("Teapot");
     mTeapot.Add<StaticMeshComponent>({ teapotMesh });
     mTeapot.Add<TransformComponent>({ .Position = glm::vec3(0.0f, 0.0f, 50.0f), .Rotation = glm::vec3(-90.0f, 0.0f, 0.0f) });
-
-    const MeshAsset* sponzaMesh = AssetManager::LoadMesh("assets/models/main_sponza/NewSponza_Main_glTF_003.gltf");
-    mSponza = mScene->AddEntity("Sponza");
-    mSponza.Add<StaticMeshComponent>({ sponzaMesh });
 }
 
-void SandboxLayer::OnDetach() {}
+void ExampleLayer::OnDetach() {}
 
-void SandboxLayer::OnUpdate(float dt) {
+void ExampleLayer::OnUpdate(float dt) {
     mFPS = 1 / dt;
 
     TransformComponent& transform = mCamera.GetMutable<TransformComponent>();
@@ -80,7 +76,7 @@ void SandboxLayer::OnUpdate(float dt) {
     mSceneRenderer.Render();
 }
 
-void SandboxLayer::OnUIRender() {
+void ExampleLayer::OnUIRender() {
     ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
     ImGui::PopStyleVar();
