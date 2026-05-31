@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Vulkan/VulkanRenderer.h>
-
 #include <ResourceManager/ResourceManager.h>
 
 #include <glm/glm.hpp>
@@ -10,8 +9,8 @@ namespace VKRE {
 
     struct DrawPushConstants {
         glm::mat4 Transform;
-        glm::mat4 ViewProjection;
         uint64_t VertexBufferAddress;
+        uint32_t _padding;
     };
 
     class Renderer {
@@ -26,6 +25,10 @@ namespace VKRE {
 
         static void UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
             sRenderer->UploadMesh(VertexBuffer, IndexBuffer, vertices, indices);
+        }
+
+        static void UploadSceneData(const SceneUBO& sceneData) {
+            sRenderer->UploadSceneData(sceneData);
         }
 
         static void SubmitMeshDraw(DrawPassHandle handle, const MeshDrawCommand& cmd) {

@@ -32,8 +32,7 @@ namespace VKRE {
             return;
         }
 
-        glm::mat4 view = glm::mat4(1.0f);
-        glm::mat4 projection = glm::mat4(1.0f);
+        SceneUBO sceneData{};
 
         if (mCamera.IsValid()) {
             const TransformComponent& transform = mCamera.Get<TransformComponent>();
@@ -45,12 +44,18 @@ namespace VKRE {
 
             glm::vec2 viewport = Renderer::GetViewportDimensions();
 
-            view = glm::lookAt(position, position + forward, glm::vec3(0, 1, 0));
-            projection = glm::perspective(glm::radians(camComponent.FOV), viewport.x / viewport.y, camComponent.Near, camComponent.Far);
-            projection[0][0] *= -1; // flip the x axis
+            sceneData.View = glm::lookAt(position, position + forward, glm::vec3(0, 1, 0));
+            sceneData.Projection = glm::perspective(glm::radians(camComponent.FOV), viewport.x / viewport.y, camComponent.Near, camComponent.Far);
+            sceneData.Projection[0][0] *= -1; // flip the x axis
         }
 
-        glm::mat4 vp = projection * view;
+        mScene->GetFlecsWorld().each([&](const DirectionalLightComponent& light) {
+            sceneData.LightDirection = glm::vec4(light.Direction, 0.0f);
+            sceneData.LightColor = glm::vec4(light.Color, light.Intensity);
+        });
+
+        sceneData.ViewPorjection = sceneData.Projection * sceneData.View;
+        Renderer::UploadSceneData(sceneData);
 
         mScene->GetFlecsWorld().each([&](const TransformComponent& transform, const StaticMeshComponent& staticMesh) {
             if (!staticMesh.Asset)
@@ -73,9 +78,7 @@ namespace VKRE {
                     glm::mat4 worldMatrix = glm::translate(glm::mat4(1.0f), transform.Position)
                     * glm::mat4_cast(glm::quat(glm::radians(transform.Rotation)))
                     * glm::scale(glm::mat4(1.0f), transform.Scale);
-
                     cmd.Transform = worldMatrix * node.LocalTransform;
-                    cmd.ViewProjection = vp;
 
                     Renderer::SubmitMeshDraw(mDrawPass, cmd);
                 }

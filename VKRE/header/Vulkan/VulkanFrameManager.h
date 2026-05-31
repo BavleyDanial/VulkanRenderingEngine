@@ -1,14 +1,17 @@
 #pragma once
 
 #include <Vulkan/VulkanContext.h>
+#include <Vulkan/VulkanDescriptors.h>
 
 namespace VKRE {
 
     struct VulkanFrameData {
-        VkCommandPool commandPool;
-        VkCommandBuffer commandBuffer;
-        VkSemaphore presentCompleteSemaphore;
-        VkFence waitFence;
+        VkCommandPool CommandPool;
+        VkCommandBuffer CommandBuffer;
+        VkSemaphore PresentCompleteSemaphore;
+        VkFence WaitFence;
+
+        VulkanGrowableDescriptorAllocator FrameDescriptors;
     };
 
     class VulkanFrameManager {
@@ -18,7 +21,10 @@ namespace VKRE {
 
         VulkanFrameData& GetCurrentFrame() { return mFrames[mCurrentFrame % mFrames.size()]; }
         uint64_t GetTotalFramesCount() const { return mCurrentFrame; }
+        uint32_t GetFramesInFlight() const { return static_cast<uint32_t>(mFrames.size()); }
         void AdvanceFrame() { mCurrentFrame++; }
+
+        void ClearFramePools();
 
     private:
         void CreateCommandPools();

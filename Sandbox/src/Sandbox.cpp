@@ -14,6 +14,9 @@ void SandboxLayer::OnAttach() {
     const MeshAsset* sponzaMesh = AssetManager::LoadMesh("assets/models/main_sponza/NewSponza_Main_glTF_003.gltf");
     mSponza = mScene->AddEntity("Sponza");
     mSponza.Add<StaticMeshComponent>({ sponzaMesh });
+
+    mSun = mScene->AddEntity("Sun");
+    mSun.Add<DirectionalLightComponent>({});
 }
 
 void SandboxLayer::OnDetach() {}
@@ -90,9 +93,18 @@ void SandboxLayer::OnUIRender() {
     }
     ImGui::End();
 
-    if (ImGui::Begin("CamSettings")) {
+    if (ImGui::Begin("Cam Settings")) {
         ImGui::DragFloat("speed", &mSpeed, 0.1f, 0.0f);
         ImGui::DragFloat("sensitivity", &mSensititvity, 0.1f, 0.0f);
+        ImGui::Separator();
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("Sun Settings")) {
+        DirectionalLightComponent& light = mSun.GetMutable<DirectionalLightComponent>();
+        ImGui::DragFloat3("Direction", glm::value_ptr(light.Direction), 0.1f);
+        ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
+        ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 10.0f);
         ImGui::Separator();
     }
     ImGui::End();

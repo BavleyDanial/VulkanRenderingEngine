@@ -5,9 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <ImGui/Backend/ImGuiGLFW.h>
-#include <ImGui/Backend/ImGuiVulkan.h>
-
 #include <Renderer/Renderer.h>
 
 namespace VKRE {
@@ -47,9 +44,7 @@ namespace VKRE {
 
             mWindow->OnUpdate();
 
-            ImGui_ImplVulkan_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
+            mVulkanRenderer->BeginFrame();
 
             for (auto& layer : mLayersStack)
                 layer->OnUpdate(dt);

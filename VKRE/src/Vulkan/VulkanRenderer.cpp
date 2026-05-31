@@ -1,6 +1,8 @@
 #include <Vulkan/VulkanRenderer.h>
 
 #include <Core/Application.h>
+#include <ImGui/Backend/ImGuiGLFW.h>
+#include <ImGui/Backend/ImGuiVulkan.h>
 
 #include <ResourceManager/ShaderCompiler.h>
 
@@ -31,6 +33,7 @@ namespace VKRE {
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
 
         CreateDrawImage();
+        CreateSceneUniformBuffers();
         InitDescriptors();
         InitPasses();
     }
@@ -51,6 +54,7 @@ namespace VKRE {
 
         mGlobalDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
+        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mSceneLayout, nullptr);
     }
 
     void VulkanRenderer::UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
@@ -61,6 +65,21 @@ namespace VKRE {
         mUploader->UploadBuffer(VertexBuffer, vertices.data(), vertices.size() * sizeof(Vertex), 0);
         mUploader->UploadBuffer(IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
         mUploader->End();
+    }
+
+    void VulkanRenderer::UploadSceneData(const SceneUBO& sceneData) {
+        uint32_t frameIndex = mFrameManager->GetTotalFramesCount() % mSceneUniformBuffers.size();
+        VulkanGPUBuffer& buffer = mSceneUniformBuffers[frameIndex];
+
+        memcpy(buffer.GetGPUBufferInfo().info.pMappedData, &sceneData, sizeof(SceneUBO));
+        VkDevice device = mContext.GetLogicalDevice().handle;
+
+        VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
+        mCurrentSceneSet = frame.FrameDescriptors.Allocate(device, mSceneLayout, nullptr);
+
+        VulkanDescriptorWriter writer;
+        writer.WriteBuffer(0, buffer.GetGPUBufferInfo().buffer, sizeof(SceneUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        writer.UpdateSet(device, mCurrentSceneSet);
     }
 
     uint64_t VulkanRenderer::GetBufferDeviceAddress(GPUBufferHandle buffer) {
@@ -84,7 +103,7 @@ namespace VKRE {
         }
 
         VulkanPipelineLayoutKey layoutKey {
-            .descriptorSetLayouts = { mDrawImageDescriptorLayout },
+            .descriptorSetLayouts = { mDrawImageDescriptorLayout, mSceneLayout },
             .pushConstantRanges = desc.pushConstantRanges
         };
 
@@ -188,7 +207,7 @@ namespace VKRE {
     }
 
     void VulkanRenderer::ReCreateDrawImage() {
-        mGlobalDescriptorAllocator.ClearDescriptors(mContext.GetLogicalDevice().handle);
+        mGlobalDescriptorAllocator.ClearPools(mContext.GetLogicalDevice().handle);
         CreateDrawImage();
         InitDrawImageDescriptor();
 
@@ -204,16 +223,23 @@ namespace VKRE {
     }
 
     void VulkanRenderer::InitDescriptors() {
-        std::vector<DescriptorAllocator::PoolSizeRatio> poolSizes = {
+        std::vector<VulkanPoolSizeRatio> poolSizes = {
             { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
         };
 
-        mGlobalDescriptorAllocator.InitPool(mContext.GetLogicalDevice().handle, 10, poolSizes);
+        VkDevice device = mContext.GetLogicalDevice().handle;
+        mGlobalDescriptorAllocator.InitPool(device, 10, poolSizes);
 
         {   // Compute Descriptor Set
-            DescriptorLayoutBuilder layoutBuilder;
+            VulkanDescriptorLayoutBuilder layoutBuilder;
             layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0);
-            mDrawImageDescriptorLayout = layoutBuilder.Build(mContext.GetLogicalDevice().handle, VK_SHADER_STAGE_COMPUTE_BIT);
+            mDrawImageDescriptorLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_COMPUTE_BIT);
+        }
+
+        {   // Per-Scene Uniform Buffers Descriptor Set
+            VulkanDescriptorLayoutBuilder layoutBuilder;
+            layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0);
+            mSceneLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         }
 
         InitDrawImageDescriptor();
@@ -222,40 +248,55 @@ namespace VKRE {
     void VulkanRenderer::InitDrawImageDescriptor() {
         mDrawImageDescriptors = mGlobalDescriptorAllocator.Allocate(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout);
 
-        VkDescriptorImageInfo imgInfo{};
-        imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-        imgInfo.imageView = mDrawImage->GetImageInfo().imageView;
+        VulkanDescriptorWriter writer;
+        writer.WriteImage(0, mDrawImage->GetImageInfo().imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-        VkWriteDescriptorSet drawImageWrite = {};
-        drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        drawImageWrite.pNext = nullptr;
+        writer.UpdateSet(mContext.GetLogicalDevice().handle, mDrawImageDescriptors);
+    }
 
-        drawImageWrite.dstBinding = 0;
-        drawImageWrite.dstSet = mDrawImageDescriptors;
-        drawImageWrite.descriptorCount = 1;
-        drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        drawImageWrite.pImageInfo = &imgInfo;
+    void VulkanRenderer::CreateSceneUniformBuffers() {
+        uint32_t framesInFlight = mFrameManager->GetFramesInFlight();
+        mSceneUniformBuffers.reserve(framesInFlight);
 
-        vkUpdateDescriptorSets(mContext.GetLogicalDevice().handle, 1, &drawImageWrite, 0, nullptr);
+        for (uint32_t i = 0; i < framesInFlight; i++) {
+            VmaAllocationCreateInfo allocInfo{};
+            allocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+            VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            VulkanGPUBuffer buffer(mContext);
+            buffer.CreateBuffer(sizeof(SceneUBO), usage, allocInfo);
+            mSceneUniformBuffers.push_back(std::move(buffer));
+        }
+
+    }
+
+    void VulkanRenderer::BeginFrame() {
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
+        VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &frame.WaitFence, true, UINT64_MAX));
+        mFrameManager->ClearFramePools();
     }
 
     void VulkanRenderer::Render() {
         VulkanFrameData& frame = mFrameManager->GetCurrentFrame();
-        VK_CHECK(vkWaitForFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence, true, UINT64_MAX));
 
         uint32_t swapchainImageIndex = 0;
-        VkResult acquireResult = vkAcquireNextImageKHR(mContext.GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.presentCompleteSemaphore, nullptr, &swapchainImageIndex);
+        VkResult acquireResult = vkAcquireNextImageKHR(mContext.GetLogicalDevice().handle, mPresenter->GetSwapChain().handle, UINT64_MAX, frame.PresentCompleteSemaphore, nullptr, &swapchainImageIndex);
         if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
             auto [width, height] = Application::GetInstance().GetWindow().GetFrameBufferExtents();
             ReSize({ static_cast<uint32_t>(width), static_cast<uint32_t>(height) });
-            VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence));
+            VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.WaitFence));
             return;
         }
         VK_CHECK(acquireResult);
-        VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.waitFence));
+        VK_CHECK(vkResetFences(mContext.GetLogicalDevice().handle, 1, &frame.WaitFence));
 
         // NOTE: The following is temporary!
-        VkCommandBuffer cmd = frame.commandBuffer;
+        VkCommandBuffer cmd = frame.CommandBuffer;
         vkResetCommandBuffer(cmd, 0);
 
         VkCommandBufferBeginInfo cmdBufferBeginInfo{};
@@ -303,7 +344,7 @@ namespace VKRE {
 
         for (auto& pass : mDrawPasses) {
             if (pass.IsActive())
-                pass.Execute(cmd, drawImageExtent, targetInfo);
+                pass.Execute(cmd, drawImageExtent, targetInfo, mCurrentSceneSet);
         }
 
         ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -321,7 +362,7 @@ namespace VKRE {
 
         VkSemaphoreSubmitInfo presentCompleteSemaphoreSubmitInfo{};
         presentCompleteSemaphoreSubmitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-        presentCompleteSemaphoreSubmitInfo.semaphore = frame.presentCompleteSemaphore;
+        presentCompleteSemaphoreSubmitInfo.semaphore = frame.PresentCompleteSemaphore;
         presentCompleteSemaphoreSubmitInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR;
 
         VkSemaphoreSubmitInfo renderCompleteSemaphoreSubmitInfo{};
@@ -345,7 +386,7 @@ namespace VKRE {
         info.commandBufferInfoCount = 1;
         info.pCommandBufferInfos = &cmdSubmitInfo;
 
-        VK_CHECK(vkQueueSubmit2(mContext.GetGraphicsQueue(), 1, &info, frame.waitFence));
+        VK_CHECK(vkQueueSubmit2(mContext.GetGraphicsQueue(), 1, &info, frame.WaitFence));
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.pNext = nullptr;

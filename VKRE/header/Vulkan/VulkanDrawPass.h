@@ -33,9 +33,10 @@ namespace VKRE {
         bool IsActive() const { return mIsActive; }
 
         void SubmitDraw(const MeshDrawCommand& command);
+        VkPipelineLayout GetPipelineLayout() const { return mPipeline->layout; }
 
         void ReBuild(VkDescriptorSet newDescriptorSet);
-        void Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo);
+        void Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo, VkDescriptorSet sceneSet = VK_NULL_HANDLE);
     private:
         VulkanResourceCache& mCache;
         VulkanGraphicsPipeline* mPipeline;

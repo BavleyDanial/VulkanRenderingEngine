@@ -7,7 +7,19 @@
 
 #include <glm/glm.hpp>
 
+// TODO: Split this file into a few files for organisation
+
 namespace VKRE {
+
+    struct SceneUBO {
+        glm::mat4 View = glm::mat4(1.0f);
+        glm::mat4 Projection = glm::mat4(1.0f);
+        glm::mat4 ViewPorjection = glm::mat4(1.0f);
+        glm::vec4 AmbientColor = glm::vec4(1.0f);
+        glm::vec4 CameraPosition = glm::vec4(1.0f);
+        glm::vec4 LightDirection = glm::vec4(1.0f);
+        glm::vec4 LightColor = glm::vec4(1.0f);     // w is intensity
+    };
 
     enum class ShaderStage : uint8_t {
         None = 0,

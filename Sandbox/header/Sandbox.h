@@ -26,6 +26,7 @@ private:
     Entity mCamera;
     Entity mTeapot;
     Entity mSponza;
+    Entity mSun;
 
     float mSpeed = 40.0f;
     float mSensititvity = 60.0f;

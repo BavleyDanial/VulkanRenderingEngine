@@ -60,10 +60,12 @@ namespace VKRE {
         void ReSize(const WindowResizeEvent& event);
         glm::vec2 GetViewportDimensions() const;
 
+        void BeginFrame();
         void Render();
         void OnImGui();
 
         void UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+        void UploadSceneData(const SceneUBO& sceneData);
         uint64_t GetBufferDeviceAddress(GPUBufferHandle buffer);
 
         DrawPassHandle AddDrawPass(const DrawPassDesc& desc);
@@ -77,13 +79,16 @@ namespace VKRE {
         void DeActivateComputePass(ComputePassHandle handle) { mComputePasses[handle].SetActive(false); }
 
         void ClearImage(VkCommandBuffer cmd);
+
     private:
         void CreateDrawImage();
         void ReCreateDrawImage();
 
         void InitPasses();
         void InitDescriptors();
+        void CreateSceneUniformBuffers();
         void InitDrawImageDescriptor();
+
     private:
         VulkanContext& mContext;
         ResourceManager& mResourceManager;
@@ -101,9 +106,13 @@ namespace VKRE {
         std::vector<VulkanComputePass> mComputePasses;
         std::unique_ptr<VulkanImGuiPass> mImGuiPass;
 
-        DescriptorAllocator mGlobalDescriptorAllocator;
+        VulkanFixedDescriptorAllocator mGlobalDescriptorAllocator;
         VkDescriptorSet mDrawImageDescriptors;
         VkDescriptorSetLayout mDrawImageDescriptorLayout;
+
+        VkDescriptorSet mCurrentSceneSet;
+        VkDescriptorSetLayout mSceneLayout;
+        std::vector<VulkanGPUBuffer> mSceneUniformBuffers;
     };
 
 }

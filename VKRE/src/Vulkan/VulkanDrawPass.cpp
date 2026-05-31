@@ -8,7 +8,7 @@ namespace VKRE {
         :mCache(cache), mPipeline(cache.GetGraphicsPipeline(key)),
         mDescriptorSet(descriptorSet), mPushConstantsShaderStages(pushConstantsShaderStages) {}
 
-    void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo) {
+    void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo, VkDescriptorSet sceneSet) {
         if (!mPipeline || !mIsActive) return;
 
         VkRenderingInfo info{};
@@ -24,9 +24,10 @@ namespace VKRE {
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->pipeline);
 
-        if (mDescriptorSet != VK_NULL_HANDLE) {
+        if (mDescriptorSet != VK_NULL_HANDLE)
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 0, 1, &mDescriptorSet, 0, nullptr);
-        }
+        if (sceneSet != VK_NULL_HANDLE)
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 1, 1, &sceneSet, 0, nullptr);
 
         VkViewport viewport{};
         viewport.x = 0.0f;
@@ -47,7 +48,6 @@ namespace VKRE {
             DrawPushConstants pushConstants{};
             pushConstants.VertexBufferAddress = draw.VertexBufferAddress;
             pushConstants.Transform = draw.Transform;
-            pushConstants.ViewProjection = draw.ViewProjection;
 
             vkCmdPushConstants(cmd, mPipeline->layout, mPushConstantsShaderStages, 0, sizeof(DrawPushConstants), &pushConstants);
 

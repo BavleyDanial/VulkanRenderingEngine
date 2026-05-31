@@ -3,18 +3,21 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 
 struct Vertex {
-    vec3 position;
-    float uv_x;
+    vec3 position; float uv_x;
     vec3 normal;
     float uv_y;
     vec4 color;
 };
 
-struct DirLight {
-    vec3 direction;
-    vec3 color;
-    float intensity;
-};
+layout(set = 1, binding = 0) uniform SceneData {
+    mat4 view;
+    mat4 projection;
+    mat4 viewProjection;
+    vec4 ambientColor;
+    vec4 camPosition;
+    vec4 sunDirection;
+    vec4 sunColor;      // w = intensity
+} sceneData;
 
 #ShaderType Vertex
 
@@ -24,7 +27,6 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer {
 
 layout(push_constant) uniform PushConsants {
     mat4 modelMatrix;
-    mat4 viewProjection;
     uint64_t vertexBufferAddress;
 } pc;
 
@@ -35,8 +37,8 @@ void main() {
     VertexBuffer vb = VertexBuffer(pc.vertexBufferAddress);
     Vertex v = vb.vertices[gl_VertexIndex];
 
-    gl_Position = pc.viewProjection * pc.modelMatrix * vec4(v.position, 1.0f);
-    outNormal = v.normal;
+    gl_Position = sceneData.viewProjection * pc.modelMatrix * vec4(v.position, 1.0f);
+    outNormal = mat3(pc.modelMatrix) * v.normal;
     outUV = vec2(v.uv_x, v.uv_y);
 }
 
@@ -48,8 +50,18 @@ layout(location = 1) in vec2 inUV;
 layout(location = 0) out vec4 outFragColor;
 
 void main() {
-    DirLight light;
-    light = DirLight(vec3(0.0f, -1.0f, -1.0f), vec3(1.0f), 1.0f);
+    vec3 N = normalize(inNormal);
+    vec3 L = normalize(-sceneData.sunDirection.xyz);
 
-    outFragColor = light.intensity * vec4(inNormal, 1.0) * max(dot(inNormal, -normalize(light.direction)), 0.0f) + 0.1 * vec4(inNormal, 1.0);
+    vec3 sunColor = sceneData.sunColor.xyz;
+    float sunIntensity = sceneData.sunColor.w;
+
+    float diffuse = max(dot(N, L), 0.0f);
+    vec3 ambient = 0.1f * N;
+
+    vec3 lighting = (ambient + diffuse * sunIntensity * sunColor);
+    vec3 color = lighting * N;
+    vec3 finalColor = clamp(color, 0.0f, 1.0f);
+
+    outFragColor = vec4(finalColor, 1.0);
 }
