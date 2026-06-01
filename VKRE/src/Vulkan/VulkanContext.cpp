@@ -44,7 +44,6 @@ namespace VKRE {
             VK_CHECK(vkCreateInstance(&createInfo, nullptr, &sInstance));
         }
 
-        // TODO: Change this to be API agnostic
         GLFWwindow* glfwWindow = window.GetGLFWwindow();
         if (glfwCreateWindowSurface(sInstance, glfwWindow, nullptr, &mSurface) != VK_SUCCESS) {
             std::println("Failed to create Vulkan Surface!");

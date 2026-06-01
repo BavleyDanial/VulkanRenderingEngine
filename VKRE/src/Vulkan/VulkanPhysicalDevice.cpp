@@ -349,7 +349,6 @@ namespace VKRE {
                 }
             }
 
-
             if (mSurface && !indices.Has(QueueCapability::Present)) {
                 VkBool32 presentSupport = false;
                 vkGetPhysicalDeviceSurfaceSupportKHR(device, i, mSurface, &presentSupport);

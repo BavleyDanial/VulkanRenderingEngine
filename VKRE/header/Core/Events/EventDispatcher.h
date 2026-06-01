@@ -36,8 +36,8 @@ namespace VKRE {
             delegate.instance = instance;
             delegate.invoke = Router::Execute;
 
-            std::memset(delegate.fnPtr, 0, sizeof(delegate.fnPtr));
-            std::memcpy(delegate.fnPtr, &Method, sizeof(Method));
+            memset(delegate.fnPtr, 0, sizeof(delegate.fnPtr));
+            memcpy(delegate.fnPtr, &Method, sizeof(Method));
 
             mListeners[GetEventID<T>()].push_back(delegate);
         }
@@ -57,8 +57,8 @@ namespace VKRE {
             delegate.instance = nullptr;
             delegate.invoke = Router::Execute;
 
-            std::memset(delegate.fnPtr, 0, sizeof(delegate.fnPtr));
-            std::memcpy(delegate.fnPtr, &Function, sizeof(Function));
+            memset(delegate.fnPtr, 0, sizeof(delegate.fnPtr));
+            memcpy(delegate.fnPtr, &Function, sizeof(Function));
 
             mListeners[GetEventID<T>()].push_back(delegate);
         }

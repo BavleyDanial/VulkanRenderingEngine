@@ -33,6 +33,7 @@ namespace VKRE {
     class Event {
     public:
         bool Handled = false;
+
     public:
         Event(EventData data)
             :mData(data) {}

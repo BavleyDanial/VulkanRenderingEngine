@@ -2,8 +2,6 @@
 
 #include <chrono>
 #include <imgui.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include <Renderer/Renderer.h>
 
