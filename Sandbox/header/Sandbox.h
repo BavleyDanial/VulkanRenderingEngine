@@ -19,9 +19,15 @@ public:
     virtual void OnUIRender();
 
 private:
+    // TODO: use my Entity abstraction instead
+    void DrawEntityNode(flecs::entity e);
+
+private:
     std::unique_ptr<Scene> mScene;
     SceneRenderer mSceneRenderer;
+
     int32_t mFPS;
+    flecs::entity mSelectedEntity; // TODO: Use my Entity abstraction
 
     Entity mCamera;
     Entity mTeapot;

@@ -1,5 +1,7 @@
 #include <Sandbox.h>
 
+#include <imgui.h>
+
 void SandboxLayer::OnAttach() {
     mScene = std::make_unique<Scene>();
     mCamera = mScene->AddCamera("camera");
@@ -88,6 +90,48 @@ void SandboxLayer::OnUIRender() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
     ImGui::PopStyleVar();
 
+    if (ImGui::Begin("Hierarchy")) {
+        auto rootEntities = mScene->GetFlecsWorld().query_builder()
+            .without(flecs::ChildOf, flecs::Any)
+            .without(flecs::Module)
+            .without<flecs::Component>()
+            .cache_kind(flecs::QueryCacheNone)
+            .build();
+
+        rootEntities.each([&](flecs::entity e) {
+            DrawEntityNode(e);
+        });
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("Inspector")) {
+        if (mSelectedEntity.is_valid() && mSelectedEntity.is_alive()) {
+            ImGui::Text("Name: %s", mSelectedEntity.name().c_str());
+            ImGui::Separator();
+
+            if (mSelectedEntity.has<TransformComponent>()) {
+                if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    auto& transform = mSelectedEntity.get_mut<TransformComponent>();
+                    ImGui::DragFloat3("Position", glm::value_ptr(transform.Position), 0.1f);
+                    ImGui::DragFloat3("Rotation", glm::value_ptr(transform.Rotation), 0.1f);
+                    ImGui::DragFloat3("Scale", glm::value_ptr(transform.Scale), 0.1f);
+                }
+            }
+
+            if (mSelectedEntity.has<DirectionalLightComponent>()) {
+                if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    DirectionalLightComponent& light = mSun.GetMutable<DirectionalLightComponent>();
+                    ImGui::DragFloat3("Direction", glm::value_ptr(light.Direction), 0.1f);
+                    ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
+                    ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 10.0f);
+                }
+            }
+        }
+    } else {
+        ImGui::TextDisabled("Select an entity from the hierarchy to inspect");
+    }
+    ImGui::End();
+
     if (ImGui::Begin("Statistics")) {
         ImGui::Text("FPS: %i", mFPS);
     }
@@ -99,24 +143,35 @@ void SandboxLayer::OnUIRender() {
         ImGui::Separator();
     }
     ImGui::End();
+}
 
-    if (ImGui::Begin("Sun Settings")) {
-        DirectionalLightComponent& light = mSun.GetMutable<DirectionalLightComponent>();
-        ImGui::DragFloat3("Direction", glm::value_ptr(light.Direction), 0.1f);
-        ImGui::ColorEdit3("Color", glm::value_ptr(light.Color));
-        ImGui::DragFloat("Intensity", &light.Intensity, 0.1f, 0.0f, 10.0f);
-        ImGui::Separator();
-    }
-    ImGui::End();
+void SandboxLayer::DrawEntityNode(flecs::entity e) {
+    auto children = e.world().query_builder()
+        .with(flecs::ChildOf, e)
+        .cache_kind(flecs::QueryCacheNone)
+        .build();
 
-    mScene->GetFlecsWorld().each([&](flecs::entity e, TransformComponent& transform) {
-        if (ImGui::Begin(e.name())) {
-            ImGui::PushID(static_cast<uint32_t>(e.id()));
-            ImGui::DragFloat3("Position", glm::value_ptr(transform.Position), 0.1f);
-            ImGui::DragFloat3("Rotation", glm::value_ptr(transform.Rotation), 0.1f);
-            ImGui::DragFloat3("Scale", glm::value_ptr(transform.Scale), 0.1f);
-            ImGui::PopID();
+    bool hasChildren = children.count() > 0;
+
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+    if (mSelectedEntity == e)
+        flags |= ImGuiTreeNodeFlags_Selected;
+    if (!hasChildren)
+        flags |= ImGuiTreeNodeFlags_Leaf;
+
+    bool opened = ImGui::TreeNodeEx((void*)(uintptr_t)e.id(), flags, "%s", e.name().c_str());
+
+    if (ImGui::IsItemClicked())
+        mSelectedEntity = e;
+
+    if (opened) {
+        if (hasChildren) {
+            children.each([&](flecs::entity child) {
+                DrawEntityNode(child);
+            });
         }
-        ImGui::End();
-    });
+
+        ImGui::TreePop();
+    }
 }
