@@ -17,12 +17,14 @@ namespace VKRE {
         Entity GetCamera() const { return mCamera; }
 
         void Render();
+        uint32_t GetDrawCalls() const { return mDrawCalls; } // TODO: Make a statistics panel that can be turned on and off
 
     private:
         const Scene* mScene;
         Entity mCamera;
 
         DrawPassHandle mDrawPass;
+        uint32_t mDrawCalls;
     };
 
 }

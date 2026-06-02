@@ -59,6 +59,12 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/flecs/" SYSTEM)
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/assimp/" SYSTEM)
 add_subdirectory("${CMAKE_SOURCE_DIR}/vendor/DearImGui/" SYSTEM)
 
+foreach(zlib_target zlib zlibstatic assimp)
+    if(TARGET ${zlib_target})
+        target_compile_options(${zlib_target} PRIVATE -Wno-deprecated-non-prototype)
+    endif()
+endforeach()
+
 if (WIN32)
     get_target_property(ASSIMP_INCLUDE_DIRS assimp INTERFACE_INCLUDE_DIRECTORIES)
     set_target_properties(zlibstatic PROPERTIES

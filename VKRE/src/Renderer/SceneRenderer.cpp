@@ -9,6 +9,8 @@
 #include <glm/trigonometric.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <imgui.h>
+
 #include <print>
 
 namespace VKRE {
@@ -57,6 +59,7 @@ namespace VKRE {
         sceneData.ViewPorjection = sceneData.Projection * sceneData.View;
         Renderer::UploadSceneData(sceneData);
 
+        mDrawCalls = 0;
         mScene->GetFlecsWorld().each([&](const TransformComponent& transform, const StaticMeshComponent& staticMesh) {
             if (!staticMesh.Asset)
                 return;
@@ -81,6 +84,7 @@ namespace VKRE {
                     cmd.Transform = worldMatrix * node.LocalTransform;
 
                     Renderer::SubmitMeshDraw(mDrawPass, cmd);
+                    mDrawCalls++;
                 }
             }
         });

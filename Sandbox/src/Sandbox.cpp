@@ -8,14 +8,24 @@ void SandboxLayer::OnAttach() {
     mSceneRenderer.SetScene(mScene.get());
     mSceneRenderer.SetCamera(mCamera);
 
-    const MeshAsset* teapotMesh = AssetManager::LoadMesh("res/models/teapot.obj");
-    mTeapot = mScene->AddEntity("Teapot");
-    mTeapot.Add<StaticMeshComponent>({ teapotMesh });
-    mTeapot.Add<TransformComponent>({ .Position = glm::vec3(0.0f, 0.0f, 50.0f), .Rotation = glm::vec3(-90.0f, 0.0f, 0.0f) });
-
     const MeshAsset* sponzaMesh = AssetManager::LoadMesh("assets/models/main_sponza/NewSponza_Main_glTF_003.gltf");
-    mSponza = mScene->AddEntity("Sponza");
-    mSponza.Add<StaticMeshComponent>({ sponzaMesh });
+    uint32_t indices = 0;
+    for (const auto& submesh : sponzaMesh->SubMeshes)
+        indices += submesh.IndexCount;
+
+    uint32_t i = 0;
+    for (uint32_t x = 0; x < 5; x++) {
+        for (uint32_t z = 0; z < 5; z++) {
+            std::string name = "Sponza " + std::to_string(i);
+            Entity sponza = mScene->AddEntity(name.c_str());
+            sponza.Add<StaticMeshComponent>({ sponzaMesh });
+            sponza.Add<TransformComponent>({ .Position = glm::vec3(50.0f * x, 0.0f, 50.0f * z) });
+            i++;
+        }
+    }
+
+    mTrianglesPerMesh = indices / 3;
+    mTrianglesTotal = mTrianglesPerMesh * i;
 
     mSun = mScene->AddEntity("Sun");
     mSun.Add<DirectionalLightComponent>({});
@@ -134,6 +144,9 @@ void SandboxLayer::OnUIRender() {
 
     if (ImGui::Begin("Statistics")) {
         ImGui::Text("FPS: %i", mFPS);
+        ImGui::Text("Triangles Per Mesh: %i", mTrianglesPerMesh);
+        ImGui::Text("Triangles Total: %i", mTrianglesTotal);
+        ImGui::Text("Draw Calls: %i", mSceneRenderer.GetDrawCalls());
     }
     ImGui::End();
 

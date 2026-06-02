@@ -25,13 +25,13 @@ private:
 private:
     std::unique_ptr<Scene> mScene;
     SceneRenderer mSceneRenderer;
-
     int32_t mFPS;
+    uint32_t mTrianglesPerMesh;
+    uint32_t mTrianglesTotal;
+
     flecs::entity mSelectedEntity; // TODO: Use my Entity abstraction
 
     Entity mCamera;
-    Entity mTeapot;
-    Entity mSponza;
     Entity mSun;
 
     float mSpeed = 40.0f;
