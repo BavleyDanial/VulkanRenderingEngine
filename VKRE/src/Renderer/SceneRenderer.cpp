@@ -22,7 +22,7 @@ namespace VKRE {
             .VertexShader = basicShader->VertexShader.Get(),
             .FragmentShader = basicShader->FragmentShader.Get(),
             .debugName = "Scene Draw Pass",
-            .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(DrawPushConstants)} },
+            .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DrawPushConstants)} },
             .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
             .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT
         });
@@ -67,6 +67,10 @@ namespace VKRE {
             uint64_t vbAddress = Renderer::GetBufferDeviceAddress(staticMesh.Asset->VertexBuffer.Get());
             if (vbAddress == 0) return;
 
+            glm::mat4 worldMatrix = glm::translate(glm::mat4(1.0f), transform.Position)
+            * glm::mat4_cast(glm::quat(glm::radians(transform.Rotation)))
+            * glm::scale(glm::mat4(1.0f), transform.Scale);
+
             for (const auto& node : staticMesh.Asset->Nodes) {
                 for (uint32_t i = 0; i < node.SubMeshCount; i++) {
                     uint32_t idx = staticMesh.Asset->NodeSubMeshIndices[i + node.SubMeshOffset];
@@ -78,10 +82,10 @@ namespace VKRE {
                     cmd.IndexCount = mesh.IndexCount;
                     cmd.BaseIndex = mesh.BaseIndex;
                     cmd.BaseVertex = mesh.BaseVertex;
-                    glm::mat4 worldMatrix = glm::translate(glm::mat4(1.0f), transform.Position)
-                    * glm::mat4_cast(glm::quat(glm::radians(transform.Rotation)))
-                    * glm::scale(glm::mat4(1.0f), transform.Scale);
                     cmd.Transform = worldMatrix * node.LocalTransform;
+
+                    if (mesh.TextureIndex >= 0 && mesh.TextureIndex < static_cast<int32_t>(staticMesh.Asset->Textures.size()))
+                        cmd.TextureIndex = staticMesh.Asset->TexturesIndices[mesh.TextureIndex];
 
                     Renderer::SubmitMeshDraw(mDrawPass, cmd);
                     mDrawCalls++;

@@ -13,7 +13,7 @@
 #include <Vulkan/VulkanResourceCache.h>
 #include <Vulkan/VulkanDescriptors.h>
 #include <Vulkan/VulkanUploader.h>
-#include <Vulkan/VulkanImage.h>
+#include <Vulkan/VulkanTexture.h>
 
 #include <ResourceManager/ResourceManager.h>
 #include <ResourceManager/Resources.h>
@@ -64,7 +64,8 @@ namespace VKRE {
         void Render();
         void OnImGui();
 
-        void UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+        void UploadMesh(GPUBufferHandle vertexBuffer, GPUBufferHandle indexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+        int32_t UploadTexture2D(Texture2DHandle handle, const std::vector<std::byte>& pixels);
         void UploadSceneData(const SceneUBO& sceneData);
         uint64_t GetBufferDeviceAddress(GPUBufferHandle buffer);
 
@@ -81,6 +82,7 @@ namespace VKRE {
         void ClearImage(VkCommandBuffer cmd);
 
     private:
+        void CreateDefaultSampler();
         void CreateDrawImage();
         void ReCreateDrawImage();
 
@@ -99,8 +101,9 @@ namespace VKRE {
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
 
-        std::unique_ptr<VulkanImage2D> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
-        std::unique_ptr<VulkanImage2D> mDepthImage;
+        VkSampler mDefaultSampler;
+        std::unique_ptr<VulkanTexture> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
+        std::unique_ptr<VulkanTexture> mDepthImage;
 
         std::vector<VulkanDrawPass> mDrawPasses;
         std::vector<VulkanComputePass> mComputePasses;
@@ -110,8 +113,13 @@ namespace VKRE {
         VkDescriptorSet mDrawImageDescriptors;
         VkDescriptorSetLayout mDrawImageDescriptorLayout;
 
+        VulkanFixedBindlessDescriptorAllocator mBindlessDescriptorAllocator;
+        VkDescriptorSet mBindlessSet;
+        VkDescriptorSetLayout mBindlessLayout;
+
         VkDescriptorSet mCurrentSceneSet;
         VkDescriptorSetLayout mSceneLayout;
+        VkDescriptorSetLayout mTextureLayout;
         std::vector<VulkanGPUBuffer> mSceneUniformBuffers;
     };
 

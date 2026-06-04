@@ -3,6 +3,7 @@
 #include <Vulkan/VulkanContext.h>
 #include <Vulkan/VulkanPipeline.h>
 #include <Vulkan/VulkanGPUBuffer.h>
+#include <Vulkan/VulkanTexture.h>
 
 #include <ResourceManager/ResourceRefs.h>
 #include <ResourceManager/ResourceHandles.h>
@@ -23,6 +24,14 @@ namespace VKRE {
 
         void DesroyBuffer(GPUBufferHandle handle);
         void DestroyAllBuffers();
+
+        bool AllocateTexture(Texture2DHandle handle);
+        VulkanTextureData* GetTextureData(Texture2DHandle handle);
+        const VulkanTextureData* GetTextureData(Texture2DHandle handle) const;
+        bool IsTextureAllocated(Texture2DHandle handle) const;
+
+        void DesroyTexture(Texture2DHandle handle);
+        void DestroyAllTextures();
 
         bool CreateShader(ShaderHandle handle);
         VkShaderModule GetShaderModule(ShaderHandle handle);
@@ -66,6 +75,7 @@ namespace VKRE {
         VulkanContext& mContext;
         ResourceManager& mResourceManager;
 
+        std::unordered_map<Texture2DHandle, VulkanTexture> mTextures2D;
         std::unordered_map<GPUBufferHandle, VulkanGPUBuffer> mBuffers;
         std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;
         std::unordered_map<VulkanPipelineLayoutKey, VkPipelineLayout> mPipelineLayouts;

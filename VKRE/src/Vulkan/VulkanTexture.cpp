@@ -1,21 +1,58 @@
-#include <Vulkan/VulkanImage.h>
+#include <Vulkan/VulkanTexture.h>
 
 namespace VKRE {
 
-    VulkanImage2D::VulkanImage2D(VulkanContext& context)
+    VulkanTexture::VulkanTexture(VulkanContext* context)
         :mContext(context) {}
 
-    VulkanImage2D::~VulkanImage2D() {
+    VulkanTexture::~VulkanTexture() {
         Release();
     }
 
-    void VulkanImage2D::ReCreateImage(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& info) {
-        Release();
-        CreateImage(format, usageFlags, extent, aspectFlags, info);
+    VulkanTexture::VulkanTexture(VulkanTexture&& other) noexcept {
+            mContext                = other.mContext;
+            mTextureInfo.image      = other.mTextureInfo.image;
+            mTextureInfo.imageView  = other.mTextureInfo.imageView;
+            mTextureInfo.allocation = other.mTextureInfo.allocation;
+            mTextureInfo.format     = other.mTextureInfo.format;
+            mTextureInfo.extent     = other.mTextureInfo.extent;
+
+            other.mContext                = nullptr;
+            other.mTextureInfo.image      = VK_NULL_HANDLE;
+            other.mTextureInfo.imageView  = VK_NULL_HANDLE;
+            other.mTextureInfo.allocation = nullptr;
+            other.mTextureInfo.format     = VK_FORMAT_UNDEFINED;
+            other.mTextureInfo.extent     = VkExtent3D{0, 0, 0};
     }
 
-    void VulkanImage2D::CreateImage(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& allocInfo) {
-        if (mImageInfo.image)
+    VulkanTexture& VulkanTexture::operator=(VulkanTexture&& other) noexcept {
+        if (this != &other) {
+            Release();
+
+            mContext                = other.mContext;
+            mTextureInfo.image      = other.mTextureInfo.image;
+            mTextureInfo.imageView  = other.mTextureInfo.imageView;
+            mTextureInfo.allocation = other.mTextureInfo.allocation;
+            mTextureInfo.format     = other.mTextureInfo.format;
+            mTextureInfo.extent     = other.mTextureInfo.extent;
+
+            other.mContext                = nullptr;
+            other.mTextureInfo.image      = VK_NULL_HANDLE;
+            other.mTextureInfo.imageView  = VK_NULL_HANDLE;
+            other.mTextureInfo.allocation = nullptr;
+            other.mTextureInfo.format     = VK_FORMAT_UNDEFINED;
+            other.mTextureInfo.extent     = VkExtent3D{0, 0, 0};
+        }
+        return *this;
+    }
+
+    void VulkanTexture::ReCreateTexture(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& info) {
+        Release();
+        CreateTexture(format, usageFlags, extent, aspectFlags, info);
+    }
+
+    void VulkanTexture::CreateTexture(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& allocInfo) {
+        if (mTextureInfo.image)
             return;
 
         VkImageCreateInfo info = {};
@@ -31,16 +68,16 @@ namespace VKRE {
         info.tiling = VK_IMAGE_TILING_OPTIMAL;
         info.usage = usageFlags;
 
-        VK_CHECK(vmaCreateImage(mContext.GetAllocator(), &info, &allocInfo, &mImageInfo.image, &mImageInfo.allocation, nullptr));
-        mImageInfo.extent = extent;
-        mImageInfo.format = format;
+        VK_CHECK(vmaCreateImage(mContext->GetAllocator(), &info, &allocInfo, &mTextureInfo.image, &mTextureInfo.allocation, nullptr));
+        mTextureInfo.extent = extent;
+        mTextureInfo.format = format;
 
         VkImageViewCreateInfo imageViewCreateInfo = {};
         imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         imageViewCreateInfo.pNext = nullptr;
 
         imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCreateInfo.image = mImageInfo.image;
+        imageViewCreateInfo.image = mTextureInfo.image;
         imageViewCreateInfo.format = format;
         imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
         imageViewCreateInfo.subresourceRange.levelCount = 1;
@@ -48,18 +85,18 @@ namespace VKRE {
         imageViewCreateInfo.subresourceRange.layerCount = 1;
         imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
 
-        VK_CHECK(vkCreateImageView(mContext.GetLogicalDevice().handle, &imageViewCreateInfo, nullptr, &mImageInfo.imageView));
+        VK_CHECK(vkCreateImageView(mContext->GetLogicalDevice().handle, &imageViewCreateInfo, nullptr, &mTextureInfo.imageView));
     }
 
-    void VulkanImage2D::Release() {
-        if (mImageInfo.image) {
-            vmaDestroyImage(mContext.GetAllocator(), mImageInfo.image, mImageInfo.allocation);
-            mImageInfo.image = nullptr;
+    void VulkanTexture::Release() {
+        if (mTextureInfo.image) {
+            vmaDestroyImage(mContext->GetAllocator(), mTextureInfo.image, mTextureInfo.allocation);
+            mTextureInfo.image = nullptr;
         }
 
-        if (mImageInfo.imageView) {
-            vkDestroyImageView(mContext.GetLogicalDevice().handle, mImageInfo.imageView, nullptr);
-            mImageInfo.imageView = nullptr;
+        if (mTextureInfo.imageView) {
+            vkDestroyImageView(mContext->GetLogicalDevice().handle, mTextureInfo.imageView, nullptr);
+            mTextureInfo.imageView = nullptr;
         }
     }
 

@@ -14,6 +14,6 @@ public:
 };
 
 VKRE::Application* VKRE::CreateApplication() {
-    return new Sandbox(false);
+    return new Sandbox();
 }
 

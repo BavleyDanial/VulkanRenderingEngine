@@ -14,6 +14,7 @@ namespace VKRE {
         TextureFormat Format;
 
         ResourceRef<Texture2DTag> Texture;
+        int32_t BindlessIndex = -1;
     };
 
 }

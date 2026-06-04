@@ -13,6 +13,7 @@ namespace VKRE {
 
         // NOTE: In the future there will be textures and other stuff
         void UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset);
+        void UploadTexture(Texture2DHandle handle, const void* data, uint64_t size);
 
         void Begin();
         void End();

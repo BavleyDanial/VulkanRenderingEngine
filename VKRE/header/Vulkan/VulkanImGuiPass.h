@@ -2,13 +2,13 @@
 
 #include "VulkanContext.h"
 #include "VulkanPresenter.h"
-#include "VulkanImage.h"
+#include "VulkanTexture.h"
 
 namespace VKRE {
 
     struct FrameInfo {
         uint32_t swapchainImageIdx = 0;
-        VulkanImage2D* drawImage = nullptr;
+        VulkanTexture* drawImage = nullptr;
     };
 
     class VulkanImGuiPass {

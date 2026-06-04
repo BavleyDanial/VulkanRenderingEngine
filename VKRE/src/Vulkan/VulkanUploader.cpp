@@ -1,9 +1,9 @@
-#include "Vulkan/VulkanGPUBuffer.h"
 #include <Vulkan/VulkanUploader.h>
 #include <Vulkan/VulkanUtils.h>
 
 #include <cassert>
 #include <cstring>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -56,6 +56,44 @@ namespace VKRE {
 
         VkBufferCopy copy { .srcOffset = 0, .dstOffset = offset, .size = size };
         vkCmdCopyBuffer(mImmediateBuffer, staging->GetGPUBufferInfo().buffer, dst->buffer, 1, &copy);
+
+        mPendingStagingBuffers.push_back(std::move(staging));
+    }
+
+    void VulkanUploader::UploadTexture(Texture2DHandle handle, const void* data, uint64_t size) {
+        assert(mRecording && "VulkanUploader::UploadTexture called without without Begin");
+
+        VulkanTextureData* dst = mCache.GetTextureData(handle);
+        if (!dst->imageView) {
+            std::println("VulkanUploader::UploadTexture texture not found (index={})", static_cast<uint32_t>(handle.index));
+            return;
+        }
+        VkImage targetImage = dst->image;
+        VkExtent3D targetExtent = dst->extent;
+
+        VmaAllocationCreateInfo stagingAllocInfo{};
+        stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+        std::unique_ptr<VulkanGPUBuffer> staging = std::make_unique<VulkanGPUBuffer>(mContext);
+        staging->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo);
+        memcpy(staging->GetGPUBufferInfo().info.pMappedData, data, size);
+
+        ImageUtils::TransitionImage(mImmediateBuffer, targetImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        // TODO: make all of this based on incoming data
+        VkBufferImageCopy copy{};
+        copy.bufferOffset = 0;
+        copy.bufferRowLength = 0;
+        copy.bufferImageHeight = 0;
+        copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copy.imageSubresource.mipLevel = 0;
+        copy.imageSubresource.baseArrayLayer = 0;
+        copy.imageSubresource.layerCount = 1;
+        copy.imageExtent = targetExtent;
+
+        vkCmdCopyBufferToImage(mImmediateBuffer, staging->GetGPUBufferInfo().buffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        ImageUtils::TransitionImage(mImmediateBuffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         mPendingStagingBuffers.push_back(std::move(staging));
     }

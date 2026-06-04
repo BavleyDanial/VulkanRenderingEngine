@@ -50,13 +50,26 @@ namespace VKRE {
             abort();
         }
 
+        VkPhysicalDeviceVulkan12Features features12 = {
+            .descriptorIndexing = true,
+            .shaderUniformBufferArrayNonUniformIndexing = true,
+            .shaderSampledImageArrayNonUniformIndexing = true,
+            .shaderStorageBufferArrayNonUniformIndexing = true,
+            .descriptorBindingUniformBufferUpdateAfterBind = true,
+            .descriptorBindingSampledImageUpdateAfterBind = true,
+            .descriptorBindingStorageBufferUpdateAfterBind = true,
+            .descriptorBindingPartiallyBound = true,
+            .runtimeDescriptorArray = true,
+            .bufferDeviceAddress = true,
+        };
+
         VulkanPhysicalDeviceSelector deviceSelector(sInstance, mSurface);
         deviceSelector = deviceSelector.SetName("Main Rendering Device")
                             .SetRequiredQueueFamilies({ QueueCapability::Graphics, QueueCapability::Present, QueueCapability::Compute })
                             .SetRequiredExtensions({ VK_KHR_SWAPCHAIN_EXTENSION_NAME })
                             .SetRequiredFeatures({ .shaderInt64 = true })
                             .SetRequiredFeatures13({ .synchronization2 = true, .dynamicRendering = true })
-                            .SetRequiredFeatures12({ .descriptorIndexing = true, .bufferDeviceAddress = true });
+                            .SetRequiredFeatures12(features12);
 
 
 #ifdef PLATFORM_MACOS

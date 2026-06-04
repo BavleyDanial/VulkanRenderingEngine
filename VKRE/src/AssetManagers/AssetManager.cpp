@@ -45,6 +45,19 @@ namespace VKRE {
         meshAsset.NodeSubMeshIndices = std::move(importedMesh.NodeSubMeshIndices);
         meshAsset.NodeNames = std::move(importedMesh.NodeNames);
 
+        std::filesystem::path meshDir = path.parent_path();
+        for (const std::string& texPath : importedMesh.TexturePaths) {
+            std::filesystem::path fullTexPath = meshDir / texPath;
+            const Texture2DAsset* texAsset = LoadTexture2D(fullTexPath);
+            if (texAsset) {
+                meshAsset.Textures.push_back(texAsset->Texture);
+                meshAsset.TexturesIndices.push_back(texAsset->BindlessIndex);
+            } else {
+                meshAsset.Textures.push_back(ResourceRef<Texture2DTag>());
+                meshAsset.TexturesIndices.push_back(-1);
+            }
+        }
+
         GPUBufferDesc vbDesc{};
         vbDesc.DebugName = importedMesh.Name + "_VBO";
         vbDesc.Size = static_cast<uint64_t>(importedMesh.Vertices.size()) * sizeof(Vertex);
@@ -121,7 +134,6 @@ namespace VKRE {
 
         TextureDesc desc{};
         desc.Format = importedTexture.Format;
-        desc.Data = std::move(importedTexture.Data);
         desc.Usage = TextureUsage::Sampled | TextureUsage::TransferDst;
         desc.DebugName = importedTexture.Name;
         desc.Dimensions = { importedTexture.Width, importedTexture.Height, 1 };
@@ -129,6 +141,8 @@ namespace VKRE {
 
         ResourceRef<Texture2DTag> texture = mResourceManager.CreateTexture2D(desc);
         textureAsset.Texture = texture;
+
+        textureAsset.BindlessIndex = Renderer::UploadTexture2D(texture.Get(), importedTexture.Data);
 
         auto result = mTexture2DAssets.emplace(pathStr, std::move(textureAsset));
         return &result.first->second;

@@ -11,6 +11,7 @@ namespace VKRE {
     ResourceManager::ResourceManager() {
         mShaderPool.Init(INITIAL_SHADER_POOL_CAP);
         mGPUBufferPool.Init(INITIAL_GPU_BUFFER_POOL_CAP);
+        mTexture2DPool.Init(INITIAL_TEXTURE_POOL_CAP);
     }
 
     ResourceManager::~ResourceManager() {
@@ -150,8 +151,6 @@ namespace VKRE {
         hot->Height = desc.Dimensions.y;
         hot->Format = desc.Format;
         hot->MipLevels = desc.MipLevels;
-
-        cold->Data.insert_range(cold->Data.begin(), desc.Data);
         cold->Usage = desc.Usage;
 
         size_t len = std::min(desc.DebugName.length(), sizeof(cold->DebugName) - 1);

@@ -13,6 +13,7 @@ namespace VKRE {
         uint32_t IndexCount;
         int32_t BaseVertex;
         uint32_t VertexCount;
+        int32_t TextureIndex = -1; // no texture bound by default
     };
 
     struct MeshNode {
@@ -33,6 +34,9 @@ namespace VKRE {
         std::vector<MeshNode> Nodes;
         std::vector<uint32_t> NodeSubMeshIndices;
         std::vector<std::string> NodeNames;
+
+        std::vector<ResourceRef<Texture2DTag>> Textures;
+        std::vector<int32_t> TexturesIndices;
     };
 
 }

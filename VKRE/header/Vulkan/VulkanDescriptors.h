@@ -25,6 +25,24 @@ namespace VKRE {
         VkDescriptorPool mPool;
     };
 
+    class VulkanFixedBindlessDescriptorAllocator {
+    public:
+        void InitPool(VkDevice device, uint32_t maxTextures);
+        void DestroyPool(VkDevice device);
+
+        int32_t RegisterTexture(VkDevice device, VkDescriptorSet set, VkImageView imageView, VkSampler sampler);
+        void UnRegisterTexture(int32_t index);
+        bool IsTexturesFull() const { return mFreeList.empty() && mNextIndex >= mMaxTextures; }
+
+        VkDescriptorSet Allocate(VkDevice device, VkDescriptorSetLayout layout);
+
+    private:
+        VkDescriptorPool mPool = VK_NULL_HANDLE;
+        uint32_t mMaxTextures = 0;
+        int32_t mNextIndex = 0;
+        std::vector<int32_t> mFreeList;
+    };
+
     class VulkanGrowableDescriptorAllocator {
     public:
         void InitPool(VkDevice device, uint32_t initialSets, std::span<VulkanPoolSizeRatio> poolRatios);
@@ -59,7 +77,7 @@ namespace VKRE {
 
     class VulkanDescriptorLayoutBuilder {
     public:
-        void AddBinding(VkDescriptorType type, uint32_t bindingIdx);
+        void AddBinding(VkDescriptorType type, uint32_t bindingIdx, uint32_t descriptorCount = 1);
         void Clear();
 
         VkDescriptorSetLayout Build(VkDevice device, VkShaderStageFlags shaderStages, void* next = nullptr, VkDescriptorSetLayoutCreateFlags flags = 0);

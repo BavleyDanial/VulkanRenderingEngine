@@ -3,6 +3,7 @@
 #include <Vulkan/VulkanRenderer.h>
 #include <ResourceManager/ResourceManager.h>
 
+#include <cstddef>
 #include <glm/glm.hpp>
 
 namespace VKRE {
@@ -10,7 +11,7 @@ namespace VKRE {
     struct DrawPushConstants {
         glm::mat4 Transform;
         uint64_t VertexBufferAddress;
-        uint32_t _padding;
+        int32_t TextureIndex;
     };
 
     class Renderer {
@@ -25,6 +26,10 @@ namespace VKRE {
 
         static void UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
             sRenderer->UploadMesh(VertexBuffer, IndexBuffer, vertices, indices);
+        }
+
+        static int32_t UploadTexture2D(Texture2DHandle handle, const std::vector<std::byte>& pixels) {
+            return sRenderer->UploadTexture2D(handle, pixels);
         }
 
         static void UploadSceneData(const SceneUBO& sceneData) {

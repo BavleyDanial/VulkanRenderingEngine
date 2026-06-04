@@ -1,9 +1,9 @@
 #pragma once
 
 #include "VulkanResourceCache.h"
+#include "VulkanDescriptors.h"
 
 #include <glm/glm.hpp>
-
 #include <vector>
 
 namespace VKRE {
@@ -22,11 +22,12 @@ namespace VKRE {
         uint64_t VertexBufferAddress;
         glm::mat4 Transform;
         glm::mat4 ViewProjection;
+        int32_t TextureIndex = -1;
     };
 
     class VulkanDrawPass {
     public:
-        VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key, VkDescriptorSet descriptorSet,
+        VulkanDrawPass(VkDevice device, VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key, VkDescriptorSet descriptorSet,
                         VkShaderStageFlags pushConstantsShaderStages);
 
         void SetActive(bool enabled) { mIsActive = enabled; }
@@ -36,9 +37,12 @@ namespace VKRE {
         VkPipelineLayout GetPipelineLayout() const { return mPipeline->layout; }
 
         void ReBuild(VkDescriptorSet newDescriptorSet);
-        void Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo, VkDescriptorSet sceneSet = VK_NULL_HANDLE);
+        void Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo,
+                    VkDescriptorSet sceneSet, VkDescriptorSet bindlessSet);
     private:
+        VkDevice mDevice;
         VulkanResourceCache& mCache;
+
         VulkanGraphicsPipeline* mPipeline;
         VkDescriptorSet mDescriptorSet;
         VkShaderStageFlags mPushConstantsShaderStages;

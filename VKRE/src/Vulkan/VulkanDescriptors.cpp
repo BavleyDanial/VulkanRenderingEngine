@@ -42,6 +42,83 @@ namespace VKRE {
         return descriptorSet;
     }
 
+    void VulkanFixedBindlessDescriptorAllocator::InitPool(VkDevice device, uint32_t maxTextures) {
+        mMaxTextures = maxTextures;
+
+        VkDescriptorPoolSize poolSize{};
+        poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        poolSize.descriptorCount = maxTextures;
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+        poolInfo.maxSets = 1;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+
+        VK_CHECK(vkCreateDescriptorPool(device, &poolInfo, nullptr, &mPool));
+    }
+
+    void VulkanFixedBindlessDescriptorAllocator::DestroyPool(VkDevice device) {
+        vkDestroyDescriptorPool(device, mPool, nullptr);
+    }
+
+    int32_t VulkanFixedBindlessDescriptorAllocator::RegisterTexture(VkDevice device, VkDescriptorSet set, VkImageView imageView, VkSampler sampler) {
+        if (!imageView) {
+            std::println("VulkanBindlessDescriptorAllocator::RegisterTexture invalid image view");
+            return -1;
+        }
+
+        if (IsTexturesFull()) {
+            std::println("VulkanBindlessDescriptorAllocator::RegisterTexture array is full");
+            return -1;
+        }
+
+        int32_t index = 0;
+        if (!mFreeList.empty()) {
+            index = mFreeList.back();
+            mFreeList.pop_back();
+        } else {
+            index = mNextIndex++;
+        }
+
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.sampler = sampler;
+        imageInfo.imageView = imageView;
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet write{};
+        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write.dstSet = set;
+        write.dstBinding = 0;
+        write.dstArrayElement = static_cast<uint32_t>(index);
+        write.descriptorCount = 1;
+        write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+        return index;
+    }
+
+    void VulkanFixedBindlessDescriptorAllocator::UnRegisterTexture(int32_t index) {
+        if (index < 0 || index >= mNextIndex) {
+            std::println("VulkanBindlessDescriptorAllocator::UnregisterTexture invalid index {}", index);
+            return;
+        }
+        mFreeList.push_back(index);
+    }
+
+    VkDescriptorSet VulkanFixedBindlessDescriptorAllocator::Allocate(VkDevice device, VkDescriptorSetLayout layout) {
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = mPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &layout;
+
+        VkDescriptorSet set;
+        VK_CHECK(vkAllocateDescriptorSets(device, &allocInfo, &set));
+        return set;
+    }
 
     void VulkanGrowableDescriptorAllocator::InitPool(VkDevice device, uint32_t initialSets, std::span<VulkanPoolSizeRatio> poolRatios) {
         mPoolRatios.clear();
@@ -207,11 +284,11 @@ namespace VKRE {
         return setLayout;
     }
 
-    void VulkanDescriptorLayoutBuilder::AddBinding(VkDescriptorType type, uint32_t bindingIdx) {
+    void VulkanDescriptorLayoutBuilder::AddBinding(VkDescriptorType type, uint32_t bindingIdx, uint32_t descriptorCount) {
         VkDescriptorSetLayoutBinding newLayoutBinding{};
         newLayoutBinding.descriptorType = type;
         newLayoutBinding.binding = bindingIdx;
-        newLayoutBinding.descriptorCount = 1;
+        newLayoutBinding.descriptorCount = descriptorCount;
         mBindings.push_back(newLayoutBinding);
     }
 

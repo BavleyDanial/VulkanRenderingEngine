@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -125,7 +124,6 @@ namespace VKRE {
 
     struct TextureDesc {
         std::string DebugName = "";
-        std::vector<std::byte> Data;
         glm::vec3 Dimensions = { 0, 0, 0 };
         TextureUsage Usage = TextureUsage::None;
         TextureFormat Format = TextureFormat::None;
@@ -141,7 +139,6 @@ namespace VKRE {
 
     struct Texture2DColdData {
         char DebugName[64] = "";
-        std::vector<std::byte> Data;
         TextureUsage Usage = TextureUsage::None;
     };
 

@@ -35,7 +35,6 @@ namespace VKRE {
                 mFreeList.pop_back();
             } else {
                 index = mNextFreshSlot++;
-
                 if (index >= mCapacity) {
                     Reserve(mCapacity * 2);
                 }
@@ -156,7 +155,6 @@ namespace VKRE {
 
     private:
         void Reserve(uint32_t capacity) {
-            assert(capacity > mCapacity);
             assert(capacity < ResourceHandle<Tag>::INVALID_IDX && "Pool capacity is over 20 bits in size!");
 
             mSlotMetaData.resize(capacity);

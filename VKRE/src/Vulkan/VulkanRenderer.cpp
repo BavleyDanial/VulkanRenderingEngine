@@ -1,3 +1,4 @@
+#include "ResourceManager/Resources.h"
 #include <Vulkan/VulkanRenderer.h>
 
 #include <Core/Application.h>
@@ -6,6 +7,7 @@
 
 #include <ResourceManager/ShaderCompiler.h>
 
+#include <cstddef>
 #include <glm/glm.hpp>
 
 #include <cassert>
@@ -13,15 +15,6 @@
 #include <vulkan/vulkan_core.h>
 
 namespace VKRE {
-
-    static VkShaderStageFlagBits ToVkShaderStage(ShaderStage stage) {
-        switch (stage) {
-            case VKRE::ShaderStage::Vertex:                 return VK_SHADER_STAGE_VERTEX_BIT;
-            case VKRE::ShaderStage::Fragment:               return VK_SHADER_STAGE_FRAGMENT_BIT;
-            case VKRE::ShaderStage::Compute:                return VK_SHADER_STAGE_COMPUTE_BIT;
-            case VKRE::ShaderStage::None:                   return VK_SHADER_STAGE_ALL; // TODO: Make this different because this is stupid
-        }
-    };
 
     VulkanRenderer::VulkanRenderer(VulkanContext& context, ResourceManager& resourceManager)
     :mContext(context), mResourceManager(resourceManager) {
@@ -32,6 +25,7 @@ namespace VKRE {
         mFrameManager = std::make_unique<VulkanFrameManager>(mContext);
         mPresenter = std::make_unique<VulkanPresenter>(mContext);
 
+        CreateDefaultSampler();
         CreateDrawImage();
         CreateSceneUniformBuffers();
         InitDescriptors();
@@ -53,8 +47,14 @@ namespace VKRE {
         mResourceCache->DestroyAll();
 
         mGlobalDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
+        mBindlessDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
+
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mSceneLayout, nullptr);
+        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mTextureLayout, nullptr);
+        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mBindlessLayout, nullptr);
+
+        vkDestroySampler(mContext.GetLogicalDevice().handle, mDefaultSampler, nullptr);
     }
 
     void VulkanRenderer::UploadMesh(GPUBufferHandle VertexBuffer, GPUBufferHandle IndexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) {
@@ -65,6 +65,22 @@ namespace VKRE {
         mUploader->UploadBuffer(VertexBuffer, vertices.data(), vertices.size() * sizeof(Vertex), 0);
         mUploader->UploadBuffer(IndexBuffer, indices.data(), indices.size() * sizeof(uint32_t), 0);
         mUploader->End();
+    }
+
+    int32_t VulkanRenderer::UploadTexture2D(Texture2DHandle handle, const std::vector<std::byte>& pixels) {
+        mResourceCache->AllocateTexture(handle);
+
+        mUploader->Begin();
+        mUploader->UploadTexture(handle, pixels.data(), pixels.size());
+        mUploader->End();
+
+        VulkanTextureData* textureData = mResourceCache->GetTextureData(handle);
+        return mBindlessDescriptorAllocator.RegisterTexture(
+            mContext.GetLogicalDevice().handle,
+            mBindlessSet,
+            textureData->imageView,
+            mDefaultSampler
+        );
     }
 
     void VulkanRenderer::UploadSceneData(const SceneUBO& sceneData) {
@@ -103,7 +119,11 @@ namespace VKRE {
         }
 
         VulkanPipelineLayoutKey layoutKey {
-            .descriptorSetLayouts = { mDrawImageDescriptorLayout, mSceneLayout },
+            .descriptorSetLayouts = {
+                mDrawImageDescriptorLayout,
+                mSceneLayout,
+                mBindlessLayout,
+            },
             .pushConstantRanges = desc.pushConstantRanges
         };
 
@@ -133,7 +153,7 @@ namespace VKRE {
         for (const auto& stage : desc.pushConstantRanges)
             pushConstantsShaderStages |= stage.stageFlags;
 
-        mDrawPasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, pushConstantsShaderStages);
+        mDrawPasses.emplace_back(mContext.GetLogicalDevice().handle, *mResourceCache, pipelineKey, mDrawImageDescriptors, pushConstantsShaderStages);
         return static_cast<DrawPassHandle>(mDrawPasses.size() - 1);
     }
 
@@ -185,6 +205,23 @@ namespace VKRE {
         mComputePasses[handle].SetPushConstantData(data, size);
     }
 
+    void VulkanRenderer::CreateDefaultSampler() {
+        VkSamplerCreateInfo samplerInfo{};
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.magFilter = VK_FILTER_LINEAR;
+        samplerInfo.minFilter = VK_FILTER_LINEAR;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+        VK_CHECK(vkCreateSampler(mContext.GetLogicalDevice().handle, &samplerInfo, nullptr, &mDefaultSampler));
+    }
+
     void VulkanRenderer::CreateDrawImage() {
         auto [width, height] = mPresenter->GetSwapChain().extent;
         VkExtent3D drawImageExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
@@ -199,11 +236,11 @@ namespace VKRE {
         drawImageAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
         drawImageAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-        mDrawImage = std::make_unique<VulkanImage2D>(mContext);
-        mDrawImage->ReCreateImage(format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
+        mDrawImage = std::make_unique<VulkanTexture>(&mContext);
+        mDrawImage->ReCreateTexture(format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
 
-        mDepthImage = std::make_unique<VulkanImage2D>(mContext);
-        mDepthImage->ReCreateImage(VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent, VK_IMAGE_ASPECT_DEPTH_BIT, drawImageAllocInfo);
+        mDepthImage = std::make_unique<VulkanTexture>(&mContext);
+        mDepthImage->ReCreateTexture(VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent, VK_IMAGE_ASPECT_DEPTH_BIT, drawImageAllocInfo);
     }
 
     void VulkanRenderer::ReCreateDrawImage() {
@@ -229,6 +266,7 @@ namespace VKRE {
 
         VkDevice device = mContext.GetLogicalDevice().handle;
         mGlobalDescriptorAllocator.InitPool(device, 10, poolSizes);
+        mBindlessDescriptorAllocator.InitPool(device, 8192);
 
         {   // Compute Descriptor Set
             VulkanDescriptorLayoutBuilder layoutBuilder;
@@ -242,6 +280,29 @@ namespace VKRE {
             mSceneLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         }
 
+        {   // Textures Descriptor Set
+            VulkanDescriptorLayoutBuilder layoutBuilder;
+            layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0);
+            mTextureLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT);
+        }
+
+        VkDescriptorBindingFlags bindingFlags =
+            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+            VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+
+        VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{};
+        bindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+        bindingFlagsInfo.bindingCount = 1;
+        bindingFlagsInfo.pBindingFlags = &bindingFlags;
+
+        VulkanDescriptorLayoutBuilder layoutBuilder;
+        layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, 8192);
+        mBindlessLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT,
+                &bindingFlagsInfo,
+                VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
+
+        mBindlessSet = mBindlessDescriptorAllocator.Allocate(device, mBindlessLayout);
+
         InitDrawImageDescriptor();
     }
 
@@ -249,7 +310,7 @@ namespace VKRE {
         mDrawImageDescriptors = mGlobalDescriptorAllocator.Allocate(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout);
 
         VulkanDescriptorWriter writer;
-        writer.WriteImage(0, mDrawImage->GetImageInfo().imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+        writer.WriteImage(0, mDrawImage->GetTextureInfo().imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
         writer.UpdateSet(mContext.GetLogicalDevice().handle, mDrawImageDescriptors);
     }
@@ -308,11 +369,11 @@ namespace VKRE {
         VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBufferBeginInfo));
 
         VkExtent2D drawImageExtent = {
-            mDrawImage->GetImageInfo().extent.width,
-            mDrawImage->GetImageInfo().extent.height
+            mDrawImage->GetTextureInfo().extent.width,
+            mDrawImage->GetTextureInfo().extent.height
         };
 
-        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        ImageUtils::TransitionImage(cmd, mDrawImage->GetTextureInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
         // TODO: Replace this with passes
         ClearImage(cmd);
 
@@ -321,22 +382,22 @@ namespace VKRE {
                 pass.Execute(cmd, drawImageExtent);
         }
 
-        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        ImageUtils::TransitionImage(cmd, mDrawImage->GetTextureInfo().image,VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         VkClearValue clearValue{};
         clearValue.color = {0.0f, 0.0f, 0.0f, 1.0f};
         VkClearValue clearDepthValue{};
         clearDepthValue.depthStencil = {1.0, 0};
 
-        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(mDrawImage->GetImageInfo().imageView, &clearValue , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(mDrawImage->GetTextureInfo().imageView, &clearValue , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         VkRenderingAttachmentInfo depthAttachment{};
         depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        depthAttachment.imageView = mDepthImage->GetImageInfo().imageView;
+        depthAttachment.imageView = mDepthImage->GetTextureInfo().imageView;
         depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.clearValue.depthStencil = clearDepthValue.depthStencil;
 
-        ImageUtils::TransitionImage(cmd, mDepthImage->GetImageInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        ImageUtils::TransitionImage(cmd, mDepthImage->GetTextureInfo().image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
         RenderTargetInfo targetInfo{};
         targetInfo.colorAttachments = { colorAttachment };
@@ -344,14 +405,14 @@ namespace VKRE {
 
         for (auto& pass : mDrawPasses) {
             if (pass.IsActive())
-                pass.Execute(cmd, drawImageExtent, targetInfo, mCurrentSceneSet);
+                pass.Execute(cmd, drawImageExtent, targetInfo, mCurrentSceneSet, mBindlessSet);
         }
 
-        ImageUtils::TransitionImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        ImageUtils::TransitionImage(cmd, mDrawImage->GetTextureInfo().image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
         VkImage swapChainImage = mPresenter->GetImages()[swapchainImageIndex];
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        ImageUtils::CopyImage(cmd, mDrawImage->GetImageInfo().image, swapChainImage, drawImageExtent, mPresenter->GetSwapChain().extent);
+        ImageUtils::CopyImage(cmd, mDrawImage->GetTextureInfo().image, swapChainImage, drawImageExtent, mPresenter->GetSwapChain().extent);
         ImageUtils::TransitionImage(cmd, swapChainImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         mImGuiPass->Execute(cmd, { swapchainImageIndex, nullptr} ); // Execute ImGuiPass
@@ -410,8 +471,8 @@ namespace VKRE {
 
     glm::vec2 VulkanRenderer::GetViewportDimensions() const {
         return {
-            mDrawImage->GetImageInfo().extent.width,
-            mDrawImage->GetImageInfo().extent.height
+            mDrawImage->GetTextureInfo().extent.width,
+            mDrawImage->GetTextureInfo().extent.height
         };
     }
 
@@ -419,7 +480,7 @@ namespace VKRE {
         VkClearColorValue clearValue;
         clearValue = { { 0.0f, 0.0f, 0.0f, 1.0f } };
         VkImageSubresourceRange clearRange = ImageUtils::ImageSubSourceRange(VK_IMAGE_ASPECT_COLOR_BIT);
-        vkCmdClearColorImage(cmd, mDrawImage->GetImageInfo().image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
+        vkCmdClearColorImage(cmd, mDrawImage->GetTextureInfo().image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
     }
 
 }

@@ -1,6 +1,7 @@
 #version 460
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_EXT_nonuniform_qualifier : require
 
 struct Vertex {
     vec3 position; float uv_x;
@@ -19,15 +20,18 @@ layout(set = 1, binding = 0) uniform SceneData {
     vec4 sunColor;      // w = intensity
 } sceneData;
 
+layout(set = 2, binding = 0) uniform sampler2D textures[];
+
 #ShaderType Vertex
 
 layout(buffer_reference, std430) readonly buffer VertexBuffer {
     Vertex vertices[];
 };
 
-layout(push_constant) uniform PushConsants {
+layout(push_constant) uniform PushConstants {
     mat4 modelMatrix;
     uint64_t vertexBufferAddress;
+    int textureIndex;
 } pc;
 
 layout(location = 0) out vec3 outNormal;
@@ -44,6 +48,12 @@ void main() {
 
 #ShaderType Fragment
 
+layout(push_constant) uniform PushConstants {
+    mat4 modelMatrix;
+    uint64_t vertexBufferAddress;
+    int textureIndex;
+} pc;
+
 layout(location = 0) in vec3 inNormal;
 layout(location = 1) in vec2 inUV;
 
@@ -56,11 +66,15 @@ void main() {
     vec3 sunColor = sceneData.sunColor.xyz;
     float sunIntensity = sceneData.sunColor.w;
 
+    vec4 albedo = vec4(1.0);
+    if (pc.textureIndex >= 0)
+        albedo = texture(textures[nonuniformEXT(pc.textureIndex)], inUV);
+
     float diffuse = max(dot(N, L), 0.0f);
-    vec3 ambient = 0.1f * N;
+    vec3 ambient = 0.1f * albedo.rgb;
 
     vec3 lighting = (ambient + diffuse * sunIntensity * sunColor);
-    vec3 color = lighting * N;
+    vec3 color = lighting * albedo.rgb;
     vec3 finalColor = clamp(color, 0.0f, 1.0f);
 
     outFragColor = vec4(finalColor, 1.0);

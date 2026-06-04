@@ -1,5 +1,6 @@
 #include <AssetsManagers/MeshImporter.h>
 
+#include <assimp/material.h>
 #include <assimp/postprocess.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <print>
@@ -44,6 +45,23 @@ namespace VKRE {
             submesh.VertexCount = mesh->mNumVertices;
             submesh.BaseIndex = globalIndexOffset;
             submesh.BaseVertex = globalVertexOffset;
+            submesh.TextureIndex = -1;
+
+            if (mesh->mMaterialIndex >= 0) {
+                aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
+                aiString texturePath;
+
+                if (mat->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath) == AI_SUCCESS || mat->GetTexture(aiTextureType_BASE_COLOR, 0, &texturePath) == AI_SUCCESS) {
+                    std::string pathStr = texturePath.C_Str();
+                    auto it = std::find(results.TexturePaths.begin(), results.TexturePaths.end(), pathStr);
+                    if (it != results.TexturePaths.end()) {
+                        submesh.TextureIndex = static_cast<int32_t>(std::distance(results.TexturePaths.begin(), it));
+                    } else {
+                        submesh.TextureIndex = static_cast<int32_t>(results.TexturePaths.size());
+                        results.TexturePaths.push_back(pathStr);
+                    }
+                }
+            }
 
             for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
                 Vertex v{};

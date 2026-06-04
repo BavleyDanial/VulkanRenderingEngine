@@ -1,14 +1,16 @@
-#include "Renderer/Renderer.h"
 #include <Vulkan/VulkanDrawPass.h>
+
+#include "Renderer/Renderer.h"
 
 namespace VKRE {
 
-    VulkanDrawPass::VulkanDrawPass(VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key,
+    VulkanDrawPass::VulkanDrawPass(VkDevice device, VulkanResourceCache& cache, const VulkanGraphicsPipelineKey& key,
                                     VkDescriptorSet descriptorSet, VkShaderStageFlags pushConstantsShaderStages)
-        :mCache(cache), mPipeline(cache.GetGraphicsPipeline(key)),
+        :mDevice(device), mCache(cache), mPipeline(cache.GetGraphicsPipeline(key)),
         mDescriptorSet(descriptorSet), mPushConstantsShaderStages(pushConstantsShaderStages) {}
 
-    void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo, VkDescriptorSet sceneSet) {
+    void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo,
+                                    VkDescriptorSet sceneSet, VkDescriptorSet bindlessSet) {
         if (!mPipeline || !mIsActive) return;
 
         VkRenderingInfo info{};
@@ -28,6 +30,8 @@ namespace VKRE {
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 0, 1, &mDescriptorSet, 0, nullptr);
         if (sceneSet != VK_NULL_HANDLE)
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 1, 1, &sceneSet, 0, nullptr);
+        if (bindlessSet != VK_NULL_HANDLE)
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 2, 1, &bindlessSet, 0, nullptr);
 
         VkViewport viewport{};
         viewport.x = 0.0f;
@@ -44,11 +48,12 @@ namespace VKRE {
         vkCmdSetScissor(cmd, 0, 1, &scissor);
 
         VkBuffer lastIB = VK_NULL_HANDLE;
+        VulkanDescriptorWriter writer;
         for (const auto& draw : mDrawCommands) {
             DrawPushConstants pushConstants{};
             pushConstants.VertexBufferAddress = draw.VertexBufferAddress;
             pushConstants.Transform = draw.Transform;
-
+            pushConstants.TextureIndex = draw.TextureIndex;
             vkCmdPushConstants(cmd, mPipeline->layout, mPushConstantsShaderStages, 0, sizeof(DrawPushConstants), &pushConstants);
 
             VkBuffer ib = mCache.GetBufferData(draw.IndexBuffer)->buffer;

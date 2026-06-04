@@ -27,6 +27,8 @@ namespace VKRE {
         std::vector<MeshNode> Nodes;
         std::vector<std::string> NodeNames;
         std::vector<uint32_t> NodeSubMeshIndices;
+
+        std::vector<std::string> TexturePaths;
     };
 
     class MeshImporter {

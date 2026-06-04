@@ -11,8 +11,64 @@
 #include <Renderer/Renderer.h>
 #include <cassert>
 #include <print>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
+
+    static VkFormat ToVkTextureFormat(TextureFormat format) {
+        switch (format) {
+            case TextureFormat::R8G8B8A8_SRGB:          return VK_FORMAT_R8G8B8A8_SRGB;
+            case TextureFormat::R8G8B8A8_UNORM:         return VK_FORMAT_R8G8B8A8_UNORM;
+            case TextureFormat::B8G8R8A8_SRGB:          return VK_FORMAT_B8G8R8A8_SRGB;
+            case TextureFormat::B8G8R8A8_UNORM:         return VK_FORMAT_B8G8R8A8_UNORM;
+            case TextureFormat::R16G16B16A16_SFLOAT:    return VK_FORMAT_R16G16B16A16_SFLOAT;
+            case TextureFormat::R32G32B32A32_SFLOAT:    return VK_FORMAT_R32G32B32A32_SFLOAT;
+            case TextureFormat::R16G16_SFLOAT:          return VK_FORMAT_R16G16_SFLOAT;
+            case TextureFormat::R8G8_UNORM:             return VK_FORMAT_R8G8_UNORM;
+            case TextureFormat::R32_UINT:               return VK_FORMAT_R32_UINT;
+            case TextureFormat::D32_SFLOAT:             return VK_FORMAT_D32_SFLOAT;
+            case TextureFormat::D24_UNORM_S8_UINT:      return VK_FORMAT_D24_UNORM_S8_UINT;
+            case TextureFormat::BC1_RGB_SRGB:           return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+            case TextureFormat::BC1_RGB_UNORM:          return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+            case TextureFormat::BC3_RGBA_SRGB:          return VK_FORMAT_BC3_SRGB_BLOCK;
+            case TextureFormat::BC5_UNORM:              return VK_FORMAT_BC5_UNORM_BLOCK;
+            case TextureFormat::BC7_RGBA_SRGB:          return VK_FORMAT_BC7_SRGB_BLOCK;
+            case TextureFormat::BC7_RGBA_UNORM:         return VK_FORMAT_BC7_UNORM_BLOCK;
+            default:                                    return VK_FORMAT_UNDEFINED;
+        }
+    }
+
+    static VkImageAspectFlags VkGetAspectFlags(TextureFormat format) {
+        switch (format) {
+            case TextureFormat::D32_SFLOAT:         return VK_IMAGE_ASPECT_DEPTH_BIT;
+            case TextureFormat::D24_UNORM_S8_UINT:  return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+            default:                                return VK_IMAGE_ASPECT_COLOR_BIT;
+        }
+    }
+
+    static VkImageUsageFlags ToVkImageUsage(TextureUsage usage) {
+        VkImageUsageFlags flags = 0;
+        if ((usage & TextureUsage::Sampled) == TextureUsage::Sampled)                               flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        if ((usage & TextureUsage::ColorAttachment) == TextureUsage::ColorAttachment)               flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        if ((usage & TextureUsage::DepthStencilAttachment) == TextureUsage::DepthStencilAttachment) flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        if ((usage & TextureUsage::InputAttachment) == TextureUsage::InputAttachment)               flags |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        if ((usage & TextureUsage::Storage) == TextureUsage::Storage)                               flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+        if ((usage & TextureUsage::TransferSrc) == TextureUsage::TransferSrc)                       flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        if ((usage & TextureUsage::TransferDst) == TextureUsage::TransferDst)                       flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        return flags;
+    }
+
+    static VkBufferUsageFlags ToVkBufferUsage(GPUBufferUsage usage) {
+        VkBufferUsageFlags flags = 0;
+        if ((usage & GPUBufferUsage::Vertex) == GPUBufferUsage::Vertex)           flags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        if ((usage & GPUBufferUsage::Index) == GPUBufferUsage::Index)             flags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        if ((usage & GPUBufferUsage::Uniform) == GPUBufferUsage::Uniform)         flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        if ((usage & GPUBufferUsage::Storage) == GPUBufferUsage::Storage)         flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        if ((usage & GPUBufferUsage::Indirect) == GPUBufferUsage::Indirect)       flags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+        if ((usage & GPUBufferUsage::TransferSrc) == GPUBufferUsage::TransferSrc) flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        if ((usage & GPUBufferUsage::TransferDst) == GPUBufferUsage::TransferDst) flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        return flags;
+    }
 
     VulkanResourceCache::VulkanResourceCache(VulkanContext& context, ResourceManager& manager)
         :mContext(context), mResourceManager(manager) {}
@@ -33,13 +89,7 @@ namespace VKRE {
         assert(hot && "VulkanResourceCache::UploadBuffer buffer handle is valid but GetGPUBufferCold returned nullptr");
 
         VkBufferUsageFlags vkUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-        if ((cold->Usage & GPUBufferUsage::Vertex) == GPUBufferUsage::Vertex)           vkUsage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        if ((cold->Usage & GPUBufferUsage::Index) == GPUBufferUsage::Index)             vkUsage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        if ((cold->Usage & GPUBufferUsage::Uniform) == GPUBufferUsage::Uniform)         vkUsage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        if ((cold->Usage & GPUBufferUsage::Storage) == GPUBufferUsage::Storage)         vkUsage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        if ((cold->Usage & GPUBufferUsage::Indirect) == GPUBufferUsage::Indirect)       vkUsage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-        if ((cold->Usage & GPUBufferUsage::TransferSrc) == GPUBufferUsage::TransferSrc) vkUsage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        if ((cold->Usage & GPUBufferUsage::TransferDst) == GPUBufferUsage::TransferDst) vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        vkUsage |= ToVkBufferUsage(cold->Usage);
 
         VmaAllocationCreateInfo allocInfo{};
         if (hot->HostVisible) {
@@ -84,6 +134,66 @@ namespace VKRE {
         for (auto& [handle, buffer] : mBuffers)
             buffer.Release();
         mBuffers.clear();
+    }
+
+    bool VulkanResourceCache::AllocateTexture(Texture2DHandle handle) {
+        if (!handle.IsValid()) {
+            std::println("VulkanResourceCache::AllocateTexture handle is invalid");
+            return false;
+        }
+
+        auto it = mTextures2D.find(handle);
+        if (it != mTextures2D.end()) return true;
+
+        Texture2DHotData* hot = mResourceManager.GetTexture2DHot(handle);
+        assert(hot && "VulkanResourceCache::AllocateTexture handle is valid but GetTexture2DHot returned nullptr");
+
+        Texture2DColdData* cold = mResourceManager.GetTexture2DCold(handle);
+        assert(hot && "VulkanResourceCache::AllocateTexture handle is valid but GetTexture2DCold returned nullptr");
+
+        VkFormat vkFormat = ToVkTextureFormat(hot->Format);
+        if (vkFormat == VK_FORMAT_UNDEFINED) {
+            std::println("VulkanResourceCache::AllocateTexture format is not supported");
+            return false;
+        }
+
+        VkImageUsageFlags vkUsage = ToVkImageUsage(cold->Usage);
+        VkExtent3D extent = { hot->Width, hot->Height, 1 };
+        VkImageAspectFlags vkAspect = VkGetAspectFlags(hot->Format);
+
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        VulkanTexture texture(&mContext);
+        texture.CreateTexture(vkFormat, vkUsage, extent, vkAspect, allocInfo);
+
+        mTextures2D.emplace(handle, std::move(texture));
+        return true;
+    }
+
+    VulkanTextureData* VulkanResourceCache::GetTextureData(Texture2DHandle handle) {
+        auto it = mTextures2D.find(handle);
+        if (it == mTextures2D.end()) return nullptr;
+        return &it->second.GetTextureInfo();
+    }
+
+    const VulkanTextureData* VulkanResourceCache::GetTextureData(Texture2DHandle handle) const {
+        auto it = mTextures2D.find(handle);
+        if (it == mTextures2D.end()) return {};
+        return &it->second.GetTextureInfo();
+    }
+
+    bool VulkanResourceCache::IsTextureAllocated(Texture2DHandle handle) const {
+        return mTextures2D.contains(handle);
+    }
+
+    void VulkanResourceCache::DesroyTexture(Texture2DHandle handle) {
+        mTextures2D.erase(handle);
+    }
+
+    void VulkanResourceCache::DestroyAllTextures() {
+        mTextures2D.clear();
     }
 
     bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
