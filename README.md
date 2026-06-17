@@ -14,7 +14,7 @@
 
 ## About The Project
 
-[![Example Name Screen Shot][example-1-screenshot]](https://example.com)
+![Example Name Screen Shot][example-1-screenshot]
 
 A powerful rendering engine, built from the ground-up for performance and modularity.
 
@@ -35,6 +35,7 @@ Current Features:
 
 * CMake 3.13+
 * Vulkan SDK & Vulkan 1.3+ (developed and tested on Vulkan SDK 1.4.313.1)
+* C++23 compiler
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -135,6 +136,7 @@ virtual void OnUIRender() {
 - [ ] Add Blinn-Phong Specular Model
 - [ ] Add Textures
 - [ ] Add Materials
+- [ ] Use Slang instead of GLSL
 - [ ] Add Render Graph
   - [ ] Add Deffered Rendering
 
