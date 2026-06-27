@@ -12,25 +12,10 @@ namespace VKRE {
         uint64_t deviceAddress = 0;
     };
 
-    class VulkanGPUBuffer {
-    public:
-        VulkanGPUBuffer(VulkanContext& context);
-        ~VulkanGPUBuffer();
-
-        VulkanGPUBuffer(VulkanGPUBuffer&& other) noexcept;
-        VulkanGPUBuffer& operator=(VulkanGPUBuffer&& other) noexcept;
-
-        VulkanGPUBufferData& GetGPUBufferInfo() { return mGPUBufferData; }
-        const VulkanGPUBufferData& GetGPUBufferInfo() const { return mGPUBufferData; }
-
-        void ReCreateBuffer(uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info);
-        void CreateBuffer(uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info);
-        void Release();
-
-    private:
-        VulkanContext& mContext;
-        VulkanGPUBufferData mGPUBufferData;
-
-    };
+    namespace GPUBufferUtils {
+        VulkanGPUBufferData ReCreateBuffer(VulkanContext& context, VulkanGPUBufferData* oldGPUBufferData, uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info);
+        VulkanGPUBufferData CreateBuffer(VulkanContext& context, uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info);
+        void ReleaseBuffer(VulkanContext& context, VulkanGPUBufferData* bufferData);
+    }
 
 }

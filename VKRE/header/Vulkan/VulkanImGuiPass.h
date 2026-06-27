@@ -1,14 +1,15 @@
 #pragma once
 
-#include "VulkanContext.h"
-#include "VulkanPresenter.h"
-#include "VulkanTexture.h"
+#include <Vulkan/VulkanContext.h>
+
+#include <Vulkan/VulkanImage.h>
+#include <Vulkan/VulkanPresenter.h>
 
 namespace VKRE {
 
     struct FrameInfo {
         uint32_t swapchainImageIdx = 0;
-        VulkanTexture* drawImage = nullptr;
+        VulkanImageData* drawImage = nullptr;
     };
 
     class VulkanImGuiPass {

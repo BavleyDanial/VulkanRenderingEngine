@@ -46,9 +46,8 @@ namespace VKRE {
 
             glm::vec2 viewport = Renderer::GetViewportDimensions();
 
-            sceneData.View = glm::lookAt(position, position + forward, glm::vec3(0, 1, 0));
-            sceneData.Projection = glm::perspective(glm::radians(camComponent.FOV), viewport.x / viewport.y, camComponent.Near, camComponent.Far);
-            sceneData.Projection[0][0] *= -1; // flip the x axis
+            sceneData.View = glm::lookAtLH(position, position + forward, glm::vec3(0, 1, 0));
+            sceneData.Projection = glm::perspectiveLH_NO(glm::radians(camComponent.FOV), viewport.x / viewport.y, camComponent.Near, camComponent.Far);
         }
 
         mScene->GetFlecsWorld().each([&](const DirectionalLightComponent& light) {

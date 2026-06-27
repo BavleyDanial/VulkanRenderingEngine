@@ -2,6 +2,7 @@
 
 #include <Vulkan/VulkanContext.h>
 #include <Vulkan/VulkanResourceCache.h>
+
 #include <vector>
 
 namespace VKRE {
@@ -26,7 +27,7 @@ namespace VKRE {
         VkCommandBuffer mImmediateBuffer;
         VkFence mImmediateFence;
 
-        std::vector<std::unique_ptr<VulkanGPUBuffer>> mPendingStagingBuffers;
+        std::vector<VulkanGPUBufferData> mPendingStagingBuffers;
         bool mRecording = false;
     };
 

@@ -2,56 +2,42 @@
 
 namespace VKRE {
 
-    VulkanGPUBuffer::VulkanGPUBuffer(VulkanContext& context)
-        :mContext(context) {}
+    namespace GPUBufferUtils {
 
-    VulkanGPUBuffer::~VulkanGPUBuffer() {
-        Release();
-    }
-
-    VulkanGPUBuffer::VulkanGPUBuffer(VulkanGPUBuffer&& other) noexcept
-        : mContext(other.mContext), mGPUBufferData(other.mGPUBufferData) {
-            other.mGPUBufferData = {};
+        VulkanGPUBufferData ReCreateBuffer(VulkanContext& context, VulkanGPUBufferData* oldGPUBufferData, uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info) {
+            ReleaseBuffer(context, oldGPUBufferData);
+            return CreateBuffer(context, allocSize, usage, info);
         }
 
-    VulkanGPUBuffer& VulkanGPUBuffer::operator=(VulkanGPUBuffer&& other) noexcept {
-        if (this != &other) {
-            Release();
-            mGPUBufferData = other.mGPUBufferData;
-            other.mGPUBufferData = {};
+        VulkanGPUBufferData CreateBuffer(VulkanContext& context, uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info) {
+            VulkanGPUBufferData bufferData{};
+
+            VkBufferCreateInfo bufferInfo{};
+            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            bufferInfo.pNext = nullptr;
+            bufferInfo.size = allocSize;
+            bufferInfo.usage = usage;
+
+            VK_CHECK(vmaCreateBuffer(context.GetAllocator(), &bufferInfo, &info,
+                        &bufferData.buffer, &bufferData.allocation, &bufferData.info));
+
+            if ((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) == VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
+                VkBufferDeviceAddressInfo deviceAddressInfo{};
+                deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+                deviceAddressInfo.buffer = bufferData.buffer;
+                bufferData.deviceAddress = vkGetBufferDeviceAddress(context.GetLogicalDevice().handle, &deviceAddressInfo);
+            } else {
+                bufferData.deviceAddress = 0; 
+            }
+
+            return bufferData;
         }
-        return *this;
-    }
 
-    void VulkanGPUBuffer::ReCreateBuffer(uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info) {
-        Release();
-        CreateBuffer(allocSize, usage, info);
-    }
-
-    void VulkanGPUBuffer::CreateBuffer(uint64_t allocSize, VkBufferUsageFlags usage, VmaAllocationCreateInfo& info) {
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.pNext = nullptr;
-        bufferInfo.size = allocSize;
-        bufferInfo.usage = usage;
-
-        VK_CHECK(vmaCreateBuffer(mContext.GetAllocator(), &bufferInfo, &info,
-                    &mGPUBufferData.buffer, &mGPUBufferData.allocation, &mGPUBufferData.info));
-
-        if ((usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) == VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
-            VkBufferDeviceAddressInfo deviceAddressInfo{};
-            deviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-            deviceAddressInfo.buffer = mGPUBufferData.buffer;
-            mGPUBufferData.deviceAddress = vkGetBufferDeviceAddress(mContext.GetLogicalDevice().handle, &deviceAddressInfo);
-        } else {
-            mGPUBufferData.deviceAddress = 0; 
+        void ReleaseBuffer(VulkanContext& context, VulkanGPUBufferData* bufferData) {
+            if (bufferData->buffer == VK_NULL_HANDLE) return;
+            vmaDestroyBuffer(context.GetAllocator(), bufferData->buffer, bufferData->allocation);
+            *bufferData = {}; 
         }
-    }
-
-    void VulkanGPUBuffer::Release() {
-        if (mGPUBufferData.buffer == VK_NULL_HANDLE) return;
-        vmaDestroyBuffer(mContext.GetAllocator(), mGPUBufferData.buffer, mGPUBufferData.allocation);
-        mGPUBufferData = {};
     }
 
 }

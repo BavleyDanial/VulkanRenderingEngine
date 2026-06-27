@@ -34,6 +34,8 @@ namespace VKRE {
         vkDestroyCommandPool(mContext.GetLogicalDevice().handle, mImmediatePool, nullptr);
         vkDestroyFence(mContext.GetLogicalDevice().handle, mImmediateFence, nullptr);
 
+        for (auto& buffer : mPendingStagingBuffers)
+            GPUBufferUtils::ReleaseBuffer(mContext, &buffer);
         mPendingStagingBuffers.clear();
     }
 
@@ -50,20 +52,17 @@ namespace VKRE {
         stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-        std::unique_ptr<VulkanGPUBuffer> staging = std::make_unique<VulkanGPUBuffer>(mContext);
-        staging->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo);
-        memcpy(staging->GetGPUBufferInfo().info.pMappedData, data, size);
+        mPendingStagingBuffers.emplace_back(GPUBufferUtils::CreateBuffer(mContext, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo));
+        memcpy(mPendingStagingBuffers.back().info.pMappedData, data, size);
 
         VkBufferCopy copy { .srcOffset = 0, .dstOffset = offset, .size = size };
-        vkCmdCopyBuffer(mImmediateBuffer, staging->GetGPUBufferInfo().buffer, dst->buffer, 1, &copy);
-
-        mPendingStagingBuffers.push_back(std::move(staging));
+        vkCmdCopyBuffer(mImmediateBuffer, mPendingStagingBuffers.back().buffer, dst->buffer, 1, &copy);
     }
 
     void VulkanUploader::UploadTexture(Texture2DHandle handle, const void* data, uint64_t size) {
         assert(mRecording && "VulkanUploader::UploadTexture called without without Begin");
 
-        VulkanTextureData* dst = mCache.GetTextureData(handle);
+        VulkanImageData* dst = mCache.GetImageData(handle);
         if (!dst->imageView) {
             std::println("VulkanUploader::UploadTexture texture not found (index={})", static_cast<uint32_t>(handle.index));
             return;
@@ -75,9 +74,8 @@ namespace VKRE {
         stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
         stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-        std::unique_ptr<VulkanGPUBuffer> staging = std::make_unique<VulkanGPUBuffer>(mContext);
-        staging->CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo);
-        memcpy(staging->GetGPUBufferInfo().info.pMappedData, data, size);
+        mPendingStagingBuffers.emplace_back(GPUBufferUtils::CreateBuffer(mContext, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo));
+        memcpy(mPendingStagingBuffers.back().info.pMappedData, data, size);
 
         ImageUtils::TransitionImage(mImmediateBuffer, targetImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -92,10 +90,8 @@ namespace VKRE {
         copy.imageSubresource.layerCount = 1;
         copy.imageExtent = targetExtent;
 
-        vkCmdCopyBufferToImage(mImmediateBuffer, staging->GetGPUBufferInfo().buffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+        vkCmdCopyBufferToImage(mImmediateBuffer, mPendingStagingBuffers.back().buffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
         ImageUtils::TransitionImage(mImmediateBuffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        mPendingStagingBuffers.push_back(std::move(staging));
     }
 
     void VulkanUploader::Begin() {
@@ -105,6 +101,8 @@ namespace VKRE {
         VK_CHECK(vkWaitForFences(device, 1, &mImmediateFence, VK_TRUE, UINT64_MAX));
         VK_CHECK(vkResetFences(device, 1, &mImmediateFence));
 
+        for (auto& buffer : mPendingStagingBuffers)
+            GPUBufferUtils::ReleaseBuffer(mContext, &buffer);
         mPendingStagingBuffers.clear();
         vkResetCommandBuffer(mImmediateBuffer, 0);
 

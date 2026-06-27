@@ -79,8 +79,8 @@ namespace VKRE {
             return false;
         }
 
-        auto it = mBuffers.find(handle);
-        if (it != mBuffers.end()) return true;
+        if (handle.index >= mBuffers.size())                        mBuffers.resize(handle.index + 1);
+        else if (mBuffers[handle.index].buffer != VK_NULL_HANDLE)   return true;
 
         GPUBufferHotData* hot = mResourceManager.GetGPUBufferHot(handle);
         assert(hot && "VulkanResourceCache::UploadBuffer buffer handle is valid but GetGPUBufferHot returned nullptr");
@@ -100,50 +100,47 @@ namespace VKRE {
             vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
-        VulkanGPUBuffer buffer(mContext);
-        buffer.CreateBuffer(hot->Size, vkUsage, allocInfo);
-
-        hot->DeviceAddress = buffer.GetGPUBufferInfo().deviceAddress;
-        mBuffers.emplace(handle, std::move(buffer));
+        mBuffers[handle.index] = GPUBufferUtils::CreateBuffer(mContext, hot->Size, vkUsage, allocInfo);
+        hot->DeviceAddress = mBuffers[handle.index].deviceAddress;
         return true;
     }
 
     VulkanGPUBufferData* VulkanResourceCache::GetBufferData(GPUBufferHandle handle) {
-        auto it = mBuffers.find(handle);
-        if (it == mBuffers.end()) return nullptr;
-        return &it->second.GetGPUBufferInfo();
+        if (handle.index >= mBuffers.size())                   return nullptr;
+        if (mBuffers[handle.index].buffer == VK_NULL_HANDLE)   return nullptr;
+        return &mBuffers[handle.index];
     }
 
     const VulkanGPUBufferData* VulkanResourceCache::GetBufferData(GPUBufferHandle handle) const {
-        auto it = mBuffers.find(handle);
-        if (it == mBuffers.end()) return nullptr;
-        return &it->second.GetGPUBufferInfo();
+        if (handle.index >= mBuffers.size())                   return nullptr;
+        if (mBuffers[handle.index].buffer == VK_NULL_HANDLE)   return nullptr;
+        return &mBuffers[handle.index];
     }
 
     bool VulkanResourceCache::IsBufferAllocated(GPUBufferHandle handle) const {
-        return mBuffers.contains(handle);
+        if (handle.index >= mBuffers.size()) return false;
+        return mBuffers[handle.index].buffer != VK_NULL_HANDLE;
     }
 
-    void VulkanResourceCache::DesroyBuffer(GPUBufferHandle handle) {
-        auto it = mBuffers.find(handle);
-        if (it == mBuffers.end()) return;
-        it->second.Release();
+    void VulkanResourceCache::DestroyBuffer(GPUBufferHandle handle) {
+        if (handle.index >= mBuffers.size()) return;
+        GPUBufferUtils::ReleaseBuffer(mContext, &mBuffers[handle.index]);
     }
 
     void VulkanResourceCache::DestroyAllBuffers() {
-        for (auto& [handle, buffer] : mBuffers)
-            buffer.Release();
+        for (auto& buffer : mBuffers)
+            GPUBufferUtils::ReleaseBuffer(mContext, &buffer);
         mBuffers.clear();
     }
 
-    bool VulkanResourceCache::AllocateTexture(Texture2DHandle handle) {
+    bool VulkanResourceCache::AllocateImage(Texture2DHandle handle) {
         if (!handle.IsValid()) {
             std::println("VulkanResourceCache::AllocateTexture handle is invalid");
             return false;
         }
 
-        auto it = mTextures2D.find(handle);
-        if (it != mTextures2D.end()) return true;
+        if (handle.index >= mImages2D.size())                         mImages2D.resize(handle.index + 1);
+        else if (mImages2D[handle.index].image != VK_NULL_HANDLE)     return true;
 
         Texture2DHotData* hot = mResourceManager.GetTexture2DHot(handle);
         assert(hot && "VulkanResourceCache::AllocateTexture handle is valid but GetTexture2DHot returned nullptr");
@@ -165,35 +162,36 @@ namespace VKRE {
         allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
         allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-        VulkanTexture texture(&mContext);
-        texture.CreateTexture(vkFormat, vkUsage, extent, vkAspect, allocInfo);
-
-        mTextures2D.emplace(handle, std::move(texture));
+        mImages2D[handle.index] = ImageUtils::CreateImage(mContext, vkFormat, vkUsage, extent, vkAspect, allocInfo);
         return true;
     }
 
-    VulkanTextureData* VulkanResourceCache::GetTextureData(Texture2DHandle handle) {
-        auto it = mTextures2D.find(handle);
-        if (it == mTextures2D.end()) return nullptr;
-        return &it->second.GetTextureInfo();
+    VulkanImageData* VulkanResourceCache::GetImageData(Texture2DHandle handle) {
+        if (handle.index >= mImages2D.size())                    return nullptr;
+        if (mImages2D[handle.index].image == VK_NULL_HANDLE)     return nullptr;
+        return &mImages2D[handle.index];
     }
 
-    const VulkanTextureData* VulkanResourceCache::GetTextureData(Texture2DHandle handle) const {
-        auto it = mTextures2D.find(handle);
-        if (it == mTextures2D.end()) return {};
-        return &it->second.GetTextureInfo();
+    const VulkanImageData* VulkanResourceCache::GetImageData(Texture2DHandle handle) const {
+        if (handle.index >= mImages2D.size())                    return nullptr;
+        if (mImages2D[handle.index].image == VK_NULL_HANDLE)     return nullptr;
+        return &mImages2D[handle.index];
     }
 
-    bool VulkanResourceCache::IsTextureAllocated(Texture2DHandle handle) const {
-        return mTextures2D.contains(handle);
+    bool VulkanResourceCache::IsImageAllocated(Texture2DHandle handle) const {
+        if (handle.index >= mImages2D.size()) return false;
+        return mImages2D[handle.index].image != VK_NULL_HANDLE;
     }
 
-    void VulkanResourceCache::DesroyTexture(Texture2DHandle handle) {
-        mTextures2D.erase(handle);
+    void VulkanResourceCache::DestroyImage(Texture2DHandle handle) {
+        if (handle.index >= mImages2D.size()) return;
+        ImageUtils::ReleaseImage(mContext, &mImages2D[handle.index]);
     }
 
-    void VulkanResourceCache::DestroyAllTextures() {
-        mTextures2D.clear();
+    void VulkanResourceCache::DestroyAllImages() {
+        for (auto& image : mImages2D)
+            ImageUtils::ReleaseImage(mContext, &image);
+        mImages2D.clear();
     }
 
     bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
@@ -506,6 +504,7 @@ namespace VKRE {
     }
 
     void VulkanResourceCache::DestroyAll() {
+        DestroyAllImages();
         DestroyAllBuffers();
         DestroyAllGraphicsPipelines();
         DestroyAllComputePipelines();

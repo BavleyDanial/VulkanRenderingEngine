@@ -42,12 +42,12 @@ namespace VKRE {
         return descriptorSet;
     }
 
-    void VulkanFixedBindlessDescriptorAllocator::InitPool(VkDevice device, uint32_t maxTextures) {
-        mMaxTextures = maxTextures;
+    void VulkanFixedBindlessDescriptorAllocator::InitPool(VkDevice device, uint32_t maxImages) {
+        mMaxImages = maxImages;
 
         VkDescriptorPoolSize poolSize{};
         poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSize.descriptorCount = maxTextures;
+        poolSize.descriptorCount = maxImages;
 
         VkDescriptorPoolCreateInfo poolInfo{};
         poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -63,13 +63,13 @@ namespace VKRE {
         vkDestroyDescriptorPool(device, mPool, nullptr);
     }
 
-    int32_t VulkanFixedBindlessDescriptorAllocator::RegisterTexture(VkDevice device, VkDescriptorSet set, VkImageView imageView, VkSampler sampler) {
+    int32_t VulkanFixedBindlessDescriptorAllocator::RegisterImage(VkDevice device, VkDescriptorSet set, VkImageView imageView, VkSampler sampler) {
         if (!imageView) {
             std::println("VulkanBindlessDescriptorAllocator::RegisterTexture invalid image view");
             return -1;
         }
 
-        if (IsTexturesFull()) {
+        if (IsImagesFull()) {
             std::println("VulkanBindlessDescriptorAllocator::RegisterTexture array is full");
             return -1;
         }
@@ -100,7 +100,7 @@ namespace VKRE {
         return index;
     }
 
-    void VulkanFixedBindlessDescriptorAllocator::UnRegisterTexture(int32_t index) {
+    void VulkanFixedBindlessDescriptorAllocator::UnRegisterImage(int32_t index) {
         if (index < 0 || index >= mNextIndex) {
             std::println("VulkanBindlessDescriptorAllocator::UnregisterTexture invalid index {}", index);
             return;

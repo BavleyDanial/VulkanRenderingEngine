@@ -1,7 +1,7 @@
 #pragma once
 
-#include "VulkanUtils.h"
-#include "VulkanResourceCache.h"
+#include <Vulkan/VulkanUtils.h>
+#include <Vulkan/VulkanResourceCache.h>
 
 #include <ResourceManager/ResourceHandles.h>
 #include <glm/glm.hpp>

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "VulkanSwapChain.h"
-#include "VulkanContext.h"
+#include <Vulkan/VulkanContext.h>
+#include <Vulkan/VulkanSwapChain.h>
 
 #include <Window/GlfwWindow.h>
 

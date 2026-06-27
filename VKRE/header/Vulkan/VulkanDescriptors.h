@@ -1,6 +1,6 @@
 #pragma once
 
-#include "VulkanUtils.h"
+#include <Vulkan/VulkanUtils.h>
 
 #include <deque>
 #include <span>
@@ -27,18 +27,18 @@ namespace VKRE {
 
     class VulkanFixedBindlessDescriptorAllocator {
     public:
-        void InitPool(VkDevice device, uint32_t maxTextures);
+        void InitPool(VkDevice device, uint32_t maxImages);
         void DestroyPool(VkDevice device);
 
-        int32_t RegisterTexture(VkDevice device, VkDescriptorSet set, VkImageView imageView, VkSampler sampler);
-        void UnRegisterTexture(int32_t index);
-        bool IsTexturesFull() const { return mFreeList.empty() && mNextIndex >= mMaxTextures; }
+        int32_t RegisterImage(VkDevice device, VkDescriptorSet set, VkImageView imageView, VkSampler sampler);
+        void UnRegisterImage(int32_t index);
+        bool IsImagesFull() const { return mFreeList.empty() && mNextIndex >= mMaxImages; }
 
         VkDescriptorSet Allocate(VkDevice device, VkDescriptorSetLayout layout);
 
     private:
         VkDescriptorPool mPool = VK_NULL_HANDLE;
-        uint32_t mMaxTextures = 0;
+        uint32_t mMaxImages = 0;
         int32_t mNextIndex = 0;
         std::vector<int32_t> mFreeList;
     };

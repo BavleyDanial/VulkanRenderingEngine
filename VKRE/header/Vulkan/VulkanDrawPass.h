@@ -1,7 +1,7 @@
 #pragma once
 
-#include "VulkanResourceCache.h"
-#include "VulkanDescriptors.h"
+#include <Vulkan/VulkanResourceCache.h>
+#include <Vulkan/VulkanDescriptors.h>
 
 #include <glm/glm.hpp>
 #include <vector>

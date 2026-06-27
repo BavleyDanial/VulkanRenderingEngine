@@ -13,7 +13,7 @@
 #include <Vulkan/VulkanResourceCache.h>
 #include <Vulkan/VulkanDescriptors.h>
 #include <Vulkan/VulkanUploader.h>
-#include <Vulkan/VulkanTexture.h>
+#include <Vulkan/VulkanImage.h>
 
 #include <ResourceManager/ResourceManager.h>
 #include <ResourceManager/Resources.h>
@@ -102,8 +102,8 @@ namespace VKRE {
         std::unique_ptr<VulkanPresenter> mPresenter;
 
         VkSampler mDefaultSampler;
-        std::unique_ptr<VulkanTexture> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
-        std::unique_ptr<VulkanTexture> mDepthImage;
+        std::unique_ptr<VulkanImageData> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
+        std::unique_ptr<VulkanImageData> mDepthImage;
 
         std::vector<VulkanDrawPass> mDrawPasses;
         std::vector<VulkanComputePass> mComputePasses;
@@ -120,7 +120,7 @@ namespace VKRE {
         VkDescriptorSet mCurrentSceneSet;
         VkDescriptorSetLayout mSceneLayout;
         VkDescriptorSetLayout mTextureLayout;
-        std::vector<VulkanGPUBuffer> mSceneUniformBuffers;
+        std::vector<VulkanGPUBufferData> mSceneUniformBuffers;
     };
 
 }

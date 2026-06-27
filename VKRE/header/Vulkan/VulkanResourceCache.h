@@ -1,9 +1,10 @@
 #pragma once
 
 #include <Vulkan/VulkanContext.h>
-#include <Vulkan/VulkanPipeline.h>
+
 #include <Vulkan/VulkanGPUBuffer.h>
-#include <Vulkan/VulkanTexture.h>
+#include <Vulkan/VulkanPipeline.h>
+#include <Vulkan/VulkanImage.h>
 
 #include <ResourceManager/ResourceRefs.h>
 #include <ResourceManager/ResourceHandles.h>
@@ -22,16 +23,16 @@ namespace VKRE {
         const VulkanGPUBufferData* GetBufferData(GPUBufferHandle handle) const;
         bool IsBufferAllocated(GPUBufferHandle handle) const;
 
-        void DesroyBuffer(GPUBufferHandle handle);
+        void DestroyBuffer(GPUBufferHandle handle);
         void DestroyAllBuffers();
 
-        bool AllocateTexture(Texture2DHandle handle);
-        VulkanTextureData* GetTextureData(Texture2DHandle handle);
-        const VulkanTextureData* GetTextureData(Texture2DHandle handle) const;
-        bool IsTextureAllocated(Texture2DHandle handle) const;
+        bool AllocateImage(Texture2DHandle handle);
+        VulkanImageData* GetImageData(Texture2DHandle handle);
+        const VulkanImageData* GetImageData(Texture2DHandle handle) const;
+        bool IsImageAllocated(Texture2DHandle handle) const;
 
-        void DesroyTexture(Texture2DHandle handle);
-        void DestroyAllTextures();
+        void DestroyImage(Texture2DHandle handle);
+        void DestroyAllImages();
 
         bool CreateShader(ShaderHandle handle);
         VkShaderModule GetShaderModule(ShaderHandle handle);
@@ -75,8 +76,9 @@ namespace VKRE {
         VulkanContext& mContext;
         ResourceManager& mResourceManager;
 
-        std::unordered_map<Texture2DHandle, VulkanTexture> mTextures2D;
-        std::unordered_map<GPUBufferHandle, VulkanGPUBuffer> mBuffers;
+        std::vector<VulkanImageData> mImages2D;
+        std::vector<VulkanGPUBufferData> mBuffers;
+
         std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;
         std::unordered_map<VulkanPipelineLayoutKey, VkPipelineLayout> mPipelineLayouts;
         std::unordered_map<VulkanComputePipelineKey, VulkanComputePipeline> mComputePipelines;
