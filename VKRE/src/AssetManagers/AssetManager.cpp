@@ -48,7 +48,7 @@ namespace VKRE {
         std::filesystem::path meshDir = path.parent_path();
         for (const std::string& texPath : importedMesh.TexturePaths) {
             std::filesystem::path fullTexPath = meshDir / texPath;
-            fullTexPath = std::filesystem::path(pathStr).lexically_normal();
+            fullTexPath = std::filesystem::path(fullTexPath).lexically_normal();
             const Texture2DAsset* texAsset = LoadTexture2D(fullTexPath);
             if (texAsset) {
                 meshAsset.Textures.push_back(texAsset->Texture);
