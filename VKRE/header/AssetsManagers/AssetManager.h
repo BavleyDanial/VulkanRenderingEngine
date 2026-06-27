@@ -2,6 +2,10 @@
 
 #include <ResourceManager/ResourceManager.h>
 
+#include <AssetsManagers/MeshImporter.h>
+#include <AssetsManagers/ShaderImporter.h>
+#include <AssetsManagers/TextureImporter.h>
+
 #include <Assets/Mesh.h>
 #include <Assets/Shader.h>
 #include <Assets/Texture.h>
@@ -17,14 +21,14 @@ namespace VKRE {
         AssetManager(ResourceManager& manager);
         ~AssetManager();
 
-        static const MeshAsset* LoadMesh(const std::filesystem::path& path);
-        static const ShaderAsset* LoadShader(const std::filesystem::path& path);
-        static const Texture2DAsset* LoadTexture2D(const std::filesystem::path& path);
+        static const MeshAsset* LoadMesh(const std::filesystem::path& path, const MeshImportOptions& options = {});
+        static const ShaderAsset* LoadShader(const std::filesystem::path& path, const ShaderImportOptions& options = {});
+        static const Texture2DAsset* LoadTexture2D(const std::filesystem::path& path, const TextureImportOptions& options = {});
 
     private:
-        const MeshAsset* LoadMeshImpl(const std::filesystem::path& path);
-        const ShaderAsset* LoadShaderImpl(const std::filesystem::path& path);
-        const Texture2DAsset* LoadTexture2DImpl(const std::filesystem::path& path);
+        const MeshAsset* LoadMeshImpl(const std::filesystem::path& path, const MeshImportOptions& options);
+        const ShaderAsset* LoadShaderImpl(const std::filesystem::path& path, const ShaderImportOptions& options);
+        const Texture2DAsset* LoadTexture2DImpl(const std::filesystem::path& path, const TextureImportOptions& options);
 
     private:
         ResourceManager& mResourceManager;

@@ -162,7 +162,7 @@ namespace VKRE {
         allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
         allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-        mImages2D[handle.index] = ImageUtils::CreateImage(mContext, vkFormat, vkUsage, extent, vkAspect, allocInfo);
+        mImages2D[handle.index] = ImageUtils::CreateImage(mContext, vkFormat, vkUsage, extent, vkAspect, hot->MipLevels, allocInfo);
         return true;
     }
 

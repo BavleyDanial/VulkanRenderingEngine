@@ -6,7 +6,7 @@
 
 namespace VKRE {
 
-    struct ShaderImportingOptions {
+    struct ShaderImportOptions {
         bool Optimize = false;
         bool GenerateDebugInfo = true;
         std::string EntryPoint = "main";
@@ -27,7 +27,7 @@ namespace VKRE {
         static std::optional<ShaderImportResults> LoadFromFile(
             ResourceManager& manager,
             const std::filesystem::path& path,
-            const ShaderImportingOptions& options = {}
+            const ShaderImportOptions& options = {}
         );
 
         // TODO: Do these

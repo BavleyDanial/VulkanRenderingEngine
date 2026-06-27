@@ -3,7 +3,6 @@
 
 #include <cassert>
 #include <cstring>
-#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -91,7 +90,28 @@ namespace VKRE {
         copy.imageExtent = targetExtent;
 
         vkCmdCopyBufferToImage(mImmediateBuffer, mPendingStagingBuffers.back().buffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
-        ImageUtils::TransitionImage(mImmediateBuffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        if (dst->mipLevels <= 1) {
+            ImageUtils::TransitionImage(mImmediateBuffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            return;
+        }
+
+        ImageUtils::TransitionImageMip(mImmediateBuffer, targetImage, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        uint32_t srcWidth = targetExtent.width;
+        uint32_t srcHeight = targetExtent.height;
+
+        for (uint32_t mip = 1; mip < dst->mipLevels; mip++) {
+            uint32_t dstWidth = glm::max(srcWidth / 2, 1u);
+            uint32_t dstHeight = glm::max(srcHeight / 2, 1u);
+
+            ImageUtils::TransitionImageMip(mImmediateBuffer, targetImage, mip, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            ImageUtils::CopyImage(mImmediateBuffer, targetImage, targetImage, { srcWidth, srcHeight }, { dstWidth, dstHeight }, mip - 1, mip);
+            ImageUtils::TransitionImageMip(mImmediateBuffer, targetImage, mip, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+            srcWidth = dstWidth;
+            srcHeight = dstHeight;
+        }
+
+        ImageUtils::TransitionImage(mImmediateBuffer, targetImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     void VulkanUploader::Begin() {

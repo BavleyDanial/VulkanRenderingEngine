@@ -1,15 +1,20 @@
 #include <Vulkan/VulkanImage.h>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
     namespace ImageUtils {
 
-        VulkanImageData ReCreateImage(VulkanContext& context, VulkanImageData* oldImageData, VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& info) {
+        VulkanImageData ReCreateImage(VulkanContext& context, VulkanImageData* oldImageData,
+                                    VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, uint32_t mipLevels,
+                                    VmaAllocationCreateInfo& info) {
             ReleaseImage(context, oldImageData);
-            return CreateImage(context, format, usageFlags, extent, aspectFlags, info);
+            return CreateImage(context, format, usageFlags, extent, aspectFlags, mipLevels, info);
         }
 
-        VulkanImageData CreateImage(VulkanContext& context, VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, VmaAllocationCreateInfo& allocInfo) {
+        VulkanImageData CreateImage(VulkanContext& context,
+                                    VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, uint32_t mipLevels,
+                                    VmaAllocationCreateInfo& allocInfo) {
             VulkanImageData imageData{};
 
             VkImageCreateInfo info = {};
@@ -19,7 +24,7 @@ namespace VKRE {
             info.imageType = VK_IMAGE_TYPE_2D;
             info.format = format;
             info.extent = extent;
-            info.mipLevels = 1;
+            info.mipLevels = mipLevels;
             info.arrayLayers = 1;
             info.samples = VK_SAMPLE_COUNT_1_BIT;
             info.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -28,6 +33,7 @@ namespace VKRE {
             VK_CHECK(vmaCreateImage(context.GetAllocator(), &info, &allocInfo, &imageData.image, &imageData.allocation, nullptr));
             imageData.extent = extent;
             imageData.format = format;
+            imageData.mipLevels = mipLevels;
 
             VkImageViewCreateInfo imageViewCreateInfo = {};
             imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -37,7 +43,7 @@ namespace VKRE {
             imageViewCreateInfo.image = imageData.image;
             imageViewCreateInfo.format = format;
             imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-            imageViewCreateInfo.subresourceRange.levelCount = 1;
+            imageViewCreateInfo.subresourceRange.levelCount = mipLevels;
             imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
             imageViewCreateInfo.subresourceRange.layerCount = 1;
             imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
@@ -73,7 +79,7 @@ namespace VKRE {
             imageBarrier.newLayout = newLayout;
 
             VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-            imageBarrier.subresourceRange = ImageSubSourceRange(aspectMask);
+            imageBarrier.subresourceRange = ImageSubSourceRange(aspectMask, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS);
             imageBarrier.image = image;
 
             VkDependencyInfo depInfo {};
@@ -86,7 +92,33 @@ namespace VKRE {
             vkCmdPipelineBarrier2(cmd, &depInfo);
         }
 
-        void CopyImage(VkCommandBuffer cmd, VkImage src, VkImage dest, VkExtent2D srcSize, VkExtent2D dstSize) {
+        void TransitionImageMip(VkCommandBuffer cmd, VkImage image, uint32_t mipLevel, VkImageLayout currentLayout, VkImageLayout newLayout) {
+            VkImageMemoryBarrier2 imageBarrier {.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+            imageBarrier.pNext = nullptr;
+
+            imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT | VK_ACCESS_2_TRANSFER_READ_BIT;
+            imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT | VK_ACCESS_2_TRANSFER_READ_BIT;
+
+            imageBarrier.oldLayout = currentLayout;
+            imageBarrier.newLayout = newLayout;
+
+            VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+            imageBarrier.subresourceRange = ImageSubSourceRange(aspectMask, mipLevel, 1, 0, 1);
+            imageBarrier.image = image;
+
+            VkDependencyInfo depInfo {};
+            depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            depInfo.pNext = nullptr;
+
+            depInfo.imageMemoryBarrierCount = 1;
+            depInfo.pImageMemoryBarriers = &imageBarrier;
+
+            vkCmdPipelineBarrier2(cmd, &depInfo);
+        }
+
+        void CopyImage(VkCommandBuffer cmd, VkImage src, VkImage dest, VkExtent2D srcSize, VkExtent2D dstSize, uint32_t srcMip, uint32_t dstMip) {
             VkImageBlit2 blitRegion{ .sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr };
 
             blitRegion.srcOffsets[1].x = srcSize.width;
@@ -100,12 +132,12 @@ namespace VKRE {
             blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             blitRegion.srcSubresource.baseArrayLayer = 0;
             blitRegion.srcSubresource.layerCount = 1;
-            blitRegion.srcSubresource.mipLevel = 0;
+            blitRegion.srcSubresource.mipLevel = srcMip;
 
             blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             blitRegion.dstSubresource.baseArrayLayer = 0;
             blitRegion.dstSubresource.layerCount = 1;
-            blitRegion.dstSubresource.mipLevel = 0;
+            blitRegion.dstSubresource.mipLevel = dstMip;
 
             VkBlitImageInfo2 blitInfo{ .sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2, .pNext = nullptr };
             blitInfo.dstImage = dest;
@@ -119,14 +151,13 @@ namespace VKRE {
             vkCmdBlitImage2(cmd, &blitInfo);
         }
 
-        VkImageSubresourceRange ImageSubSourceRange(VkImageAspectFlags aspectMask) {
+        VkImageSubresourceRange ImageSubSourceRange(VkImageAspectFlags aspectMask, uint32_t mipLevel, uint32_t levelCount, uint32_t arrayLayer, uint32_t layerCount) {
             VkImageSubresourceRange subImage {};
             subImage.aspectMask = aspectMask;
-            subImage.baseMipLevel = 0;
-            subImage.levelCount = VK_REMAINING_MIP_LEVELS;
-            subImage.baseArrayLayer = 0;
-            subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
+            subImage.baseMipLevel = mipLevel;
+            subImage.levelCount = levelCount;
+            subImage.baseArrayLayer = arrayLayer;
+            subImage.layerCount = layerCount;
             return subImage;
         }
     }

@@ -1,10 +1,6 @@
 #include "ResourceManager/Resources.h"
 #include <AssetsManagers/AssetManager.h>
 
-#include <AssetsManagers/MeshImporter.h>
-#include <AssetsManagers/ShaderImporter.h>
-#include <AssetsManagers/TextureImporter.h>
-
 #include <Renderer/Renderer.h>
 
 namespace VKRE {
@@ -20,12 +16,12 @@ namespace VKRE {
         mShaderAssets.clear();
     }
 
-    const MeshAsset* AssetManager::LoadMesh(const std::filesystem::path& path) {
+    const MeshAsset* AssetManager::LoadMesh(const std::filesystem::path& path, const MeshImportOptions& options) {
         assert(sInstance && "AssetManager hasn't been initiated");
-        return sInstance->LoadMeshImpl(path);
+        return sInstance->LoadMeshImpl(path, options);
     }
 
-    const MeshAsset* AssetManager::LoadMeshImpl(const std::filesystem::path& path) {
+    const MeshAsset* AssetManager::LoadMeshImpl(const std::filesystem::path& path, const MeshImportOptions& options) {
         std::string pathStr = path.string();
 
         auto it = mMeshAssets.find(pathStr);
@@ -49,7 +45,7 @@ namespace VKRE {
         for (const std::string& texPath : importedMesh.TexturePaths) {
             std::filesystem::path fullTexPath = meshDir / texPath;
             fullTexPath = std::filesystem::path(fullTexPath).lexically_normal();
-            const Texture2DAsset* texAsset = LoadTexture2D(fullTexPath);
+            const Texture2DAsset* texAsset = LoadTexture2D(fullTexPath, { .GenerateMipMaps = true });
             if (texAsset) {
                 meshAsset.Textures.push_back(texAsset->Texture);
                 meshAsset.TexturesIndices.push_back(texAsset->BindlessIndex);
@@ -80,12 +76,12 @@ namespace VKRE {
         return &result.first->second;
     }
 
-    const ShaderAsset* AssetManager::LoadShader(const std::filesystem::path& path) {
+    const ShaderAsset* AssetManager::LoadShader(const std::filesystem::path& path, const ShaderImportOptions& options) {
         assert(sInstance && "AssetManager hasn't been initiated");
-        return sInstance->LoadShaderImpl(path);
+        return sInstance->LoadShaderImpl(path, options);
     }
 
-    const ShaderAsset* AssetManager::LoadShaderImpl(const std::filesystem::path& path) {
+    const ShaderAsset* AssetManager::LoadShaderImpl(const std::filesystem::path& path, const ShaderImportOptions& options) {
         std::string pathStr = path.string();
 
         auto it = mShaderAssets.find(pathStr);
@@ -108,12 +104,12 @@ namespace VKRE {
         return &result.first->second;
     }
 
-    const Texture2DAsset* AssetManager::LoadTexture2D(const std::filesystem::path& path) {
+    const Texture2DAsset* AssetManager::LoadTexture2D(const std::filesystem::path& path, const TextureImportOptions& options) {
         assert(sInstance && "AssetManager hasn't been initiated");
-        return sInstance->LoadTexture2DImpl(path);
+        return sInstance->LoadTexture2DImpl(path, options);
     }
 
-    const Texture2DAsset* AssetManager::LoadTexture2DImpl(const std::filesystem::path& path) {
+    const Texture2DAsset* AssetManager::LoadTexture2DImpl(const std::filesystem::path& path, const TextureImportOptions& options) {
         std::string pathStr = path.string();
 
         auto it = mTexture2DAssets.find(pathStr);
@@ -131,11 +127,11 @@ namespace VKRE {
         textureAsset.Width = importedTexture.Width;
         textureAsset.Height = importedTexture.Height;
         textureAsset.Format = importedTexture.Format;
-        textureAsset.MipLevels = 1; //static_cast<uint32_t>(glm::floor(glm::log2(glm::max(importedTexture.Width, importedTexture.Height)))) + 1;
+        textureAsset.MipLevels = options.GenerateMipMaps ? static_cast<uint32_t>(glm::floor(glm::log2((float)glm::max(importedTexture.Width, importedTexture.Height)))) + 1 : 1;
 
         TextureDesc desc{};
         desc.Format = importedTexture.Format;
-        desc.Usage = TextureUsage::Sampled | TextureUsage::TransferDst;
+        desc.Usage = TextureUsage::Sampled | TextureUsage::TransferSrc | TextureUsage::TransferDst;
         desc.DebugName = importedTexture.Name;
         desc.Dimensions = { importedTexture.Width, importedTexture.Height, 1 };
         desc.MipLevels = textureAsset.MipLevels;

@@ -11,7 +11,7 @@ namespace VKRE {
     std::optional<ShaderImportResults> ShaderImporter::LoadFromFile(
         ResourceManager& manager,
         const std::filesystem::path& path,
-        const ShaderImportingOptions& options) {
+        const ShaderImportOptions& options) {
 
         std::optional<std::string> source = ReadFile(path);
         if (!source.has_value()) return std::nullopt;

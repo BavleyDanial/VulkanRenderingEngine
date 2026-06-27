@@ -7,7 +7,6 @@ set(STB_HEADER "${CMAKE_SOURCE_DIR}/vendor/stb/")
 set(GLM_HEADER "${CMAKE_SOURCE_DIR}/vendor/glm/")
 set(GLAD_HEADER "${CMAKE_SOURCE_DIR}/vendor/glad/include")
 set(FLECS_HEADER "${CMAKE_SOURCE_DIR}/vendor/flecs/include")
-set(ASSIMP_HEADER "${CMAKE_SOURCE_DIR}/vendor/assimp/include")
 
 target_include_directories("VKRE" PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/header"
@@ -15,11 +14,10 @@ target_include_directories("VKRE" PUBLIC
     "${STB_HEADER}"
     "${GLM_HEADER}"
     "${FLECS_HEADER}"
-    "${ASSIMP_HEADER}"
     "${VULKAN_INCLUDE_PATH}"
 )
 
-target_link_libraries("VKRE" PRIVATE
+target_link_libraries("VKRE" PUBLIC
     assimp
     ${SHADERC_LIB}
 )

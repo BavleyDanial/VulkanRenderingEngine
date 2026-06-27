@@ -239,10 +239,10 @@ namespace VKRE {
         drawImageAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
         mDrawImage = std::make_unique<VulkanImageData>();
-        *mDrawImage = ImageUtils::ReCreateImage(mContext, mDrawImage.get(), format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, drawImageAllocInfo);
+        *mDrawImage = ImageUtils::ReCreateImage(mContext, mDrawImage.get(), format, drawImageUsages, drawImageExtent, VK_IMAGE_ASPECT_COLOR_BIT, 1, drawImageAllocInfo);
 
         mDepthImage = std::make_unique<VulkanImageData>();
-        *mDepthImage = ImageUtils::ReCreateImage(mContext, mDepthImage.get(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent, VK_IMAGE_ASPECT_DEPTH_BIT, drawImageAllocInfo);
+        *mDepthImage = ImageUtils::ReCreateImage(mContext, mDepthImage.get(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent, VK_IMAGE_ASPECT_DEPTH_BIT, 1, drawImageAllocInfo);
     }
 
     void VulkanRenderer::ReCreateDrawImage() {
