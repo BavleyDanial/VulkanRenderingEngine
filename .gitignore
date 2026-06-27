@@ -5,3 +5,5 @@ assets/models
 
 imgui.ini
 .DS_Store
+
+.idea/
