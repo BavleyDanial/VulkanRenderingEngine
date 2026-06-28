@@ -42,22 +42,34 @@ namespace VKRE {
 
         ResourceRef<Texture2DTag> CreateTexture2D(TextureDesc& desc);
 
-        Texture2DHotData* GetTexture2DHot(Texture2DHandle handle) { return mTexture2DPool.GetHot(handle); };
-        const Texture2DHotData* GetTexture2DHot(Texture2DHandle handle) const { return mTexture2DPool.GetHot(handle); };
-        Texture2DColdData* GetTexture2DCold(Texture2DHandle handle) { return mTexture2DPool.GetCold(handle); };
-        const Texture2DColdData* GetTexture2DCold(Texture2DHandle handle) const { return mTexture2DPool.GetCold(handle); };
+        TextureHotData* GetTexture2DHot(Texture2DHandle handle) { return mTexture2DPool.GetHot(handle); };
+        const TextureHotData* GetTexture2DHot(Texture2DHandle handle) const { return mTexture2DPool.GetHot(handle); };
+        TextureColdData* GetTexture2DCold(Texture2DHandle handle) { return mTexture2DPool.GetCold(handle); };
+        const TextureColdData* GetTexture2DCold(Texture2DHandle handle) const { return mTexture2DPool.GetCold(handle); };
 
         bool IsTexture2DValid(Texture2DHandle handle) const { return mTexture2DPool.IsValid(handle); }
         uint32_t GetLiveTexture2DCount() const { return mTexture2DPool.GetLiveCount(); }
 
+        ResourceRef<TextureCubeTag> CreateTextureCube(TextureDesc& desc);
+
+        TextureHotData* GetTextureCubeHot(TextureCubeHandle handle) { return mTextureCubePool.GetHot(handle); };
+        const TextureHotData* GetTextureCubeHot(TextureCubeHandle handle) const { return mTextureCubePool.GetHot(handle); };
+        TextureColdData* GetTextureCubeCold(TextureCubeHandle handle) { return mTextureCubePool.GetCold(handle); };
+        const TextureColdData* GetTextureCubeCold(TextureCubeHandle handle) const { return mTextureCubePool.GetCold(handle); };
+
+        bool IsTextureCubeValid(TextureCubeHandle handle) const { return mTextureCubePool.IsValid(handle); }
+        uint32_t GetLiveTextureCubeCount() const { return mTextureCubePool.GetLiveCount(); }
+
     private:
         static constexpr uint32_t INITIAL_SHADER_POOL_CAP = 64;
         static constexpr uint32_t INITIAL_GPU_BUFFER_POOL_CAP = 64;
-        static constexpr uint32_t INITIAL_TEXTURE_POOL_CAP = 64;
+        static constexpr uint32_t INITIAL_TEXTURE_2D_POOL_CAP = 64;
+        static constexpr uint32_t INITIAL_TEXTURE_CUBE_POOL_CAP = 64;
 
         ResourcePool<ShaderTag, ShaderHotData, ShaderColdData> mShaderPool;
         ResourcePool<GPUBufferTag, GPUBufferHotData, GPUBufferColdData> mGPUBufferPool;
-        ResourcePool<Texture2DTag, Texture2DHotData, Texture2DColdData> mTexture2DPool;
+        ResourcePool<Texture2DTag, TextureHotData, TextureColdData> mTexture2DPool;
+        ResourcePool<TextureCubeTag, TextureHotData, TextureColdData> mTextureCubePool;
     };
 
     template<> void ResourceManager::AddRef<ShaderTag>(ShaderHandle handle);
@@ -69,5 +81,7 @@ namespace VKRE {
     template<> void ResourceManager::AddRef<Texture2DTag>(Texture2DHandle handle);
     template<> void ResourceManager::DestroyRef<Texture2DTag>(Texture2DHandle handle);
 
+    template<> void ResourceManager::AddRef<TextureCubeTag>(TextureCubeHandle handle);
+    template<> void ResourceManager::DestroyRef<TextureCubeTag>(TextureCubeHandle handle);
 
 }

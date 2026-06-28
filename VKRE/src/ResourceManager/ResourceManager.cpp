@@ -11,7 +11,8 @@ namespace VKRE {
     ResourceManager::ResourceManager() {
         mShaderPool.Init(INITIAL_SHADER_POOL_CAP);
         mGPUBufferPool.Init(INITIAL_GPU_BUFFER_POOL_CAP);
-        mTexture2DPool.Init(INITIAL_TEXTURE_POOL_CAP);
+        mTexture2DPool.Init(INITIAL_TEXTURE_2D_POOL_CAP);
+        mTextureCubePool.Init(INITIAL_TEXTURE_CUBE_POOL_CAP);
     }
 
     ResourceManager::~ResourceManager() {
@@ -23,6 +24,9 @@ namespace VKRE {
 
         uint32_t leakedTextures2D = mTexture2DPool.GetLiveCount();
         if (leakedTextures2D > 0) std::println("ResourceManager: {} Texture2D(s) were not explicitly destroyed before shutdown", leakedTextures2D);
+
+        uint32_t leakedTexturesCube = mTextureCubePool.GetLiveCount();
+        if (leakedTexturesCube > 0) std::println("ResourceManager: {} TextureCube(s) were not explicitly destroyed before shutdown", leakedTexturesCube);
     }
 
     ResourceRef<ShaderTag> ResourceManager::CreateShader(ShaderDesc& desc) {
@@ -136,11 +140,12 @@ namespace VKRE {
         mGPUBufferPool.Free(handle);
     }
 
-    ResourceRef<Texture2DTag> ResourceManager::CreateTexture2D(TextureDesc& desc) {
-        Texture2DHandle handle = mTexture2DPool.Allocate();
+    template<typename Tag>
+    static ResourceHandle<Tag> CreateTextureImpl(TextureDesc& desc, ResourcePool<Tag, TextureHotData, TextureColdData>& pool) {
+        ResourceHandle<Tag> handle = pool.Allocate();
 
-        Texture2DHotData* hot = mTexture2DPool.GetHot(handle);
-        Texture2DColdData* cold = mTexture2DPool.GetCold(handle);
+        TextureHotData* hot = pool.GetHot(handle);
+        TextureColdData* cold = pool.GetCold(handle);
 
         if (!hot || !cold) {
             std::println("Texture allocation failed ({}): Texture pointers are invalid", desc.DebugName);
@@ -157,7 +162,11 @@ namespace VKRE {
         std::copy_n(desc.DebugName.begin(), len, cold->DebugName);
         cold->DebugName[len] = '\0';
 
-        return ResourceRef<Texture2DTag>(handle, this);
+        return handle;
+    }
+
+    ResourceRef<Texture2DTag> ResourceManager::CreateTexture2D(TextureDesc& desc) {
+        return ResourceRef<Texture2DTag>(CreateTextureImpl(desc, mTexture2DPool), this);
     }
 
     template<>
@@ -179,6 +188,31 @@ namespace VKRE {
 
         if (!mTexture2DPool.RemoveRef(handle)) return;
         mTexture2DPool.Free(handle);
+    }
+
+    ResourceRef<TextureCubeTag> ResourceManager::CreateTextureCube(TextureDesc& desc) {
+        return ResourceRef<TextureCubeTag>(CreateTextureImpl(desc, mTextureCubePool), this);
+    }
+
+    template<>
+    void ResourceManager::AddRef<TextureCubeTag>(TextureCubeHandle handle) {
+        if (!mTextureCubePool.IsValid(handle)) {
+            std::println("ResourceManager::AddRef<TextureCubeTag> handle is invalid or already destroyed");
+            return;
+        }
+
+        mTextureCubePool.AddRef(handle);
+    }
+
+    template<>
+    void ResourceManager::DestroyRef<TextureCubeTag>(TextureCubeHandle handle) {
+        if (!mTextureCubePool.IsValid(handle)) {
+            std::println("ResourceManager::Destroy<TextureCubeTag> handle is invalid or already destroyed");
+            return;
+        }
+
+        if (!mTextureCubePool.RemoveRef(handle)) return;
+        mTextureCubePool.Free(handle);
     }
 
 }

@@ -130,14 +130,14 @@ namespace VKRE {
         uint32_t MipLevels = 0;
     };
 
-    struct Texture2DHotData {
+    struct TextureHotData {
         uint32_t Width;
         uint32_t Height;
         uint32_t MipLevels;
         TextureFormat Format;
     };
 
-    struct Texture2DColdData {
+    struct TextureColdData {
         char DebugName[64] = "";
         TextureUsage Usage = TextureUsage::None;
     };

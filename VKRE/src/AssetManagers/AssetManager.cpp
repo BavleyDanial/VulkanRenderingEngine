@@ -115,11 +115,11 @@ namespace VKRE {
         auto it = mTexture2DAssets.find(pathStr);
         if (it != mTexture2DAssets.end()) return &it->second;
 
-        std::optional<TextureImportResults> importedTextureResults = TextureImporter::LoadFromFile(path);
+        std::optional<Texture2DImportResults> importedTextureResults = TextureImporter::LoadTexture2DFromFile(path);
         if (!importedTextureResults.has_value())
             return nullptr;
 
-        TextureImportResults importedTexture = std::move(importedTextureResults.value());
+        Texture2DImportResults importedTexture = std::move(importedTextureResults.value());
 
         Texture2DAsset textureAsset;
         textureAsset.Name = importedTexture.Name;

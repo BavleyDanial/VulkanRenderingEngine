@@ -133,24 +133,24 @@ namespace VKRE {
         mBuffers.clear();
     }
 
-    bool VulkanResourceCache::AllocateImage(Texture2DHandle handle) {
+    bool VulkanResourceCache::AllocateImage2D(Texture2DHandle handle) {
         if (!handle.IsValid()) {
-            std::println("VulkanResourceCache::AllocateTexture handle is invalid");
+            std::println("VulkanResourceCache::AllocateImage2D handle is invalid");
             return false;
         }
 
         if (handle.index >= mImages2D.size())                         mImages2D.resize(handle.index + 1);
         else if (mImages2D[handle.index].image != VK_NULL_HANDLE)     return true;
 
-        Texture2DHotData* hot = mResourceManager.GetTexture2DHot(handle);
-        assert(hot && "VulkanResourceCache::AllocateTexture handle is valid but GetTexture2DHot returned nullptr");
+        TextureHotData* hot = mResourceManager.GetTexture2DHot(handle);
+        assert(hot && "VulkanResourceCache::AllocateImage2D handle is valid but GetTexture2DHot returned nullptr");
 
-        Texture2DColdData* cold = mResourceManager.GetTexture2DCold(handle);
-        assert(hot && "VulkanResourceCache::AllocateTexture handle is valid but GetTexture2DCold returned nullptr");
+        TextureColdData* cold = mResourceManager.GetTexture2DCold(handle);
+        assert(hot && "VulkanResourceCache::AllocateImage2D handle is valid but GetTexture2DCold returned nullptr");
 
         VkFormat vkFormat = ToVkTextureFormat(hot->Format);
         if (vkFormat == VK_FORMAT_UNDEFINED) {
-            std::println("VulkanResourceCache::AllocateTexture format is not supported");
+            std::println("VulkanResourceCache::AllocateImage2D format is not supported");
             return false;
         }
 
@@ -166,32 +166,93 @@ namespace VKRE {
         return true;
     }
 
-    VulkanImageData* VulkanResourceCache::GetImageData(Texture2DHandle handle) {
+    VulkanImageData* VulkanResourceCache::GetImageData2D(Texture2DHandle handle) {
         if (handle.index >= mImages2D.size())                    return nullptr;
         if (mImages2D[handle.index].image == VK_NULL_HANDLE)     return nullptr;
         return &mImages2D[handle.index];
     }
 
-    const VulkanImageData* VulkanResourceCache::GetImageData(Texture2DHandle handle) const {
+    const VulkanImageData* VulkanResourceCache::GetImageData2D(Texture2DHandle handle) const {
         if (handle.index >= mImages2D.size())                    return nullptr;
         if (mImages2D[handle.index].image == VK_NULL_HANDLE)     return nullptr;
         return &mImages2D[handle.index];
     }
 
-    bool VulkanResourceCache::IsImageAllocated(Texture2DHandle handle) const {
+    bool VulkanResourceCache::IsImage2DAllocated(Texture2DHandle handle) const {
         if (handle.index >= mImages2D.size()) return false;
         return mImages2D[handle.index].image != VK_NULL_HANDLE;
     }
 
-    void VulkanResourceCache::DestroyImage(Texture2DHandle handle) {
+    void VulkanResourceCache::DestroyImage2D(Texture2DHandle handle) {
         if (handle.index >= mImages2D.size()) return;
         ImageUtils::ReleaseImage(mContext, &mImages2D[handle.index]);
     }
 
-    void VulkanResourceCache::DestroyAllImages() {
+    void VulkanResourceCache::DestroyAllImages2D() {
         for (auto& image : mImages2D)
             ImageUtils::ReleaseImage(mContext, &image);
         mImages2D.clear();
+    }
+
+    bool VulkanResourceCache::AllocateImageCube(TextureCubeHandle handle) {
+        if (!handle.IsValid()) {
+            std::println("VulkanResourceCache::AllocateImageCube handle is invalid");
+            return false;
+        }
+
+        if (handle.index >= mImagesCube.size())                       mImagesCube.resize(handle.index + 1);
+        else if (mImagesCube[handle.index].image != VK_NULL_HANDLE)     return true;
+
+        TextureHotData* hot = mResourceManager.GetTextureCubeHot(handle);
+        assert(hot && "VulkanResourceCache::AllocateImageCube handle is valid but GetTextureCubeHot returned nullptr");
+
+        TextureColdData* cold = mResourceManager.GetTextureCubeCold(handle);
+        assert(hot && "VulkanResourceCache::AllocateImageCube handle is valid but GetTextureCubeCold returned nullptr");
+
+        VkFormat vkFormat = ToVkTextureFormat(hot->Format);
+        if (vkFormat == VK_FORMAT_UNDEFINED) {
+            std::println("VulkanResourceCache::AllocateImageCube format is not supported");
+            return false;
+        }
+
+        VkImageUsageFlags vkUsage = ToVkImageUsage(cold->Usage);
+        VkExtent3D extent = { hot->Width, hot->Height, 1 };
+        VkImageAspectFlags vkAspect = VkGetAspectFlags(hot->Format);
+
+        VmaAllocationCreateInfo allocInfo{};
+        allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        mImagesCube[handle.index] = ImageUtils::CreateImageCube(mContext, vkFormat, vkUsage, extent, vkAspect, hot->MipLevels, allocInfo);
+        return true;
+    }
+
+    VulkanImageData* VulkanResourceCache::GetImageDataCube(TextureCubeHandle handle) {
+        if (handle.index >= mImagesCube.size())                    return nullptr;
+        if (mImagesCube[handle.index].image == VK_NULL_HANDLE)     return nullptr;
+        return &mImagesCube[handle.index];
+    }
+
+    const VulkanImageData* VulkanResourceCache::GetImageDataCube(TextureCubeHandle handle) const {
+        if (handle.index >= mImagesCube.size())                    return nullptr;
+        if (mImagesCube[handle.index].image == VK_NULL_HANDLE)     return nullptr;
+        return &mImagesCube[handle.index];
+    }
+
+    bool VulkanResourceCache::IsImageCubeAllocated(TextureCubeHandle handle) const {
+        if (handle.index >= mImagesCube.size()) return false;
+        return mImagesCube[handle.index].image != VK_NULL_HANDLE;
+    }
+
+    void VulkanResourceCache::DestroyImageCube(TextureCubeHandle handle) {
+        if (handle.index >= mImagesCube.size()) return;
+        ImageUtils::ReleaseImage(mContext, &mImagesCube[handle.index]);
+    }
+
+    void VulkanResourceCache::DestroyAllImageCubes() {
+        for (auto& image : mImagesCube)
+            ImageUtils::ReleaseImage(mContext, &image);
+        mImagesCube.clear();
     }
 
     bool VulkanResourceCache::CreateShader(ShaderHandle handle) {
@@ -504,7 +565,8 @@ namespace VKRE {
     }
 
     void VulkanResourceCache::DestroyAll() {
-        DestroyAllImages();
+        DestroyAllImages2D();
+        DestroyAllImageCubes();
         DestroyAllBuffers();
         DestroyAllGraphicsPipelines();
         DestroyAllComputePipelines();

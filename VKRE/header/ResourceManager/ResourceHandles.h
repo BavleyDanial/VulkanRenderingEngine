@@ -22,8 +22,9 @@ namespace VKRE {
 
     // NOTE: Add any future resources here
     using ShaderHandle = ResourceHandle<struct ShaderTag>;
-    using Texture2DHandle = ResourceHandle<struct Texture2DTag>;
     using GPUBufferHandle = ResourceHandle<struct GPUBufferTag>;
+    using Texture2DHandle = ResourceHandle<struct Texture2DTag>;
+    using TextureCubeHandle = ResourceHandle<struct TextureCubeTag>;
 }
 
 namespace std {

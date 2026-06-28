@@ -19,6 +19,7 @@
 #include <ResourceManager/Resources.h>
 #include <Core/Events/Events.h>
 
+#include <array>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -66,6 +67,7 @@ namespace VKRE {
 
         void UploadMesh(GPUBufferHandle vertexBuffer, GPUBufferHandle indexBuffer, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
         int32_t UploadTexture2D(Texture2DHandle handle, const std::vector<std::byte>& pixels);
+        int32_t UploadTextureCube(TextureCubeHandle handle, const std::array<std::vector<std::byte>, 6>& pixels);
         void UploadSceneData(const SceneUBO& sceneData);
         uint64_t GetBufferDeviceAddress(GPUBufferHandle buffer);
 
@@ -114,12 +116,11 @@ namespace VKRE {
         VkDescriptorSetLayout mDrawImageDescriptorLayout;
 
         VulkanFixedBindlessDescriptorAllocator mBindlessDescriptorAllocator;
-        VkDescriptorSet mBindlessSet;
-        VkDescriptorSetLayout mBindlessLayout;
+        VkDescriptorSet mBindlessTexture2DSet;
+        VkDescriptorSetLayout mBindlessTexture2DLayout;
 
         VkDescriptorSet mCurrentSceneSet;
         VkDescriptorSetLayout mSceneLayout;
-        VkDescriptorSetLayout mTextureLayout;
         std::vector<VulkanGPUBufferData> mSceneUniformBuffers;
     };
 

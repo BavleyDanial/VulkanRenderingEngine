@@ -26,13 +26,21 @@ namespace VKRE {
         void DestroyBuffer(GPUBufferHandle handle);
         void DestroyAllBuffers();
 
-        bool AllocateImage(Texture2DHandle handle);
-        VulkanImageData* GetImageData(Texture2DHandle handle);
-        const VulkanImageData* GetImageData(Texture2DHandle handle) const;
-        bool IsImageAllocated(Texture2DHandle handle) const;
+        bool AllocateImage2D(Texture2DHandle handle);
+        VulkanImageData* GetImageData2D(Texture2DHandle handle);
+        const VulkanImageData* GetImageData2D(Texture2DHandle handle) const;
+        bool IsImage2DAllocated(Texture2DHandle handle) const;
 
-        void DestroyImage(Texture2DHandle handle);
-        void DestroyAllImages();
+        void DestroyImage2D(Texture2DHandle handle);
+        void DestroyAllImages2D();
+
+        bool AllocateImageCube(TextureCubeHandle handle);
+        VulkanImageData* GetImageDataCube(TextureCubeHandle handle);
+        const VulkanImageData* GetImageDataCube(TextureCubeHandle handle) const;
+        bool IsImageCubeAllocated(TextureCubeHandle handle) const;
+
+        void DestroyImageCube(TextureCubeHandle handle);
+        void DestroyAllImageCubes();
 
         bool CreateShader(ShaderHandle handle);
         VkShaderModule GetShaderModule(ShaderHandle handle);
@@ -77,6 +85,7 @@ namespace VKRE {
         ResourceManager& mResourceManager;
 
         std::vector<VulkanImageData> mImages2D;
+        std::vector<VulkanImageData> mImagesCube;
         std::vector<VulkanGPUBufferData> mBuffers;
 
         std::unordered_map<ShaderHandle, VkShaderModule> mShaderModules;

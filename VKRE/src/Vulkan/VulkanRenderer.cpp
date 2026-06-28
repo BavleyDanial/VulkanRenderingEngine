@@ -53,8 +53,7 @@ namespace VKRE {
 
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mSceneLayout, nullptr);
-        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mTextureLayout, nullptr);
-        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mBindlessLayout, nullptr);
+        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mBindlessTexture2DLayout, nullptr);
 
         vkDestroySampler(mContext.GetLogicalDevice().handle, mDefaultSampler, nullptr);
     }
@@ -70,19 +69,22 @@ namespace VKRE {
     }
 
     int32_t VulkanRenderer::UploadTexture2D(Texture2DHandle handle, const std::vector<std::byte>& pixels) {
-        mResourceCache->AllocateImage(handle);
+        mResourceCache->AllocateImage2D(handle);
 
         mUploader->Begin();
-        mUploader->UploadTexture(handle, pixels.data(), pixels.size());
+        mUploader->UploadTexture2D(handle, pixels.data(), pixels.size());
         mUploader->End();
 
-        VulkanImageData* textureData = mResourceCache->GetImageData(handle);
+        VulkanImageData* textureData = mResourceCache->GetImageData2D(handle);
         return mBindlessDescriptorAllocator.RegisterImage(
             mContext.GetLogicalDevice().handle,
-            mBindlessSet,
+            mBindlessTexture2DSet,
             textureData->imageView,
             mDefaultSampler
         );
+    }
+
+    int32_t VulkanRenderer::UploadTextureCube(TextureCubeHandle handle, const std::array<std::vector<std::byte>, 6>& pixels) {
     }
 
     void VulkanRenderer::UploadSceneData(const SceneUBO& sceneData) {
@@ -124,7 +126,7 @@ namespace VKRE {
             .descriptorSetLayouts = {
                 mDrawImageDescriptorLayout,
                 mSceneLayout,
-                mBindlessLayout,
+                mBindlessTexture2DLayout,
             },
             .pushConstantRanges = desc.pushConstantRanges
         };
@@ -282,12 +284,6 @@ namespace VKRE {
             mSceneLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         }
 
-        {   // Textures Descriptor Set
-            VulkanDescriptorLayoutBuilder layoutBuilder;
-            layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0);
-            mTextureLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT);
-        }
-
         VkDescriptorBindingFlags bindingFlags =
             VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
             VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
@@ -299,11 +295,11 @@ namespace VKRE {
 
         VulkanDescriptorLayoutBuilder layoutBuilder;
         layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, 8192);
-        mBindlessLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT,
+        mBindlessTexture2DLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT,
                 &bindingFlagsInfo,
                 VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
 
-        mBindlessSet = mBindlessDescriptorAllocator.Allocate(device, mBindlessLayout);
+        mBindlessTexture2DSet = mBindlessDescriptorAllocator.Allocate(device, mBindlessTexture2DLayout);
 
         InitDrawImageDescriptor();
     }
@@ -405,7 +401,7 @@ namespace VKRE {
 
         for (auto& pass : mDrawPasses) {
             if (pass.IsActive())
-                pass.Execute(cmd, drawImageExtent, targetInfo, mCurrentSceneSet, mBindlessSet);
+                pass.Execute(cmd, drawImageExtent, targetInfo, mCurrentSceneSet, mBindlessTexture2DSet);
         }
 
         ImageUtils::TransitionImage(cmd, mDrawImage->image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);

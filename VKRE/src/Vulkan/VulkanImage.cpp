@@ -52,6 +52,56 @@ namespace VKRE {
             return imageData;
         }
 
+        VulkanImageData ReCreateImageCube(VulkanContext& context, VulkanImageData* oldImageData,
+                                        VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, uint32_t mipLevels,
+                                        VmaAllocationCreateInfo& info) {
+            ReleaseImage(context, oldImageData);
+            return CreateImageCube(context, format, usageFlags, extent, aspectFlags, mipLevels, info);
+        }
+
+        VulkanImageData CreateImageCube(VulkanContext& context,
+                                        VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageAspectFlags aspectFlags, uint32_t mipLevels,
+                                        VmaAllocationCreateInfo& allocInfo) {
+
+            VulkanImageData imageData{};
+
+            VkImageCreateInfo info = {};
+            info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            info.pNext = nullptr;
+
+            info.imageType = VK_IMAGE_TYPE_2D;
+            info.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+            info.format = format;
+            info.extent = extent;
+            info.mipLevels = mipLevels;
+            info.arrayLayers = 6;
+            info.samples = VK_SAMPLE_COUNT_1_BIT;
+            info.tiling = VK_IMAGE_TILING_OPTIMAL;
+            info.usage = usageFlags;
+
+            VK_CHECK(vmaCreateImage(context.GetAllocator(), &info, &allocInfo, &imageData.image, &imageData.allocation, nullptr));
+            imageData.extent = extent;
+            imageData.format = format;
+            imageData.mipLevels = mipLevels;
+            imageData.arrayLevels = 6;
+
+            VkImageViewCreateInfo imageViewCreateInfo = {};
+            imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            imageViewCreateInfo.pNext = nullptr;
+
+            imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+            imageViewCreateInfo.image = imageData.image;
+            imageViewCreateInfo.format = format;
+            imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+            imageViewCreateInfo.subresourceRange.levelCount = mipLevels;
+            imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+            imageViewCreateInfo.subresourceRange.layerCount = 6;
+            imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
+
+            VK_CHECK(vkCreateImageView(context.GetLogicalDevice().handle, &imageViewCreateInfo, nullptr, &imageData.imageView));
+            return imageData;
+        }
+
         void ReleaseImage(VulkanContext& context, VulkanImageData* imageData) {
             if (imageData->image) {
                 vmaDestroyImage(context.GetAllocator(), imageData->image, imageData->allocation);

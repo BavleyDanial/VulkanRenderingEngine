@@ -3,6 +3,8 @@
 
 #include <cassert>
 #include <cstring>
+#include <array>
+#include <vector>
 
 namespace VKRE {
 
@@ -58,10 +60,10 @@ namespace VKRE {
         vkCmdCopyBuffer(mImmediateBuffer, mPendingStagingBuffers.back().buffer, dst->buffer, 1, &copy);
     }
 
-    void VulkanUploader::UploadTexture(Texture2DHandle handle, const void* data, uint64_t size) {
+    void VulkanUploader::UploadTexture2D(Texture2DHandle handle, const void* data, uint64_t size) {
         assert(mRecording && "VulkanUploader::UploadTexture called without without Begin");
 
-        VulkanImageData* dst = mCache.GetImageData(handle);
+        VulkanImageData* dst = mCache.GetImageData2D(handle);
         if (!dst->imageView) {
             std::println("VulkanUploader::UploadTexture texture not found (index={})", static_cast<uint32_t>(handle.index));
             return;
@@ -134,6 +136,44 @@ namespace VKRE {
 
         VK_CHECK(vkBeginCommandBuffer(mImmediateBuffer, &cmdBufferBeginInfo));
         mRecording = true;
+    }
+
+    void VulkanUploader::UploadTextureCube(TextureCubeHandle handle, const std::array<std::vector<std::byte>, 6>& faces) {
+        assert(mRecording && "VulkanUploader::UploadTextureCube called without Begin");
+
+        VulkanImageData* dst = mCache.GetImageDataCube(handle);
+        if (!dst || !dst->imageView) {
+            std::println("VulkanUploader::UploadTextureCube cube texture not found (index={})", static_cast<uint32_t>(handle.index));
+            return;
+        }
+
+        uint64_t faceSize = faces[0].size();
+        uint64_t totalSize = faceSize * 6;
+
+        VmaAllocationCreateInfo stagingAllocInfo{};
+        stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        stagingAllocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+
+        mPendingStagingBuffers.emplace_back(GPUBufferUtils::CreateBuffer(mContext, totalSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingAllocInfo));
+        VulkanGPUBufferData& staging = mPendingStagingBuffers.back();
+
+        std::vector<VkBufferImageCopy> copies;
+        copies.reserve(6);
+
+        for (uint32_t face = 0; face < 6; face++) {
+            memcpy(static_cast<std::byte*>(staging.info.pMappedData) + face * faceSize, faces[face].data(), faceSize);
+
+            VkBufferImageCopy copy{};
+            copy.bufferOffset = face * faceSize;
+            copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, face, 1 };
+            copy.imageExtent = dst->extent;
+            copies.push_back(copy);
+        }
+
+        ImageUtils::TransitionImage(mImmediateBuffer, dst->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        vkCmdCopyBufferToImage(mImmediateBuffer, staging.buffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                static_cast<uint32_t>(copies.size()), copies.data());
+        ImageUtils::TransitionImage(mImmediateBuffer, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
     void VulkanUploader::End() {

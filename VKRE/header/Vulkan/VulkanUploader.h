@@ -14,7 +14,8 @@ namespace VKRE {
 
         // NOTE: In the future there will be textures and other stuff
         void UploadBuffer(GPUBufferHandle handle, const void* data, uint64_t size, uint64_t offset);
-        void UploadTexture(Texture2DHandle handle, const void* data, uint64_t size);
+        void UploadTexture2D(Texture2DHandle handle, const void* data, uint64_t size);
+        void UploadTextureCube(TextureCubeHandle handle, const std::array<std::vector<std::byte>, 6>& faces);
 
         void Begin();
         void End();
