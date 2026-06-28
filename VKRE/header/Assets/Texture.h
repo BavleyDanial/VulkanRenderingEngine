@@ -17,4 +17,17 @@ namespace VKRE {
         int32_t BindlessIndex = -1;
     };
 
+    struct TextureCubeAsset {
+        std::string Name;
+        std::string Path;
+
+        uint32_t Width;
+        uint32_t Height;
+        uint32_t MipLevels;
+        TextureFormat Format;
+
+        ResourceRef<TextureCubeTag> Texture;
+        int32_t BindlessIndex = -1;
+    };
+
 }

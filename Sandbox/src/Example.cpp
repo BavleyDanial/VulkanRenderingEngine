@@ -1,3 +1,4 @@
+#include "Assets/Texture.h"
 #include <Example.h>
 
 void ExampleLayer::OnAttach() {
@@ -13,6 +14,9 @@ void ExampleLayer::OnAttach() {
 
     mSun = mScene->AddEntity("Sun");
     mSun.Add<DirectionalLightComponent>({});
+
+    const TextureCubeAsset* skyboxTexture = AssetManager::LoadTextureCube("res/textures/Cubemap_Sky_23-512x512.png");
+    mSceneRenderer.SetSkybox(skyboxTexture);
 }
 
 void ExampleLayer::OnDetach() {}

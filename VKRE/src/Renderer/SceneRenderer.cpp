@@ -1,3 +1,4 @@
+#include "Renderer/RendererCommands.h"
 #include <Renderer/SceneRenderer.h>
 #include <Renderer/Renderer.h>
 
@@ -17,6 +18,7 @@ namespace VKRE {
 
     SceneRenderer::SceneRenderer() {
         const ShaderAsset* basicShader = AssetManager::LoadShader("res/shaders/basic.glsl");
+        const ShaderAsset* skyboxShader = AssetManager::LoadShader("res/shaders/skybox.glsl");
 
         mDrawPass = Renderer::AddDrawPass({
             .VertexShader = basicShader->VertexShader.Get(),
@@ -24,7 +26,26 @@ namespace VKRE {
             .debugName = "Scene Draw Pass",
             .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DrawPushConstants)} },
             .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
-            .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT
+            .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
+            .depthTestEnable = true,
+            .depthWriteEnable = true,
+            .depthCompareOp = VK_COMPARE_OP_LESS,
+            .cullMode = VK_CULL_MODE_NONE,
+        });
+
+        mSkyboxPass = Renderer::AddDrawPass({
+            .VertexShader = skyboxShader->VertexShader.Get(),
+            .FragmentShader = skyboxShader->FragmentShader.Get(),
+            .debugName = "Skybox Pass",
+            .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DrawPushConstants)} },
+            .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
+            .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
+            .depthTestEnable = true,
+            .depthWriteEnable = false,
+            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+            .cullMode = VK_CULL_MODE_NONE,
+            .colorLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+            .depthLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
         });
     }
 
@@ -56,9 +77,17 @@ namespace VKRE {
         });
 
         sceneData.ViewPorjection = sceneData.Projection * sceneData.View;
+        mCachedViewMat = sceneData.View;
+        mCachedProjMat = sceneData.Projection;
         Renderer::UploadSceneData(sceneData);
 
         mDrawCalls = 0;
+        RenderScene();
+        RenderSkybox();
+    }
+
+
+    void SceneRenderer::RenderScene() {
         mScene->GetFlecsWorld().each([&](const TransformComponent& transform, const StaticMeshComponent& staticMesh) {
             if (!staticMesh.Asset)
                 return;
@@ -91,6 +120,20 @@ namespace VKRE {
                 }
             }
         });
+    }
+
+    void SceneRenderer::RenderSkybox() {
+        if (!mSkybox || mSkybox->BindlessIndex == -1)
+            return;
+
+        glm::mat4 rotation = glm::mat4(glm::mat3(mCachedViewMat));
+        SkyboxPushConstants pushConstants;
+        pushConstants.ViewProjection = mCachedProjMat * rotation;
+        pushConstants.TextureCubeIndex = mSkybox->BindlessIndex;
+
+        SkyboxDrawCommand cmd;
+        cmd.PushConstants = pushConstants;
+        Renderer::SubmitSkyboxDraw(mSkyboxPass, cmd);
     }
 
 }

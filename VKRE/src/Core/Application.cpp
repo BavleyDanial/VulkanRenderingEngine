@@ -41,7 +41,6 @@ namespace VKRE {
             lastFrameTime = now;
 
             mWindow->OnUpdate();
-
             mVulkanRenderer->BeginFrame();
 
             for (auto& layer : mLayersStack)

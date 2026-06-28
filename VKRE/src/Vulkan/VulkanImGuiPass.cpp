@@ -72,7 +72,7 @@ namespace VKRE {
     void VulkanImGuiPass::Execute(VkCommandBuffer cmd, const FrameInfo& frameInfo) {
         VkImageView targetImageView = mPresenter.GetImageViews()[frameInfo.swapchainImageIdx];
 
-        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(targetImageView, nullptr, VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         VkRenderingInfo renderInfo = VulkanUtils::RenderingInfo(mPresenter.GetSwapChain().extent, &colorAttachment, nullptr);
 
         vkCmdBeginRendering(cmd, &renderInfo);

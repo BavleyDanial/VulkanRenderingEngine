@@ -48,9 +48,18 @@ namespace VKRE {
         ShaderHandle FragmentShader = ShaderHandle::Null();
         std::string debugName;
         std::vector<VkPushConstantRange> pushConstantRanges;
+
         std::vector<VkFormat> colorAttachmentFormats;
         VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
         VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+
+        VkBool32 depthTestEnable = VK_FALSE;
+        VkBool32 depthWriteEnable = VK_FALSE;
+        VkCompareOp depthCompareOp = VK_COMPARE_OP_LESS;
+        VkCullModeFlags cullMode = VK_CULL_MODE_NONE;
+
+        VkAttachmentLoadOp colorLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        VkAttachmentLoadOp depthLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     };
 
     class VulkanRenderer {
@@ -73,6 +82,8 @@ namespace VKRE {
 
         DrawPassHandle AddDrawPass(const DrawPassDesc& desc);
         void SubmitMeshDraw(DrawPassHandle handle, const MeshDrawCommand& cmd);
+        void SubmitSkyboxDraw(DrawPassHandle handle, const SkyboxDrawCommand& cmd);
+
         void ActivateDrawPass(DrawPassHandle handle) { mDrawPasses[handle].SetActive(true); }
         void DeActivateDrawPass(DrawPassHandle handle) { mDrawPasses[handle].SetActive(false); }
 
@@ -103,7 +114,6 @@ namespace VKRE {
         std::unique_ptr<VulkanFrameManager> mFrameManager;
         std::unique_ptr<VulkanPresenter> mPresenter;
 
-        VkSampler mDefaultSampler;
         std::unique_ptr<VulkanImageData> mDrawImage; // TODO: Once done with managing deletion/creation internally turn into a value rather than a pointer
         std::unique_ptr<VulkanImageData> mDepthImage;
 
@@ -111,16 +121,26 @@ namespace VKRE {
         std::vector<VulkanComputePass> mComputePasses;
         std::unique_ptr<VulkanImGuiPass> mImGuiPass;
 
-        VulkanFixedDescriptorAllocator mGlobalDescriptorAllocator;
-        VkDescriptorSet mDrawImageDescriptors;
-        VkDescriptorSetLayout mDrawImageDescriptorLayout;
+        /* Global Descriptors */
+        VulkanFixedDescriptorAllocator mGlobalAllocator;
+        VkDescriptorSet mDrawImageSet;
+        VkDescriptorSetLayout mDrawImageLayout;
 
-        VulkanFixedBindlessDescriptorAllocator mBindlessDescriptorAllocator;
+        /* Texture Descriptors & Samplers */
+        VulkanFixedBindlessDescriptorAllocator mBindlessTexture2DAllocator;
+        VulkanFixedBindlessDescriptorAllocator mBindlessTextureCubeAllocator;
+        VkSampler mDefaultSampler;
+
         VkDescriptorSet mBindlessTexture2DSet;
         VkDescriptorSetLayout mBindlessTexture2DLayout;
 
+        VkDescriptorSet mBindlessTextureCubeSet;
+        VkDescriptorSetLayout mBindlessTextureCubeLayout;
+
+        /* Scene Descriptors */
         VkDescriptorSet mCurrentSceneSet;
         VkDescriptorSetLayout mSceneLayout;
+
         std::vector<VulkanGPUBufferData> mSceneUniformBuffers;
     };
 

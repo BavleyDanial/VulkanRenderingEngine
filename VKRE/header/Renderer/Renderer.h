@@ -3,16 +3,12 @@
 #include <Vulkan/VulkanRenderer.h>
 #include <ResourceManager/ResourceManager.h>
 
+#include <Renderer/RendererCommands.h>
+
 #include <cstddef>
 #include <glm/glm.hpp>
 
 namespace VKRE {
-
-    struct DrawPushConstants {
-        glm::mat4 Transform;
-        uint64_t VertexBufferAddress;
-        int32_t TextureIndex;
-    };
 
     class Renderer {
     public:
@@ -32,12 +28,20 @@ namespace VKRE {
             return sRenderer->UploadTexture2D(handle, pixels);
         }
 
+        static int32_t UploadTextureCube(TextureCubeHandle handle, const std::array<std::vector<std::byte>, 6>& faces) {
+            return sRenderer->UploadTextureCube(handle, faces);
+        }
+
         static void UploadSceneData(const SceneUBO& sceneData) {
             sRenderer->UploadSceneData(sceneData);
         }
 
         static void SubmitMeshDraw(DrawPassHandle handle, const MeshDrawCommand& cmd) {
             sRenderer->SubmitMeshDraw(handle, cmd);
+        }
+
+        static void SubmitSkyboxDraw(DrawPassHandle handle, const SkyboxDrawCommand& cmd) {
+            sRenderer->SubmitSkyboxDraw(handle, cmd);
         }
 
         static uint64_t GetBufferDeviceAddress(GPUBufferHandle handle) {

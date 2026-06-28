@@ -81,6 +81,7 @@ namespace VKRE {
             }
 
             results.Data[i] = std::move(face->Data);
+            i++;
         }
 
         return results;

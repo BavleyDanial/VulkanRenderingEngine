@@ -143,12 +143,12 @@ namespace VKRE {
 
         VulkanImageData* dst = mCache.GetImageDataCube(handle);
         if (!dst || !dst->imageView) {
-            std::println("VulkanUploader::UploadTextureCube cube texture not found (index={})", static_cast<uint32_t>(handle.index));
             return;
         }
 
-        uint64_t faceSize = faces[0].size();
-        uint64_t totalSize = faceSize * 6;
+        uint64_t totalSize = 0;
+        for (size_t i = 0; i < faces.size(); i++)
+            totalSize += faces[i].size();
 
         VmaAllocationCreateInfo stagingAllocInfo{};
         stagingAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
@@ -161,6 +161,7 @@ namespace VKRE {
         copies.reserve(6);
 
         for (uint32_t face = 0; face < 6; face++) {
+            uint64_t faceSize = faces[face].size();
             memcpy(static_cast<std::byte*>(staging.info.pMappedData) + face * faceSize, faces[face].data(), faceSize);
 
             VkBufferImageCopy copy{};

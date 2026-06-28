@@ -10,6 +10,13 @@ struct Vertex {
     vec4 color;
 };
 
+layout(push_constant) uniform PushConstants {
+    mat4 modelMatrix;
+    uint64_t vertexBufferAddress;
+    int textureIndex;
+    int cubmapIndex;
+} pc;
+
 layout(set = 1, binding = 0) uniform SceneData {
     mat4 view;
     mat4 projection;
@@ -28,12 +35,6 @@ layout(buffer_reference, std430) readonly buffer VertexBuffer {
     Vertex vertices[];
 };
 
-layout(push_constant) uniform PushConstants {
-    mat4 modelMatrix;
-    uint64_t vertexBufferAddress;
-    int textureIndex;
-} pc;
-
 layout(location = 0) out vec3 outNormal;
 layout(location = 1) out vec2 outUV;
 
@@ -47,12 +48,6 @@ void main() {
 }
 
 #ShaderType Fragment
-
-layout(push_constant) uniform PushConstants {
-    mat4 modelMatrix;
-    uint64_t vertexBufferAddress;
-    int textureIndex;
-} pc;
 
 layout(location = 0) in vec3 inNormal;
 layout(location = 1) in vec2 inUV;
@@ -69,6 +64,9 @@ void main() {
     vec4 albedo = vec4(1.0);
     if (pc.textureIndex >= 0)
         albedo = texture(textures[nonuniformEXT(pc.textureIndex)], inUV);
+
+    if (albedo.a < 0.99)
+        discard;
 
     float diffuse = max(dot(N, L), 0.0f);
     vec3 ambient = 0.1f * albedo.rgb;

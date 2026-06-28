@@ -138,10 +138,70 @@ namespace VKRE {
 
         ResourceRef<Texture2DTag> texture = mResourceManager.CreateTexture2D(desc);
         textureAsset.Texture = texture;
-
         textureAsset.BindlessIndex = Renderer::UploadTexture2D(texture.Get(), importedTexture.Data);
 
         auto result = mTexture2DAssets.emplace(pathStr, std::move(textureAsset));
+        return &result.first->second;
+    }
+
+    const TextureCubeAsset* AssetManager::LoadTextureCube(const std::filesystem::path& path, const TextureImportOptions& options) {
+        assert(sInstance && "AssetManager hasn't been initiated");
+        return sInstance->LoadTextureCubeImpl(path, options);
+    }
+
+    const TextureCubeAsset* AssetManager::LoadTextureCube(const std::array<std::filesystem::path, 6>& paths, const TextureImportOptions& options) {
+        assert(sInstance && "AssetManager hasn't been initiated");
+        return sInstance->LoadTextureCubeImpl(paths, options);
+    }
+
+    const TextureCubeAsset* AssetManager::LoadTextureCubeImpl(const std::filesystem::path& path, const TextureImportOptions& options) {
+        std::string pathStr = path.string();
+
+        auto it = mTextureCubeAssets.find(pathStr);
+        if (it != mTextureCubeAssets.end()) return &it->second;
+
+        std::optional<TextureCubeImportResults> importedTextureResults = TextureImporter::LoadTextureCubeFromHorizontalCross(path, options);
+        if (!importedTextureResults.has_value())
+            return nullptr;
+
+        return FillTextureCubeData(importedTextureResults.value(), pathStr, options);
+    }
+
+    const TextureCubeAsset* AssetManager::LoadTextureCubeImpl(const std::array<std::filesystem::path, 6>& paths, const TextureImportOptions& options) {
+        std::string pathStr = paths[0].parent_path().stem().string();
+
+        auto it = mTextureCubeAssets.find(pathStr);
+        if (it != mTextureCubeAssets.end()) return &it->second;
+
+        std::optional<TextureCubeImportResults> importedTextureResults = TextureImporter::LoadTextureCubeFromFiles(paths, options);
+        if (!importedTextureResults.has_value())
+            return nullptr;
+
+        return FillTextureCubeData(importedTextureResults.value(), pathStr, options);
+    }
+
+    const TextureCubeAsset* AssetManager::FillTextureCubeData(const TextureCubeImportResults& importedTexture,
+                                                        const std::string& pathStr, const TextureImportOptions& options) {
+        TextureCubeAsset textureAsset;
+        textureAsset.Name = importedTexture.Name;
+        textureAsset.Path = pathStr;
+        textureAsset.Width = importedTexture.Width;
+        textureAsset.Height = importedTexture.Height;
+        textureAsset.Format = importedTexture.Format;
+        textureAsset.MipLevels = options.GenerateMipMaps ? static_cast<uint32_t>(glm::floor(glm::log2((float)glm::max(importedTexture.Width, importedTexture.Height)))) + 1 : 1;
+
+        TextureDesc desc{};
+        desc.Format = importedTexture.Format;
+        desc.Usage = TextureUsage::Sampled | TextureUsage::TransferSrc | TextureUsage::TransferDst;
+        desc.DebugName = importedTexture.Name;
+        desc.Dimensions = { importedTexture.Width, importedTexture.Height, 1 };
+        desc.MipLevels = textureAsset.MipLevels;
+
+        ResourceRef<TextureCubeTag> texture = mResourceManager.CreateTextureCube(desc);
+        textureAsset.Texture = texture;
+        textureAsset.BindlessIndex = Renderer::UploadTextureCube(texture.Get(), importedTexture.Data);
+
+        auto result = mTextureCubeAssets.emplace(pathStr, std::move(textureAsset));
         return &result.first->second;
     }
 

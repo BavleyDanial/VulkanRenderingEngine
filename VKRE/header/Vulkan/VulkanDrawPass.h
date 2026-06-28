@@ -3,8 +3,12 @@
 #include <Vulkan/VulkanResourceCache.h>
 #include <Vulkan/VulkanDescriptors.h>
 
+#include <Renderer/RendererCommands.h>
+
 #include <glm/glm.hpp>
+#include <optional>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace VKRE {
 
@@ -12,17 +16,6 @@ namespace VKRE {
         std::vector<VkRenderingAttachmentInfo> colorAttachments;
         VkRenderingAttachmentInfo* depthAttachment = nullptr;
         VkRenderingAttachmentInfo* stencilAttachment = nullptr;
-    };
-
-    struct MeshDrawCommand {
-        GPUBufferHandle IndexBuffer;
-        uint32_t IndexCount;
-        uint32_t BaseIndex;
-        uint32_t BaseVertex;
-        uint64_t VertexBufferAddress;
-        glm::mat4 Transform;
-        glm::mat4 ViewProjection;
-        int32_t TextureIndex = -1;
     };
 
     class VulkanDrawPass {
@@ -33,12 +26,18 @@ namespace VKRE {
         void SetActive(bool enabled) { mIsActive = enabled; }
         bool IsActive() const { return mIsActive; }
 
-        void SubmitDraw(const MeshDrawCommand& command);
+        void SetColorLoadOp(VkAttachmentLoadOp op) { mColorLoadOp = op; }
+        VkAttachmentLoadOp GetColorLoadOp() const { return mColorLoadOp; }
+        void SetDepthLoadOp(VkAttachmentLoadOp op) { mDepthLoadOp = op; }
+        VkAttachmentLoadOp GetDepthLoadOp() const { return mDepthLoadOp; }
+
+        void SubmitMeshDraw(const MeshDrawCommand& command);
+        void SubmitSkyboxDraw(const SkyboxDrawCommand& command);
         VkPipelineLayout GetPipelineLayout() const { return mPipeline->layout; }
 
         void ReBuild(VkDescriptorSet newDescriptorSet);
         void Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo,
-                    VkDescriptorSet sceneSet, VkDescriptorSet bindlessSet);
+                    VkDescriptorSet sceneSet, VkDescriptorSet bindlessTexture2DSet, VkDescriptorSet bindlessTextureCubeSet);
     private:
         VkDevice mDevice;
         VulkanResourceCache& mCache;
@@ -47,7 +46,11 @@ namespace VKRE {
         VkDescriptorSet mDescriptorSet;
         VkShaderStageFlags mPushConstantsShaderStages;
         std::vector<MeshDrawCommand> mDrawCommands;
+        std::optional<SkyboxDrawCommand> mSkyboxCommand;
+
         bool mIsActive = true;
+        VkAttachmentLoadOp mColorLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        VkAttachmentLoadOp mDepthLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     };
 
 }

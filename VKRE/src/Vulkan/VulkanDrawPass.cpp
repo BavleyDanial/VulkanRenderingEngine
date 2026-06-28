@@ -1,6 +1,5 @@
+#include "Renderer/RendererCommands.h"
 #include <Vulkan/VulkanDrawPass.h>
-
-#include "Renderer/Renderer.h"
 
 namespace VKRE {
 
@@ -10,7 +9,7 @@ namespace VKRE {
         mDescriptorSet(descriptorSet), mPushConstantsShaderStages(pushConstantsShaderStages) {}
 
     void VulkanDrawPass::Execute(VkCommandBuffer cmd, VkExtent2D extent, const RenderTargetInfo& targetInfo,
-                                    VkDescriptorSet sceneSet, VkDescriptorSet bindlessSet) {
+                                    VkDescriptorSet sceneSet, VkDescriptorSet bindlessTexture2DSet, VkDescriptorSet bindlessTextureCubeSet) {
         if (!mPipeline || !mIsActive) return;
 
         VkRenderingInfo info{};
@@ -30,8 +29,10 @@ namespace VKRE {
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 0, 1, &mDescriptorSet, 0, nullptr);
         if (sceneSet != VK_NULL_HANDLE)
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 1, 1, &sceneSet, 0, nullptr);
-        if (bindlessSet != VK_NULL_HANDLE)
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 2, 1, &bindlessSet, 0, nullptr);
+        if (bindlessTexture2DSet != VK_NULL_HANDLE)
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 2, 1, &bindlessTexture2DSet, 0, nullptr);
+        if (bindlessTextureCubeSet != VK_NULL_HANDLE)
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline->layout, 3, 1, &bindlessTextureCubeSet, 0, nullptr);
 
         VkViewport viewport{};
         viewport.x = 0.0f;
@@ -53,7 +54,7 @@ namespace VKRE {
             DrawPushConstants pushConstants{};
             pushConstants.VertexBufferAddress = draw.VertexBufferAddress;
             pushConstants.Transform = draw.Transform;
-            pushConstants.TextureIndex = draw.TextureIndex;
+            pushConstants.Texture2DIndex = draw.TextureIndex;
             vkCmdPushConstants(cmd, mPipeline->layout, mPushConstantsShaderStages, 0, sizeof(DrawPushConstants), &pushConstants);
 
             VkBuffer ib = mCache.GetBufferData(draw.IndexBuffer)->buffer;
@@ -65,12 +66,23 @@ namespace VKRE {
             vkCmdDrawIndexed(cmd, draw.IndexCount, 1, draw.BaseIndex, draw.BaseVertex, 0);
         }
 
+        if (mSkyboxCommand.has_value()) {
+            const SkyboxPushConstants& pushConstants = mSkyboxCommand.value().PushConstants;
+            vkCmdPushConstants(cmd, mPipeline->layout, mPushConstantsShaderStages, 0, sizeof(SkyboxPushConstants), &pushConstants);
+            vkCmdDraw(cmd, 36, 1, 0, 0);
+        }
+
         vkCmdEndRendering(cmd);
         mDrawCommands.clear();
+        mSkyboxCommand.reset();
     }
 
-    void VulkanDrawPass::SubmitDraw(const MeshDrawCommand& command) {
+    void VulkanDrawPass::SubmitMeshDraw(const MeshDrawCommand& command) {
         mDrawCommands.push_back(command);
+    }
+
+    void VulkanDrawPass::SubmitSkyboxDraw(const SkyboxDrawCommand& command) {
+        mSkyboxCommand = command;
     }
 
     void VulkanDrawPass::ReBuild(VkDescriptorSet newDescriptorSet) {

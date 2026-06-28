@@ -48,12 +48,14 @@ namespace VKRE {
             GPUBufferUtils::ReleaseBuffer(mContext, &buffer);
         mResourceCache->DestroyAll();
 
-        mGlobalDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
-        mBindlessDescriptorAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
+        mGlobalAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
+        mBindlessTexture2DAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
+        mBindlessTextureCubeAllocator.DestroyPool(mContext.GetLogicalDevice().handle);
 
-        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout, nullptr);
+        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mDrawImageLayout, nullptr);
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mSceneLayout, nullptr);
         vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mBindlessTexture2DLayout, nullptr);
+        vkDestroyDescriptorSetLayout(mContext.GetLogicalDevice().handle, mBindlessTextureCubeLayout, nullptr);
 
         vkDestroySampler(mContext.GetLogicalDevice().handle, mDefaultSampler, nullptr);
     }
@@ -76,7 +78,7 @@ namespace VKRE {
         mUploader->End();
 
         VulkanImageData* textureData = mResourceCache->GetImageData2D(handle);
-        return mBindlessDescriptorAllocator.RegisterImage(
+        return mBindlessTexture2DAllocator.RegisterImage(
             mContext.GetLogicalDevice().handle,
             mBindlessTexture2DSet,
             textureData->imageView,
@@ -84,7 +86,20 @@ namespace VKRE {
         );
     }
 
-    int32_t VulkanRenderer::UploadTextureCube(TextureCubeHandle handle, const std::array<std::vector<std::byte>, 6>& pixels) {
+    int32_t VulkanRenderer::UploadTextureCube(TextureCubeHandle handle, const std::array<std::vector<std::byte>, 6>& faces) {
+        mResourceCache->AllocateImageCube(handle);
+
+        mUploader->Begin();
+        mUploader->UploadTextureCube(handle, faces);
+        mUploader->End();
+
+        VulkanImageData* textureData = mResourceCache->GetImageDataCube(handle);
+        return mBindlessTextureCubeAllocator.RegisterImage(
+            mContext.GetLogicalDevice().handle,
+            mBindlessTextureCubeSet,
+            textureData->imageView,
+            mDefaultSampler
+        );
     }
 
     void VulkanRenderer::UploadSceneData(const SceneUBO& sceneData) {
@@ -124,9 +139,10 @@ namespace VKRE {
 
         VulkanPipelineLayoutKey layoutKey {
             .descriptorSetLayouts = {
-                mDrawImageDescriptorLayout,
+                mDrawImageLayout,
                 mSceneLayout,
                 mBindlessTexture2DLayout,
+                mBindlessTextureCubeLayout,
             },
             .pushConstantRanges = desc.pushConstantRanges
         };
@@ -144,9 +160,10 @@ namespace VKRE {
         pipelineKey.colorAttachmentFromats = desc.colorAttachmentFormats;
         pipelineKey.depthAttachmentFormat = desc.depthAttachmentFormat;
         pipelineKey.stencilAttachmentFormat = desc.stencilAttachmentFormat;
-        pipelineKey.depthTestEnable = VK_TRUE;
-        pipelineKey.depthWriteEnable = VK_TRUE;
-        pipelineKey.depthCompareOp = VK_COMPARE_OP_LESS;
+        pipelineKey.depthTestEnable = desc.depthTestEnable;
+        pipelineKey.depthWriteEnable = desc.depthWriteEnable;
+        pipelineKey.depthCompareOp = desc.depthCompareOp;
+        pipelineKey.cullMode = desc.cullMode;
 
         if (!mResourceCache->CreateGraphicsPipeline(pipelineKey)) {
             std::println("VulkanRenderer::AddDrawPass Failed to create or retreive pipeline");
@@ -157,7 +174,9 @@ namespace VKRE {
         for (const auto& stage : desc.pushConstantRanges)
             pushConstantsShaderStages |= stage.stageFlags;
 
-        mDrawPasses.emplace_back(mContext.GetLogicalDevice().handle, *mResourceCache, pipelineKey, mDrawImageDescriptors, pushConstantsShaderStages);
+        mDrawPasses.emplace_back(mContext.GetLogicalDevice().handle, *mResourceCache, pipelineKey, mDrawImageSet, pushConstantsShaderStages);
+        mDrawPasses.back().SetColorLoadOp(desc.colorLoadOp);
+        mDrawPasses.back().SetDepthLoadOp(desc.depthLoadOp);
         return static_cast<DrawPassHandle>(mDrawPasses.size() - 1);
     }
 
@@ -166,7 +185,15 @@ namespace VKRE {
             std::println("VulkanRenderer::SubmitMeshDraw Invalid draw pass handle");
             return;
         }
-        mDrawPasses[handle].SubmitDraw(cmd);
+        mDrawPasses[handle].SubmitMeshDraw(cmd);
+    }
+
+    void VulkanRenderer::SubmitSkyboxDraw(DrawPassHandle handle, const SkyboxDrawCommand& cmd) {
+        if (handle == INVALID_DRAW_PASS || handle >= mDrawPasses.size()) {
+            std::println("VulkanRenderer::SubmitSkyboxDraw Invalid draw pass handle");
+            return;
+        }
+        mDrawPasses[handle].SubmitSkyboxDraw(cmd);
     }
 
     ComputePassHandle VulkanRenderer::AddComputePass(const ComputePassDesc& desc) {
@@ -181,7 +208,7 @@ namespace VKRE {
         }
 
         VulkanPipelineLayoutKey layoutKey {
-            .descriptorSetLayouts = { mDrawImageDescriptorLayout },
+            .descriptorSetLayouts = { mDrawImageLayout },
             .pushConstantRanges = desc.pushConstantRanges
         };
 
@@ -197,7 +224,7 @@ namespace VKRE {
             return INVALID_COMPUTE_PASS;
         }
 
-        mComputePasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageDescriptors, glm::vec3(desc.workgroupX, desc.workgroupY, desc.workgroupZ));
+        mComputePasses.emplace_back(*mResourceCache, pipelineKey, mDrawImageSet, glm::vec3(desc.workgroupX, desc.workgroupY, desc.workgroupZ));
         return static_cast<ComputePassHandle>(mComputePasses.size() - 1);
     }
 
@@ -248,15 +275,15 @@ namespace VKRE {
     }
 
     void VulkanRenderer::ReCreateDrawImage() {
-        mGlobalDescriptorAllocator.ClearPools(mContext.GetLogicalDevice().handle);
+        mGlobalAllocator.ClearPools(mContext.GetLogicalDevice().handle);
         CreateDrawImage();
         InitDrawImageDescriptor();
 
         for (auto& pass : mComputePasses)
-            pass.ReBuild(mDrawImageDescriptors);
+            pass.ReBuild(mDrawImageSet);
 
         for (auto& pass : mDrawPasses)
-            pass.ReBuild(mDrawImageDescriptors);
+            pass.ReBuild(mDrawImageSet);
     }
 
     void VulkanRenderer::InitPasses() {
@@ -269,16 +296,15 @@ namespace VKRE {
         };
 
         VkDevice device = mContext.GetLogicalDevice().handle;
-        mGlobalDescriptorAllocator.InitPool(device, 10, poolSizes);
-        mBindlessDescriptorAllocator.InitPool(device, 8192);
+        mGlobalAllocator.InitPool(device, 10, poolSizes);
 
-        {   // Compute Descriptor Set
+        {   // Compute Descriptor Set 0
             VulkanDescriptorLayoutBuilder layoutBuilder;
             layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 0);
-            mDrawImageDescriptorLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_COMPUTE_BIT);
+            mDrawImageLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_COMPUTE_BIT);
         }
 
-        {   // Per-Scene Uniform Buffers Descriptor Set
+        {   // Per-Scene Uniform Buffers Descriptor Set 1
             VulkanDescriptorLayoutBuilder layoutBuilder;
             layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0);
             mSceneLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -293,24 +319,38 @@ namespace VKRE {
         bindingFlagsInfo.bindingCount = 1;
         bindingFlagsInfo.pBindingFlags = &bindingFlags;
 
-        VulkanDescriptorLayoutBuilder layoutBuilder;
-        layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, 8192);
-        mBindlessTexture2DLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT,
-                &bindingFlagsInfo,
-                VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
+        {   // Texture2D Descriptor Set 2
+            VulkanDescriptorLayoutBuilder layoutBuilder;
+            layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, 8192);
+            mBindlessTexture2DLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT,
+                    &bindingFlagsInfo,
+                    VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
 
-        mBindlessTexture2DSet = mBindlessDescriptorAllocator.Allocate(device, mBindlessTexture2DLayout);
+            mBindlessTexture2DAllocator.InitPool(device, 8192);
+            mBindlessTexture2DSet = mBindlessTexture2DAllocator.Allocate(device, mBindlessTexture2DLayout);
+        }
+
+        {   // TextureCube Descriptor Set 3
+            VulkanDescriptorLayoutBuilder layoutBuilder;
+            layoutBuilder.AddBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, 512);
+            mBindlessTextureCubeLayout = layoutBuilder.Build(device, VK_SHADER_STAGE_FRAGMENT_BIT,
+                    &bindingFlagsInfo,
+                    VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
+
+            mBindlessTextureCubeAllocator.InitPool(device, 512);
+            mBindlessTextureCubeSet = mBindlessTextureCubeAllocator.Allocate(device, mBindlessTextureCubeLayout);
+        }
 
         InitDrawImageDescriptor();
     }
 
     void VulkanRenderer::InitDrawImageDescriptor() {
-        mDrawImageDescriptors = mGlobalDescriptorAllocator.Allocate(mContext.GetLogicalDevice().handle, mDrawImageDescriptorLayout);
+        mDrawImageSet = mGlobalAllocator.Allocate(mContext.GetLogicalDevice().handle, mDrawImageLayout);
 
         VulkanDescriptorWriter writer;
         writer.WriteImage(0, mDrawImage->imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-        writer.UpdateSet(mContext.GetLogicalDevice().handle, mDrawImageDescriptors);
+        writer.UpdateSet(mContext.GetLogicalDevice().handle, mDrawImageSet);
     }
 
     void VulkanRenderer::CreateSceneUniformBuffers() {
@@ -384,24 +424,34 @@ namespace VKRE {
         VkClearValue clearDepthValue{};
         clearDepthValue.depthStencil = {1.0, 0};
 
-        VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(mDrawImage->imageView, &clearValue , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        VkRenderingAttachmentInfo depthAttachment{};
-        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        depthAttachment.imageView = mDepthImage->imageView;
-        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.clearValue.depthStencil = clearDepthValue.depthStencil;
-
         ImageUtils::TransitionImage(cmd, mDepthImage->image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-        RenderTargetInfo targetInfo{};
-        targetInfo.colorAttachments = { colorAttachment };
-        targetInfo.depthAttachment = &depthAttachment;
-
         for (auto& pass : mDrawPasses) {
-            if (pass.IsActive())
-                pass.Execute(cmd, drawImageExtent, targetInfo, mCurrentSceneSet, mBindlessTexture2DSet);
+            if (!pass.IsActive())
+                continue;
+
+            VkRenderingAttachmentInfo colorAttachment = VulkanUtils::AttatchmentInfo(
+                mDrawImage->imageView,
+                pass.GetColorLoadOp() == VK_ATTACHMENT_LOAD_OP_CLEAR ? &clearValue : nullptr,
+                VK_ATTACHMENT_STORE_OP_STORE,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            );
+
+            // TODO: Change this to use the same function as above
+            VkRenderingAttachmentInfo depthAttachment{};
+            depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+            depthAttachment.imageView = mDepthImage->imageView;
+            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+            depthAttachment.loadOp = pass.GetDepthLoadOp();
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            depthAttachment.clearValue.depthStencil = clearDepthValue.depthStencil;
+
+            RenderTargetInfo targetInfo{};
+            targetInfo.colorAttachments = { colorAttachment };
+            targetInfo.depthAttachment = &depthAttachment;
+
+            pass.Execute(cmd, drawImageExtent, targetInfo,
+                        mCurrentSceneSet, mBindlessTexture2DSet, mBindlessTextureCubeSet);
         }
 
         ImageUtils::TransitionImage(cmd, mDrawImage->image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);

@@ -11,7 +11,7 @@ namespace VKRE {
 
     struct TextureImportOptions {
         bool GenerateMipMaps = false;
-        bool FlipVertically = true;
+        bool FlipVertically = false;
         bool IsLinear = false;
     };
 
