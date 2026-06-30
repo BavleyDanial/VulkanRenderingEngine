@@ -133,12 +133,15 @@ virtual void OnUIRender() {
 <!-- ROADMAP -->
 ## Roadmap
 
-- [ ] Add Blinn-Phong Specular Model
-- [ ] Add Textures
-- [ ] Add Materials
+- [x] Add Textures
+- [x] Add Cubemaps/Skyboxes
+- [ ] Add Materials - In Progress
+- [ ] Add Blinn-Phong Specular Model - In Progress
+- [ ] Add PBR lighting - Soon
 - [ ] Use Slang instead of GLSL
 - [ ] Add Render Graph
   - [ ] Add Deffered Rendering
+- [ ] Add a proper Editor
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
