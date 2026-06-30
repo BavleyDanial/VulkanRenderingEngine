@@ -1,7 +1,9 @@
 build/
 bin/
 .cache/
+
 assets/models
+assets/textures
 
 imgui.ini
 .DS_Store

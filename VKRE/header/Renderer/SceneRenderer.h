@@ -36,7 +36,8 @@ namespace VKRE {
         glm::mat4 mCachedProjMat;
 
         DrawPassHandle mDrawPass;
-        DrawPassHandle mSkyboxPass;
+        DrawPassHandle mSkyboxLDRPass;
+        DrawPassHandle mSkyboxHDRPass;
         uint32_t mDrawCalls;
     };
 

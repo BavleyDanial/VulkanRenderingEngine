@@ -18,7 +18,8 @@ namespace VKRE {
 
     SceneRenderer::SceneRenderer() {
         const ShaderAsset* basicShader = AssetManager::LoadShader("res/shaders/basic.glsl");
-        const ShaderAsset* skyboxShader = AssetManager::LoadShader("res/shaders/skybox.glsl");
+        const ShaderAsset* skyboxLDRShader = AssetManager::LoadShader("res/shaders/skybox.glsl");
+        const ShaderAsset* skyboxHDRShader = AssetManager::LoadShader("res/shaders/skybox_hdr.glsl");
 
         mDrawPass = Renderer::AddDrawPass({
             .VertexShader = basicShader->VertexShader.Get(),
@@ -33,10 +34,25 @@ namespace VKRE {
             .cullMode = VK_CULL_MODE_NONE,
         });
 
-        mSkyboxPass = Renderer::AddDrawPass({
-            .VertexShader = skyboxShader->VertexShader.Get(),
-            .FragmentShader = skyboxShader->FragmentShader.Get(),
-            .debugName = "Skybox Pass",
+        mSkyboxLDRPass = Renderer::AddDrawPass({
+            .VertexShader = skyboxLDRShader->VertexShader.Get(),
+            .FragmentShader = skyboxLDRShader->FragmentShader.Get(),
+            .debugName = "Skybox LDR Pass",
+            .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DrawPushConstants)} },
+            .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
+            .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
+            .depthTestEnable = true,
+            .depthWriteEnable = false,
+            .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+            .cullMode = VK_CULL_MODE_NONE,
+            .colorLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+            .depthLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+        });
+
+        mSkyboxHDRPass = Renderer::AddDrawPass({
+            .VertexShader = skyboxHDRShader->VertexShader.Get(),
+            .FragmentShader = skyboxHDRShader->FragmentShader.Get(),
+            .debugName = "Skybox HDR Pass",
             .pushConstantRanges = { { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DrawPushConstants)} },
             .colorAttachmentFormats = { VK_FORMAT_R16G16B16A16_SFLOAT },
             .depthAttachmentFormat = VK_FORMAT_D32_SFLOAT,
@@ -133,7 +149,12 @@ namespace VKRE {
 
         SkyboxDrawCommand cmd;
         cmd.PushConstants = pushConstants;
-        Renderer::SubmitSkyboxDraw(mSkyboxPass, cmd);
+
+        // TODO: instead of branching every time we render a skybox, make it so that we remove the drawpass if the new skybox set is different from the current one and add the new drawpass
+        if (mSkybox->Format == TextureFormat::R16G16B16A16_SFLOAT || mSkybox->Format == TextureFormat::R32G32B32A32_SFLOAT)
+            Renderer::SubmitSkyboxDraw(mSkyboxHDRPass, cmd);
+        else
+            Renderer::SubmitSkyboxDraw(mSkyboxLDRPass, cmd);
     }
 
 }

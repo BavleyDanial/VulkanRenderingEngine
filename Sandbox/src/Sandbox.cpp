@@ -29,14 +29,7 @@ void SandboxLayer::OnAttach() {
 
     mSun = mScene->AddEntity("Sun");
     mSun.Add<DirectionalLightComponent>({});
-    const TextureCubeAsset* skyboxTexture = AssetManager::LoadTextureCube({
-        "assets/textures/Yokohama2/posx.jpg",
-        "assets/textures/Yokohama2/negx.jpg",
-        "assets/textures/Yokohama2/posy.jpg",
-        "assets/textures/Yokohama2/negy.jpg",
-        "assets/textures/Yokohama2/posz.jpg",
-        "assets/textures/Yokohama2/negz.jpg",
-    });
+    const TextureCubeAsset* skyboxTexture = AssetManager::LoadTextureCube("assets/textures/StandardCubeMap.hdr");
     mSceneRenderer.SetSkybox(skyboxTexture);
 }
 

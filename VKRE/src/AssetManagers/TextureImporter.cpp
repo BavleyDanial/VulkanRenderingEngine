@@ -1,9 +1,9 @@
 #include <AssetsManagers/TextureImporter.h>
-#include <optional>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
+#include <optional>
 #include <print>
 
 namespace VKRE {
@@ -24,6 +24,11 @@ namespace VKRE {
         Texture2DImportResults results{};
         if (!stbi_is_hdr(path.string().c_str())) {
             stbi_uc* pixels = stbi_load(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+            if (!pixels) {
+                std::println("TextureImporter::LoadFromFile couldn't load Texture (path={}) (reasnon={})",
+                                path.string(), stbi_failure_reason());
+                return std::nullopt;
+            }
 
             uint64_t dataSize = width * height * 4 * sizeof(stbi_uc);
             results.Data.resize(dataSize);
@@ -33,6 +38,8 @@ namespace VKRE {
             stbi_image_free(pixels);
         } else {
             float* pixels = stbi_loadf(path.string().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+            if (!pixels)
+                std::println("{}", stbi_failure_reason());
 
             uint64_t dataSize = width * height * 4 * sizeof(float);
             results.Data.resize(dataSize);
@@ -67,7 +74,7 @@ namespace VKRE {
         for (const auto& path : paths) {
             std::optional<Texture2DImportResults> face = TextureImporter::LoadTexture2DFromFile(path, crossOptions);
             if (!face.has_value()) {
-                std::println("TextureImporter::LoadTextureCubeFromFile failed to load face {}", path.string());
+                std::println("TextureImporter::LoadTextureCubeFromFile failed to load face (path={})", path.string());
                 return std::nullopt;
             }
 
@@ -76,7 +83,7 @@ namespace VKRE {
                 results.Height = face->Height;
                 results.Format = face->Format;
             } else if (face->Width != results.Width || face->Height != results.Height || face->Format != results.Format) {
-                std::println("TextureImporter::LoadTextureCubeFromFile face {} doesn't have same dimensions/fomrat of previous faces", i);
+                std::println("TextureImporter::LoadTextureCubeFromFile face (path={}) doesn't have same dimensions/fomrat of previous faces", i);
                 return std::nullopt;
             }
 
@@ -95,18 +102,20 @@ namespace VKRE {
 
         std::optional<Texture2DImportResults> cross = LoadTexture2DFromFile(path, crossOptions);
         if (!cross.has_value()) {
-            std::println("TextureImporter::LoadCubeFromCross failed to load '{}'", path.string());
+            std::println("TextureImporter::LoadCubeFromCross failed to load (path={})", path.string());
             return std::nullopt;
         }
 
         if (cross->Width % 4 != 0 || cross->Height % 3 != 0) {
-            std::println("TextureImporter::LoadCubeFromCross '{}' dimensions ({}x{}) aren't divisible into a 4x3 cross", path.string(), cross->Width, cross->Height);
+            std::println("TextureImporter::LoadCubeFromCross dimensions ({}x{}) aren't divisible into a 4x3 cross, (path={})",
+                            cross->Width, cross->Height, path.string());
             return std::nullopt;
         }
 
         uint32_t faceSize = cross->Width / 4;
         if (faceSize != cross->Height / 3) {
-            std::println("TextureImporter::LoadCubeFromCross '{}' face cells aren't square ({} vs {})", path.string(), faceSize, cross->Height / 3);
+            std::println("TextureImporter::LoadCubeFromCross face cells aren't square ({} vs {}) (path={})",
+                            faceSize, cross->Height / 3, path.string());
             return std::nullopt;
         }
 
