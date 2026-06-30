@@ -91,7 +91,7 @@ Creating a new Entity:
         mTest.Add<StaticMeshComponent>({ testMesh });
         mTest.Add<TransformComponent>({ .Position = glm::vec3(0.0f, 0.0f, 50.0f), .Rotation = glm::vec3(-90.0f, 0.0f, 0.0f) });
         
-        // All Entities have TransformComponent by default so you can opt to not do mTets.Add<TransformComponent>
+        // All Entities have TransformComponent by default so you can opt to not do mTest.Add<TransformComponent>
         // But it still is useful if you want to define a default location, rotation, scale as it overrides previous components
     }
     
@@ -115,7 +115,7 @@ virtual void OnUIRender() {
     }
     ImGui::End();
 
-    // This is currently the way to get entities of specific transforms, in the future there will be an API for that
+    // This is currently the way to get entities of specific transforms, in the future, there will be an API for that
     mScene->GetFlecsWorld().each([&](flecs::entity e, TransformComponent& transform) {
         if (ImGui::Begin(e.name())) {
             ImGui::PushID(static_cast<uint32_t>(e.id()));
